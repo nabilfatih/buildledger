@@ -1,0 +1,79 @@
+import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
+import { Schema } from "effect";
+
+import { AppError } from "./errors";
+import {
+  AiRunEvents,
+  AiRuns,
+  MeetingInputs,
+  Meetings,
+  MinuteItems,
+  MinuteSections,
+} from "./tables/core";
+
+export const meetings = GroupSpec.make("meetings")
+  .addFunction(
+    FunctionSpec.publicQuery({
+      name: "listByProject",
+      args: Schema.Struct({ projectId: GenericId.GenericId("projects") }),
+      returns: Schema.Array(Meetings.Doc),
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicMutation({
+      name: "createDraft",
+      args: Schema.Struct({
+        projectId: GenericId.GenericId("projects"),
+        title: Schema.String,
+        meetingType: Schema.String,
+        meetingDate: Schema.String,
+        agenda: Schema.optional(Schema.String),
+      }),
+      returns: GenericId.GenericId("meetings"),
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicMutation({
+      name: "addInput",
+      args: Schema.Struct({
+        meetingId: GenericId.GenericId("meetings"),
+        kind: Schema.Literal("notes", "transcript"),
+        text: Schema.String,
+      }),
+      returns: GenericId.GenericId("meetingInputs"),
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicMutation({
+      name: "startGeneration",
+      args: Schema.Struct({ meetingId: GenericId.GenericId("meetings") }),
+      returns: GenericId.GenericId("aiRuns"),
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicQuery({
+      name: "getReviewState",
+      args: Schema.Struct({ meetingId: GenericId.GenericId("meetings") }),
+      returns: Schema.Struct({
+        meeting: Meetings.Doc,
+        inputs: Schema.Array(MeetingInputs.Doc),
+        sections: Schema.Array(MinuteSections.Doc),
+        items: Schema.Array(MinuteItems.Doc),
+        aiRuns: Schema.Array(AiRuns.Doc),
+        aiRunEvents: Schema.Array(AiRunEvents.Doc),
+      }),
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicMutation({
+      name: "publishMinutes",
+      args: Schema.Struct({ meetingId: GenericId.GenericId("meetings") }),
+      returns: Schema.Null,
+      error: AppError,
+    })
+  );

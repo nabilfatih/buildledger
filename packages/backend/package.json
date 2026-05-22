@@ -1,0 +1,33 @@
+{
+  "name": "@repo/backend",
+  "version": "0.1.0",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    "./convex/_generated/api": "./convex/_generated/api.js",
+    "./confect/_generated/refs": "./confect/_generated/refs.ts"
+  },
+  "scripts": {
+    "dev": "confect dev & convex dev --tail-logs",
+    "codegen": "confect codegen",
+    "convex:dev": "convex dev --tail-logs",
+    "typecheck": "tsc --noEmit --emitDeclarationOnly false",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@confect/cli": "8.0.0",
+    "@confect/core": "8.0.0",
+    "@confect/react": "8.0.0",
+    "@confect/server": "8.0.0",
+    "@repo/ai": "workspace:*",
+    "convex": "1.39.1",
+    "effect": "3.21.2",
+    "nanoid": "5.1.6"
+  },
+  "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
+    "typescript": "6.0.3",
+    "vitest": "4.1.7"
+  }
+}

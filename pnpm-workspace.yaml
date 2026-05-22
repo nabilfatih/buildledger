@@ -1,0 +1,13 @@
+packages:
+  - apps/*
+  - packages/*
+
+overrides:
+  ws: 8.20.1
+
+allowBuilds:
+  '@parcel/watcher': true
+  '@swc/core': true
+  esbuild: true
+  msgpackr-extract: true
+  sharp: true

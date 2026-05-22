@@ -1,0 +1,8 @@
+{
+  "extends": "@repo/typescript-config/react.json",
+  "include": ["src"],
+  "compilerOptions": {
+    "exactOptionalPropertyTypes": false,
+    "noEmit": true
+  }
+}

@@ -1,0 +1,4 @@
+@import "@repo/design-system/styles.css";
+
+@source "./**/*.{ts,tsx}";
+@source "../../../packages/design-system/src/**/*.{ts,tsx}";
