@@ -1,8 +1,7 @@
 import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
+import { AppError } from "@repo/backend/confect/errors";
+import { Projects } from "@repo/backend/confect/tables/core";
 import { Schema } from "effect";
-
-import { AppError } from "./errors";
-import { Projects } from "./tables/core";
 
 export const projects = GroupSpec.make("projects")
   .addFunction(

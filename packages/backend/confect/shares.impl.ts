@@ -1,16 +1,18 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
-import { Effect, Layer } from "effect";
-import { nanoid } from "nanoid";
-
-import api from "./_generated/api";
-import { DatabaseReader, DatabaseWriter } from "./_generated/services";
+import api from "@repo/backend/confect/_generated/api";
+import {
+  DatabaseReader,
+  DatabaseWriter,
+} from "@repo/backend/confect/_generated/services";
 import {
   InternalFailure,
   InvalidShareTarget,
   ShareLinkExpired,
   ShareTargetNotFound,
-} from "./errors";
-import { asAppError, ensureProjectAccess } from "./helpers";
+} from "@repo/backend/confect/errors";
+import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
+import { Effect, Layer } from "effect";
+import { nanoid } from "nanoid";
 
 /** Encodes bytes as lowercase hex for stable token lookup. */
 function bytesToHex(bytes: Uint8Array) {

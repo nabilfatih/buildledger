@@ -1,4 +1,4 @@
-import { cn } from "../../../lib/utils";
+import { cn } from "@repo/design-system/lib/utils";
 import * as React from "react";
 
 export type DotVariant = "default" | "border" | "colored-border";

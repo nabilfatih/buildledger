@@ -1,13 +1,12 @@
-import { expectDefined } from "@repo/testing";
-import { Effect, Layer } from "effect";
-import { describe, expect, it } from "vitest";
-
 import {
   MemoryChunkingService,
   MinutesExtractionService,
   ProjectQuestionAnsweringService,
   ReportGenerationService,
-} from "../src/services";
+} from "@repo/ai/services";
+import { expectDefined } from "@repo/testing";
+import { Effect, Layer } from "effect";
+import { describe, expect, it } from "vitest";
 
 const liveServices = Layer.mergeAll(
   MinutesExtractionService.Default,

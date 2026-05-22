@@ -20,7 +20,7 @@ import type { GenericId } from "convex/values";
 import { Check, FileText, Play } from "lucide-react";
 import { useState } from "react";
 
-import type { MeetingsResult, ReviewResult } from "../lib/confect-results";
+import type { MeetingsResult, ReviewResult } from "@/lib/confect-results";
 
 /** Coordinates meeting input, AI generation, review, and publication. */
 export function MeetingWorkspace({

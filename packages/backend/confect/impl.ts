@@ -1,13 +1,12 @@
 import { Impl } from "@confect/server";
+import api from "@repo/backend/confect/_generated/api";
+import { ai } from "@repo/backend/confect/ai.impl";
+import { meetings } from "@repo/backend/confect/meetings.impl";
+import { memory } from "@repo/backend/confect/memory.impl";
+import { projects } from "@repo/backend/confect/projects.impl";
+import { reports } from "@repo/backend/confect/reports.impl";
+import { shares } from "@repo/backend/confect/shares.impl";
 import { Layer } from "effect";
-
-import api from "./_generated/api";
-import { ai } from "./ai.impl";
-import { meetings } from "./meetings.impl";
-import { memory } from "./memory.impl";
-import { projects } from "./projects.impl";
-import { reports } from "./reports.impl";
-import { shares } from "./shares.impl";
 
 export default Impl.make(api).pipe(
   Layer.provide(ai),

@@ -1,7 +1,7 @@
 "use client";
 
 import * as RechartsPrimitive from "recharts";
-import { cn } from "../../../lib/utils";
+import { cn } from "@repo/design-system/lib/utils";
 import * as React from "react";
 
 // Format: { THEME_NAME: CSS_SELECTOR }
@@ -208,7 +208,7 @@ const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
     )
     .join("\n");
 
-  return <style dangerouslySetInnerHTML={{ __html: css }} />;
+  return <style>{css}</style>;
 };
 
 // Helper to extract item config from a payload.

@@ -1,10 +1,12 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
 import { ReportGenerationService } from "@repo/ai/services";
+import api from "@repo/backend/confect/_generated/api";
+import {
+  DatabaseReader,
+  DatabaseWriter,
+} from "@repo/backend/confect/_generated/services";
+import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
-
-import api from "./_generated/api";
-import { DatabaseReader, DatabaseWriter } from "./_generated/services";
-import { asAppError, ensureProjectAccess } from "./helpers";
 
 /** Lists generated report drafts and published reports for a project. */
 const listByProject = FunctionImpl.make(

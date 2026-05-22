@@ -1,7 +1,6 @@
 import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
+import { AppError } from "@repo/backend/confect/errors";
 import { Schema } from "effect";
-
-import { AppError } from "./errors";
 
 export const ai = GroupSpec.make("ai")
   .addFunction(

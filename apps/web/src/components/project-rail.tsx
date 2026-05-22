@@ -24,7 +24,7 @@ import type { GenericId } from "convex/values";
 import { Plus } from "lucide-react";
 import { type FormEvent, useState } from "react";
 
-import type { ProjectsResult } from "../lib/confect-results";
+import type { ProjectsResult } from "@/lib/confect-results";
 
 /** Creates projects and lists the current user's accessible projects. */
 export function ProjectRail({
@@ -46,10 +46,16 @@ export function ProjectRail({
   const [name, setName] = useState("Harbor Tower Phase 2");
   const [code, setCode] = useState("HT-02");
   const [isSaving, setIsSaving] = useState(false);
+  const canCreateProject = projects._tag === "Success";
 
   /** Creates a demo organization and project for the signed-in user. */
   async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!canCreateProject) {
+      setNotice("Sign in before creating projects.");
+      return;
+    }
+
     setIsSaving(true);
     setNotice(null);
 
@@ -75,6 +81,7 @@ export function ProjectRail({
         <Field>
           <FieldLabel>Organization project</FieldLabel>
           <Input
+            disabled={!canCreateProject}
             onChange={(event) => setName(event.target.value)}
             value={name}
           />
@@ -86,11 +93,12 @@ export function ProjectRail({
         <Field>
           <FieldLabel>Project code</FieldLabel>
           <Input
+            disabled={!canCreateProject}
             onChange={(event) => setCode(event.target.value)}
             value={code}
           />
         </Field>
-        <Button loading={isSaving} type="submit">
+        <Button disabled={!canCreateProject} loading={isSaving} type="submit">
           <Plus /> Create project
         </Button>
       </Form>

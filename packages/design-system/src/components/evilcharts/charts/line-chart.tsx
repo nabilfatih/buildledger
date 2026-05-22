@@ -6,7 +6,7 @@ import {
   getColorsCount,
   getLoadingData,
   LoadingIndicator,
-} from "../ui/chart";
+} from "@repo/design-system/components/evilcharts/ui/chart";
 import {
   CartesianGrid,
   Curve,
@@ -21,10 +21,10 @@ import {
   ChartTooltipContent,
   type TooltipRoundness,
   type TooltipVariant,
-} from "../ui/tooltip";
-import { EvilBrush, useEvilBrush, type EvilBrushRange } from "../ui/evil-brush";
-import { ChartLegend, ChartLegendContent, type ChartLegendVariant } from "../ui/legend";
-import { ChartDot, type DotVariant } from "../ui/dot";
+} from "@repo/design-system/components/evilcharts/ui/tooltip";
+import { EvilBrush, useEvilBrush, type EvilBrushRange } from "@repo/design-system/components/evilcharts/ui/evil-brush";
+import { ChartLegend, ChartLegendContent, type ChartLegendVariant } from "@repo/design-system/components/evilcharts/ui/legend";
+import { ChartDot, type DotVariant } from "@repo/design-system/components/evilcharts/ui/dot";
 import {
   Children,
   createContext,
@@ -849,7 +849,6 @@ export function useLoadingData(isLoading: boolean, loadingPoints: number = 14) {
   const loadingData = useMemo(
     () => getLoadingData(loadingPoints),
     // loadingDataKey toggle triggers re-computation when the shimmer exits
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [loadingPoints, loadingDataKey],
   );
 

@@ -1,11 +1,13 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
 import { ProjectQuestionAnsweringService } from "@repo/ai/services";
+import api from "@repo/backend/confect/_generated/api";
+import refs from "@repo/backend/confect/_generated/refs";
+import {
+  MutationRunner,
+  QueryRunner,
+} from "@repo/backend/confect/_generated/services";
+import { asAppError } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
-
-import api from "./_generated/api";
-import refs from "./_generated/refs";
-import { MutationRunner, QueryRunner } from "./_generated/services";
-import { asAppError } from "./helpers";
 
 /** Runs the minutes generation mutation from the action boundary. */
 const generateMinutes = FunctionImpl.make(

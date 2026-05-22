@@ -10,7 +10,7 @@ import {
 import { Brain } from "lucide-react";
 import { useMemo } from "react";
 
-import type { MemoryResult } from "../lib/confect-results";
+import type { MemoryResult } from "@/lib/confect-results";
 
 const demoTrend = [
   { week: "W18", openActions: 7, highRisks: 2, decisions: 3 },

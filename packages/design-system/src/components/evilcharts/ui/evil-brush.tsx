@@ -2,10 +2,10 @@
 
 import { motion, useMotionValue, useMotionValueEvent, useSpring, useTransform } from "motion/react";
 import { ResponsiveContainer, AreaChart, Area, LineChart, Line, BarChart, Bar } from "recharts";
-import { ChartStyle, getColorsCount, type ChartConfig } from "./chart";
+import { ChartStyle, getColorsCount, type ChartConfig } from "@repo/design-system/components/evilcharts/ui/chart";
 import { useCallback, useEffect, type ComponentProps } from "react";
 import type { MotionValue } from "motion/react";
-import { cn } from "../../../lib/utils";
+import { cn } from "@repo/design-system/lib/utils";
 import * as React from "react";
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -296,7 +296,6 @@ function EvilBrush({
   useEffect(() => {
     if (isControlled && !isDragging) {
       const syncedRange = { startIndex: controlledStart, endIndex: controlledEnd };
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setInternalRange(syncedRange);
       lastCommittedRef.current = syncedRange;
     }
@@ -661,7 +660,6 @@ function useEvilBrush<TData extends Record<string, unknown>>({
   const deferredRange = React.useDeferredValue(range);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setRange({
       startIndex: 0,
       endIndex: Math.max(0, data.length - 1),

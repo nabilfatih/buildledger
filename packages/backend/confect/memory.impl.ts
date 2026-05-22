@@ -1,9 +1,11 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
+import api from "@repo/backend/confect/_generated/api";
+import {
+  DatabaseReader,
+  DatabaseWriter,
+} from "@repo/backend/confect/_generated/services";
+import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
-
-import api from "./_generated/api";
-import { DatabaseReader, DatabaseWriter } from "./_generated/services";
-import { asAppError, ensureProjectAccess } from "./helpers";
 
 /** Returns action, decision, and risk timeline data for a project. */
 const timelineByProject = FunctionImpl.make(

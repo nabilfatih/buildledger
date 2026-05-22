@@ -18,7 +18,7 @@ import {
   Reports,
   Risks,
   ShareLinks,
-} from "./tables/core";
+} from "@repo/backend/confect/tables/core";
 
 export default DatabaseSchema.make()
   .addTable(Organizations)

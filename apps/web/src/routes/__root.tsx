@@ -8,8 +8,8 @@ import {
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { ConvexClientProvider } from "../lib/convex";
-import appCss from "../styles.css?url";
+import { ConvexClientProvider } from "@/lib/convex";
+import appCss from "@/styles.css?url";
 
 export const Route = createRootRoute({
   head: () => ({

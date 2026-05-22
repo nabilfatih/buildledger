@@ -6,16 +6,16 @@ import {
   getColorsCount,
   getLoadingData,
   LoadingIndicator,
-} from "../ui/chart";
-import { EvilBrush, useEvilBrush, type EvilBrushRange } from "../ui/evil-brush";
+} from "@repo/design-system/components/evilcharts/ui/chart";
+import { EvilBrush, useEvilBrush, type EvilBrushRange } from "@repo/design-system/components/evilcharts/ui/evil-brush";
 import {
   ChartTooltip,
   ChartTooltipContent,
   type TooltipRoundness,
   type TooltipVariant,
-} from "../ui/tooltip";
-import { ChartLegend, ChartLegendContent, type ChartLegendVariant } from "../ui/legend";
-import { ChartBackground, type BackgroundVariant } from "../ui/background";
+} from "@repo/design-system/components/evilcharts/ui/tooltip";
+import { ChartLegend, ChartLegendContent, type ChartLegendVariant } from "@repo/design-system/components/evilcharts/ui/legend";
+import { ChartBackground, type BackgroundVariant } from "@repo/design-system/components/evilcharts/ui/background";
 import {
   createContext,
   use,
@@ -1173,7 +1173,6 @@ export function useLoadingData(isLoading: boolean, loadingBars: number = 12) {
   const loadingData = useMemo(
     () => getLoadingData(loadingBars, 20, 80),
     // loadingDataKey toggle triggers re-computation when the shimmer exits
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [loadingBars, loadingDataKey],
   );
 

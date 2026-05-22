@@ -1,8 +1,7 @@
 import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
+import { AppError } from "@repo/backend/confect/errors";
+import { ShareLinks } from "@repo/backend/confect/tables/core";
 import { Schema } from "effect";
-
-import { AppError } from "./errors";
-import { ShareLinks } from "./tables/core";
 
 export const CreateReadOnlyLinkArgs = Schema.Struct({
   projectId: GenericId.GenericId("projects"),

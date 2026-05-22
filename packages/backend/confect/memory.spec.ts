@@ -1,8 +1,12 @@
 import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
+import { AppError } from "@repo/backend/confect/errors";
+import {
+  ActionItems,
+  Decisions,
+  MemoryChunks,
+  Risks,
+} from "@repo/backend/confect/tables/core";
 import { Schema } from "effect";
-
-import { AppError } from "./errors";
-import { ActionItems, Decisions, MemoryChunks, Risks } from "./tables/core";
 
 export const memory = GroupSpec.make("memory")
   .addFunction(

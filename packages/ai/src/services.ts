@@ -1,5 +1,3 @@
-import { Config, Effect } from "effect";
-
 import {
   AiGenerationFailed,
   EmptyMeetingInput,
@@ -7,7 +5,8 @@ import {
   type MinutesDraft,
   type ProjectAnswer,
   type ProjectReport,
-} from "./schemas";
+} from "@repo/ai/schemas";
+import { Config, Effect } from "effect";
 
 const modelConfig = Config.string("AI_MODEL").pipe(
   Config.withDefault("open-source-demo-model")

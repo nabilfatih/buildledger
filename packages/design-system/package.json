@@ -7,8 +7,11 @@
     ".": "./src/index.ts",
     "./styles.css": "./src/styles.css",
     "./components/*": "./src/components/*.tsx",
+    "./components/evilcharts/charts/*": "./src/components/evilcharts/charts/*.tsx",
+    "./components/evilcharts/ui/*": "./src/components/evilcharts/ui/*.tsx",
     "./components/ui/*": "./src/components/ui/*.tsx",
     "./charts/*": "./src/charts/*.tsx",
+    "./hooks/*": "./src/hooks/*.ts",
     "./lib/*": "./src/lib/*.ts"
   },
   "scripts": {

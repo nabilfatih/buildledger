@@ -1,7 +1,5 @@
 import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
-import { Schema } from "effect";
-
-import { AppError } from "./errors";
+import { AppError } from "@repo/backend/confect/errors";
 import {
   AiRunEvents,
   AiRuns,
@@ -9,7 +7,8 @@ import {
   Meetings,
   MinuteItems,
   MinuteSections,
-} from "./tables/core";
+} from "@repo/backend/confect/tables/core";
+import { Schema } from "effect";
 
 export const meetings = GroupSpec.make("meetings")
   .addFunction(

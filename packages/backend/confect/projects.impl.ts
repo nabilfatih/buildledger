@@ -1,9 +1,15 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
+import api from "@repo/backend/confect/_generated/api";
+import {
+  DatabaseReader,
+  DatabaseWriter,
+} from "@repo/backend/confect/_generated/services";
+import {
+  asAppError,
+  ensureProjectAccess,
+  getUserToken,
+} from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
-
-import api from "./_generated/api";
-import { DatabaseReader, DatabaseWriter } from "./_generated/services";
-import { asAppError, ensureProjectAccess, getUserToken } from "./helpers";
 
 /** Lists active projects for the authenticated user. */
 const listForCurrentUser = FunctionImpl.make(

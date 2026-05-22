@@ -1,10 +1,16 @@
+import {
+  Auth,
+  DatabaseReader,
+} from "@repo/backend/confect/_generated/services";
+import {
+  Forbidden,
+  normalizeAppError,
+  ProjectNotFound,
+} from "@repo/backend/confect/errors";
+import type schema from "@repo/backend/confect/schema";
 import type { GenericId } from "convex/values";
 import type { Effect as EffectType } from "effect";
 import { Effect } from "effect";
-
-import { Auth, DatabaseReader } from "./_generated/services";
-import { Forbidden, normalizeAppError, ProjectNotFound } from "./errors";
-import type schema from "./schema";
 
 type ProjectId = GenericId<"projects">;
 

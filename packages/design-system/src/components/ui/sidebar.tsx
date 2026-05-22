@@ -5,25 +5,25 @@ import { useRender } from "@base-ui/react/use-render";
 import { cva, type VariantProps } from "class-variance-authority";
 import { PanelLeftIcon } from "lucide-react";
 import * as React from "react";
-import { useMediaQuery } from "../../hooks/use-media-query";
-import { cn } from "../../lib/utils";
-import { Button } from "./button";
-import { Input } from "./input";
-import { ScrollArea } from "./scroll-area";
-import { Separator } from "./separator";
+import { useMediaQuery } from "@repo/design-system/hooks/use-media-query";
+import { cn } from "@repo/design-system/lib/utils";
+import { Button } from "@repo/design-system/components/ui/button";
+import { Input } from "@repo/design-system/components/ui/input";
+import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
+import { Separator } from "@repo/design-system/components/ui/separator";
 import {
   Sheet,
   SheetDescription,
   SheetHeader,
   SheetPopup,
   SheetTitle,
-} from "./sheet";
-import { Skeleton } from "./skeleton";
+} from "@repo/design-system/components/ui/sheet";
+import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import {
   Tooltip,
   TooltipPopup,
   TooltipTrigger,
-} from "./tooltip";
+} from "@repo/design-system/components/ui/tooltip";
 
 const SIDEBAR_COOKIE_NAME: string = "sidebar_state";
 const SIDEBAR_COOKIE_MAX_AGE: number = 60 * 60 * 24 * 7;

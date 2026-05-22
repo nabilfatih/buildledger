@@ -8,8 +8,8 @@ import {
   Tooltip,
   XAxis,
   YAxis,
-} from "../components/evilcharts/charts/line-chart";
-import type { ChartConfig } from "../components/evilcharts/ui/chart";
+} from "@repo/design-system/components/evilcharts/charts/line-chart";
+import type { ChartConfig } from "@repo/design-system/components/evilcharts/ui/chart";
 
 export interface MeetingTrendPoint extends Record<string, unknown> {
   readonly decisions: number;

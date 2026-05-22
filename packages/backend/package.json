@@ -5,8 +5,10 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "exports": {
-    "./convex/_generated/api": "./convex/_generated/api.js",
-    "./confect/_generated/refs": "./confect/_generated/refs.ts"
+    "./confect/*": "./confect/*.ts",
+    "./confect/_generated/*": "./confect/_generated/*.ts",
+    "./convex/*": "./convex/*.ts",
+    "./convex/_generated/api": "./convex/_generated/api.js"
   },
   "scripts": {
     "dev": "confect dev & convex dev --tail-logs",

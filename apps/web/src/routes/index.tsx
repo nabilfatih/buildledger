@@ -8,9 +8,9 @@ import type { GenericId } from "convex/values";
 import { RadioTower } from "lucide-react";
 import { useState } from "react";
 
-import { DashboardSummary } from "../components/dashboard-summary";
-import { MeetingWorkspace } from "../components/meeting-workspace";
-import { ProjectRail } from "../components/project-rail";
+import { DashboardSummary } from "@/components/dashboard-summary";
+import { MeetingWorkspace } from "@/components/meeting-workspace";
+import { ProjectRail } from "@/components/project-rail";
 
 export const Route = createFileRoute("/")({
   component: BuildLedgerHome,
