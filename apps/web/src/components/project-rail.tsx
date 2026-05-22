@@ -1,4 +1,5 @@
 import { QueryResult, useMutation } from "@confect/react";
+import { Add01Icon } from "@hugeicons/core-free-icons";
 import refs from "@repo/backend/confect/_generated/refs";
 import {
   Badge,
@@ -11,6 +12,7 @@ import {
   FieldDescription,
   FieldLabel,
   Form,
+  HugeIcons,
   Input,
   Progress,
   Table,
@@ -21,7 +23,6 @@ import {
   TableRow,
 } from "@repo/design-system";
 import type { GenericId } from "convex/values";
-import { Plus } from "lucide-react";
 import { type FormEvent, useState } from "react";
 
 import type { ProjectsResult } from "@/lib/confect-results";
@@ -86,8 +87,7 @@ export function ProjectRail({
             value={name}
           />
           <FieldDescription>
-            Create the project in Convex, then every workspace panel subscribes
-            to it.
+            Create the project, then every workspace panel updates live.
           </FieldDescription>
         </Field>
         <Field>
@@ -99,7 +99,7 @@ export function ProjectRail({
           />
         </Field>
         <Button disabled={!canCreateProject} loading={isSaving} type="submit">
-          <Plus /> Create project
+          <HugeIcons icon={Add01Icon} /> Create project
         </Button>
       </Form>
 

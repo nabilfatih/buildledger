@@ -7,6 +7,7 @@ export * from "@repo/design-system/components/ui/dialog";
 export * from "@repo/design-system/components/ui/empty";
 export * from "@repo/design-system/components/ui/field";
 export * from "@repo/design-system/components/ui/form";
+export * from "@repo/design-system/components/ui/huge-icons";
 export * from "@repo/design-system/components/ui/input";
 export * from "@repo/design-system/components/ui/popover";
 export * from "@repo/design-system/components/ui/progress";

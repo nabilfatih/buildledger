@@ -25,7 +25,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Open-source construction meeting intelligence built on Convex realtime project memory.",
+          "Open-source construction meeting intelligence with realtime project memory.",
       },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

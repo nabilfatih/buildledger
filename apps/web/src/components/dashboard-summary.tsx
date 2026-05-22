@@ -1,3 +1,4 @@
+import { BrainIcon } from "@hugeicons/core-free-icons";
 import {
   Badge,
   Empty,
@@ -5,9 +6,9 @@ import {
   EmptyHeader,
   EmptyMedia,
   EmptyTitle,
+  HugeIcons,
   MeetingTrendChart,
 } from "@repo/design-system";
-import { Brain } from "lucide-react";
 import { useMemo } from "react";
 
 import type { MemoryResult } from "@/lib/confect-results";
@@ -48,14 +49,14 @@ export function DashboardSummary({
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
           <h2 className="font-heading text-xl">Project memory</h2>
-          <Badge variant="info">Realtime from Convex</Badge>
+          <Badge variant="info">Live project memory</Badge>
         </div>
         <MeetingTrendChart data={data} />
       </div>
       <Empty className="justify-center">
         <EmptyHeader>
           <EmptyMedia>
-            <Brain />
+            <HugeIcons icon={BrainIcon} />
           </EmptyMedia>
           <EmptyTitle>Ask with citations</EmptyTitle>
           <EmptyDescription>

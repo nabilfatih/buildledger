@@ -6,12 +6,13 @@ import { mergeProps } from "@base-ui/react/merge-props";
 import { Radio as RadioPrimitive } from "@base-ui/react/radio";
 import { RadioGroup as RadioGroupPrimitive } from "@base-ui/react/radio-group";
 import { useRender } from "@base-ui/react/use-render";
-import { ChevronRightIcon, XIcon } from "lucide-react";
+import { Cancel01Icon, ChevronRight } from "@hugeicons/core-free-icons";
 import type React from "react";
 import { createContext, useContext } from "react";
-import { cn } from "@repo/design-system/lib/utils";
 import { Button } from "@repo/design-system/components/ui/button";
+import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
+import { cn } from "@repo/design-system/lib/utils";
 
 type DrawerPosition = "right" | "left" | "top" | "bottom";
 
@@ -217,7 +218,7 @@ export function DrawerPopup({
               className="absolute end-2 top-2"
               render={<Button size="icon" variant="ghost" />}
             >
-              <XIcon />
+              <HugeIcons icon={Cancel01Icon} />
             </DrawerPrimitive.Close>
           )}
           {showBar && <DrawerBar />}
@@ -498,7 +499,7 @@ export function DrawerMenuTrigger({
       {...props}
     >
       {children}
-      <ChevronRightIcon className="ms-auto -me-0.5 opacity-80" />
+      <HugeIcons className="ms-auto -me-0.5 opacity-80" icon={ChevronRight} />
     </DrawerTrigger>
   );
 }

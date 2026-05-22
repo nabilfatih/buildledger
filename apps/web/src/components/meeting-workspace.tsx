@@ -1,8 +1,10 @@
 import { QueryResult, useAction, useMutation } from "@confect/react";
+import { File02Icon, PlayIcon, Tick01Icon } from "@hugeicons/core-free-icons";
 import refs from "@repo/backend/confect/_generated/refs";
 import {
   Badge,
   Button,
+  HugeIcons,
   Progress,
   Table,
   TableBody,
@@ -17,7 +19,6 @@ import {
   Textarea,
 } from "@repo/design-system";
 import type { GenericId } from "convex/values";
-import { Check, FileText, Play } from "lucide-react";
 import { useState } from "react";
 
 import type { MeetingsResult, ReviewResult } from "@/lib/confect-results";
@@ -110,17 +111,17 @@ export function MeetingWorkspace({
             onClick={handleCreateMeeting}
             variant="outline"
           >
-            <FileText /> New meeting
+            <HugeIcons icon={File02Icon} /> New meeting
           </Button>
           <Button disabled={!selectedMeetingId} onClick={handleGenerate}>
-            <Play /> Run AI minutes
+            <HugeIcons icon={PlayIcon} /> Run AI minutes
           </Button>
           <Button
             disabled={!selectedMeetingId}
             onClick={handlePublish}
             variant="secondary"
           >
-            <Check /> Publish
+            <HugeIcons icon={Tick01Icon} /> Publish
           </Button>
         </div>
       </div>

@@ -1,9 +1,8 @@
 "use client";
 
 import { Dialog as CommandDialogPrimitive } from "@base-ui/react/dialog";
-import { SearchIcon } from "lucide-react";
+import { Search02Icon } from "@hugeicons/core-free-icons";
 import type * as React from "react";
-import { cn } from "@repo/design-system/lib/utils";
 import {
   Autocomplete,
   AutocompleteCollection,
@@ -15,6 +14,8 @@ import {
   AutocompleteList,
   AutocompleteSeparator,
 } from "@repo/design-system/components/ui/autocomplete";
+import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
+import { cn } from "@repo/design-system/lib/utils";
 
 export const CommandDialog: typeof CommandDialogPrimitive.Root =
   CommandDialogPrimitive.Root;
@@ -126,7 +127,7 @@ export function CommandInput({
         )}
         placeholder={placeholder}
         size="lg"
-        startAddon={<SearchIcon />}
+        startAddon={<HugeIcons icon={Search02Icon} />}
         {...props}
       />
     </div>

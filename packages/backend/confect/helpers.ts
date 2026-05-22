@@ -34,6 +34,17 @@ export const getUserToken = Effect.fn("auth.getUserToken")(function* () {
   return identity.tokenIdentifier;
 });
 
+/** Returns the current identity token when a viewer is signed in. */
+export const getOptionalUserToken = Effect.fn("auth.getOptionalUserToken")(
+  function* () {
+    const identity = yield* Auth.getUserIdentity.pipe(
+      Effect.catchTag("NoUserIdentityFoundError", () => Effect.succeed(null))
+    );
+
+    return identity?.tokenIdentifier ?? null;
+  }
+);
+
 /** Loads a project only when the current identity is a project member. */
 export const ensureProjectAccess = Effect.fn("auth.ensureProjectAccess")(
   function* (projectId: ProjectId) {

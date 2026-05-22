@@ -1,11 +1,11 @@
 "use client";
 
 import { useQuery } from "@confect/react";
+import { RadioTower } from "@hugeicons/core-free-icons";
 import refs from "@repo/backend/confect/_generated/refs";
-import { Badge, Button } from "@repo/design-system";
+import { Badge, HugeIcons } from "@repo/design-system";
 import { createFileRoute } from "@tanstack/react-router";
 import type { GenericId } from "convex/values";
-import { RadioTower } from "lucide-react";
 import { useState } from "react";
 
 import { DashboardSummary } from "@/components/dashboard-summary";
@@ -59,9 +59,8 @@ function BuildLedgerHome() {
           </div>
           <div className="flex items-center gap-2">
             <Badge variant="success">
-              <RadioTower /> Convex realtime
+              <HugeIcons icon={RadioTower} /> Live workspace
             </Badge>
-            <Button variant="outline">Sign in</Button>
           </div>
         </div>
       </header>

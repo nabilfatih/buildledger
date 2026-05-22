@@ -7,11 +7,12 @@ import {
 import {
   asAppError,
   ensureProjectAccess,
+  getOptionalUserToken,
   getUserToken,
 } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
 
-/** Lists active projects for the authenticated user. */
+/** Lists active projects for the signed-in user. */
 const listForCurrentUser = FunctionImpl.make(
   api,
   "projects",
@@ -19,7 +20,11 @@ const listForCurrentUser = FunctionImpl.make(
   () =>
     asAppError(
       Effect.gen(function* () {
-        const userToken = yield* getUserToken();
+        const userToken = yield* getOptionalUserToken();
+        if (!userToken) {
+          return [];
+        }
+
         const reader = yield* DatabaseReader;
 
         const memberships = yield* reader
