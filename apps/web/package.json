@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "vite dev --host 127.0.0.1 --port 3000 --strictPort",
     "build": "vite build",
+    "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "lint": "eslint",
@@ -16,6 +17,7 @@
     "@confect/react": "8.0.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@hugeicons/core-free-icons": "^4.1.4",
+    "@repo/ai": "workspace:*",
     "@repo/backend": "workspace:*",
     "@repo/design-system": "workspace:*",
     "@tailwindcss/vite": "^4.2.1",

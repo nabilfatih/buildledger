@@ -13,6 +13,8 @@
     "typecheck": "tsc --noEmit --emitDeclarationOnly false"
   },
   "dependencies": {
+    "@tanstack/ai": "^0.21.1",
+    "@tanstack/ai-openrouter": "^0.9.6",
     "effect": "3.21.2"
   },
   "devDependencies": {

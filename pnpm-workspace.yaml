@@ -6,8 +6,10 @@ overrides:
   ws: 8.20.1
 
 allowBuilds:
+  '@openrouter/sdk': true
   '@parcel/watcher': true
   '@swc/core': true
   esbuild: true
   msgpackr-extract: true
   sharp: true
+  unrs-resolver: true

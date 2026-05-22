@@ -1,5 +1,6 @@
 import { GenericId } from "@confect/core";
 import { Table } from "@confect/server";
+import { OpenRouterModel } from "@repo/ai/schemas";
 import { Schema } from "effect";
 
 const Timestamp = Schema.Number;
@@ -56,7 +57,22 @@ export const ProjectMembers = Table.make(
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
-  .index("by_userToken", ["userToken", "createdAt"]);
+  .index("by_userToken", ["userToken", "createdAt"])
+  .index("by_projectId_and_userToken", ["projectId", "userToken"]);
+
+export const AiProviderSettings = Table.make(
+  "aiProviderSettings",
+  Schema.Struct({
+    userToken: Schema.String,
+    provider: Schema.Literal("openrouter"),
+    model: OpenRouterModel,
+    encryptedApiKey: Schema.String,
+    encryptionIv: Schema.String,
+    keyLast4: Schema.String,
+    createdAt: Timestamp,
+    updatedAt: Timestamp,
+  })
+).index("by_userToken", ["userToken", "updatedAt"]);
 
 export const Meetings = Table.make(
   "meetings",

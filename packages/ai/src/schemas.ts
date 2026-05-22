@@ -1,5 +1,43 @@
 import { Schema } from "effect";
 
+export const defaultOpenRouterModel = "openai/gpt-5-mini";
+
+export const openRouterModelOptions = [
+  "openai/gpt-5-mini",
+  "openai/gpt-5",
+  "openai/gpt-5.1",
+  "anthropic/claude-sonnet-4.5",
+  "google/gemini-2.5-flash",
+  "openrouter/auto",
+] as const;
+
+export const OpenRouterModel = Schema.Literal(...openRouterModelOptions);
+export type OpenRouterModel = Schema.Schema.Type<typeof OpenRouterModel>;
+
+export const AiProvider = Schema.Literal("demo", "openrouter");
+export type AiProvider = Schema.Schema.Type<typeof AiProvider>;
+
+export const AiSettingsSource = Schema.Literal("demo", "environment", "user");
+export type AiSettingsSource = Schema.Schema.Type<typeof AiSettingsSource>;
+
+export const AiRuntimeSettings = Schema.Struct({
+  provider: AiProvider,
+  source: AiSettingsSource,
+  model: OpenRouterModel,
+  apiKey: Schema.optional(Schema.String),
+  keyLast4: Schema.optional(Schema.String),
+});
+export type AiRuntimeSettings = Schema.Schema.Type<typeof AiRuntimeSettings>;
+
+export const AiPublicSettings = Schema.Struct({
+  provider: AiProvider,
+  source: AiSettingsSource,
+  model: OpenRouterModel,
+  hasKey: Schema.Boolean,
+  keyLast4: Schema.optional(Schema.String),
+});
+export type AiPublicSettings = Schema.Schema.Type<typeof AiPublicSettings>;
+
 export const MinuteItemKind = Schema.Literal(
   "discussion",
   "decision",

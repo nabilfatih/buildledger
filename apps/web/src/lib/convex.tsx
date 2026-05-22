@@ -2,10 +2,9 @@
 
 import { ConvexProvider, ConvexReactClient } from "convex/react";
 import type { ReactNode } from "react";
+import { useMemo } from "react";
 
-const convexUrl = import.meta.env.VITE_CONVEX_URL ?? "http://127.0.0.1:3210";
-
-const convex = new ConvexReactClient(convexUrl);
+import { getPublicConvexUrl } from "@/lib/public-config";
 
 /** Provides the shared Convex client to the TanStack Start app. */
 export function ConvexClientProvider({
@@ -13,5 +12,7 @@ export function ConvexClientProvider({
 }: {
   readonly children: ReactNode;
 }) {
+  const convex = useMemo(() => new ConvexReactClient(getPublicConvexUrl()), []);
+
   return <ConvexProvider client={convex}>{children}</ConvexProvider>;
 }

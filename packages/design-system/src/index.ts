@@ -1,5 +1,6 @@
 // biome-ignore lint/performance/noBarrelFile: This is the design-system public entrypoint.
 export * from "@repo/design-system/charts/meeting-trend-chart";
+export * from "@repo/design-system/components/ui/alert";
 export * from "@repo/design-system/components/ui/badge";
 export * from "@repo/design-system/components/ui/button";
 export * from "@repo/design-system/components/ui/command";
@@ -7,8 +8,10 @@ export * from "@repo/design-system/components/ui/dialog";
 export * from "@repo/design-system/components/ui/empty";
 export * from "@repo/design-system/components/ui/field";
 export * from "@repo/design-system/components/ui/form";
+export * from "@repo/design-system/components/ui/frame";
 export * from "@repo/design-system/components/ui/huge-icons";
 export * from "@repo/design-system/components/ui/input";
+export * from "@repo/design-system/components/ui/input-group";
 export * from "@repo/design-system/components/ui/popover";
 export * from "@repo/design-system/components/ui/progress";
 export * from "@repo/design-system/components/ui/scroll-area";

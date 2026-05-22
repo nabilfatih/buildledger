@@ -2,6 +2,7 @@ import { DatabaseSchema } from "@confect/server";
 
 import {
   ActionItems,
+  AiProviderSettings,
   AiRunEvents,
   AiRuns,
   Decisions,
@@ -25,6 +26,7 @@ export default DatabaseSchema.make()
   .addTable(OrganizationMembers)
   .addTable(Projects)
   .addTable(ProjectMembers)
+  .addTable(AiProviderSettings)
   .addTable(Meetings)
   .addTable(MeetingAttendees)
   .addTable(MeetingInputs)

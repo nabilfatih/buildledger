@@ -1,9 +1,6 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
-import type { EmptyMeetingInput } from "@repo/ai/schemas";
-import {
-  MemoryChunkingService,
-  MinutesExtractionService,
-} from "@repo/ai/services";
+import type { MinutesDraft } from "@repo/ai/schemas";
+import { MemoryChunkingService } from "@repo/ai/services";
 import api from "@repo/backend/confect/_generated/api";
 import {
   DatabaseReader,
@@ -14,9 +11,75 @@ import {
   MeetingNotFound,
 } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
+import type { GenericId } from "convex/values";
 import { Effect, Layer } from "effect";
 
 const zeroEmbedding = Array.from({ length: 1536 }, () => 0);
+type MeetingId = GenericId<"meetings">;
+
+/** Returns all saved notes and transcripts for a meeting as one prompt string. */
+const getMeetingInputText = Effect.fn("meetings.getMeetingInputText")(
+  function* (meetingId: MeetingId) {
+    const reader = yield* DatabaseReader;
+    const inputs = yield* reader
+      .table("meetingInputs")
+      .index("by_meetingId", (q) => q.eq("meetingId", meetingId))
+      .collect();
+
+    return inputs
+      .map((input) => input.text ?? "")
+      .join("\n\n")
+      .trim();
+  }
+);
+
+/** Persists a generated minutes draft into reviewable sections and items. */
+const insertMinutesDraft = Effect.fn("meetings.insertMinutesDraft")(
+  function* (input: {
+    readonly meetingId: MeetingId;
+    readonly draft: MinutesDraft;
+  }) {
+    const writer = yield* DatabaseWriter;
+    const sectionIds = yield* Effect.all(
+      input.draft.sections.map((section, index) =>
+        writer.table("minuteSections").insert({
+          meetingId: input.meetingId,
+          title: section.title,
+          body: section.body,
+          order: index,
+          createdAt: Date.now(),
+        })
+      )
+    );
+
+    yield* Effect.all(
+      input.draft.sections.flatMap((section, sectionIndex) => {
+        const sectionId = sectionIds[sectionIndex];
+
+        if (!sectionId) {
+          return [];
+        }
+
+        return section.items.map((item) =>
+          writer.table("minuteItems").insert({
+            meetingId: input.meetingId,
+            sectionId,
+            kind: item.kind,
+            title: item.title,
+            body: item.body,
+            status: item.kind === "action" ? "open" : undefined,
+            ownerName: item.ownerName,
+            dueDate: item.dueDate,
+            severity: item.severity,
+            citationsJson: JSON.stringify(item.citations),
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          })
+        );
+      })
+    );
+  }
+);
 
 /** Lists recent meetings for a project the user can access. */
 const listByProject = FunctionImpl.make(
@@ -98,7 +161,7 @@ const addInput = FunctionImpl.make(
     )
 );
 
-/** Generates draft minutes and realtime AI run events. */
+/** Starts a minutes generation run after validating saved meeting input. */
 const startGeneration = FunctionImpl.make(
   api,
   "meetings",
@@ -125,15 +188,25 @@ const startGeneration = FunctionImpl.make(
 
         yield* ensureProjectAccess(meeting.projectId);
 
-        const inputs = yield* reader
-          .table("meetingInputs")
-          .index("by_meetingId", (q) => q.eq("meetingId", meetingId))
-          .collect();
+        const text = yield* getMeetingInputText(meetingId);
 
-        const text = inputs
-          .map((input) => input.text ?? "")
-          .join("\n\n")
-          .trim();
+        if (text.length === 0) {
+          return yield* Effect.fail(
+            new InvalidMeetingState({
+              meetingId,
+              message: "Meeting input must include notes or a transcript.",
+            })
+          );
+        }
+
+        if (meeting.status === "processing") {
+          return yield* Effect.fail(
+            new InvalidMeetingState({
+              meetingId,
+              message: "Minutes generation is already running.",
+            })
+          );
+        }
 
         const aiRunId = yield* writer.table("aiRuns").insert({
           projectId: meeting.projectId,
@@ -151,64 +224,46 @@ const startGeneration = FunctionImpl.make(
           createdAt: timestamp,
         });
 
-        const draft = yield* MinutesExtractionService.extract({
-          title: meeting.title,
-          text,
-        }).pipe(
-          Effect.provide(MinutesExtractionService.Default),
-          Effect.catchTag("EmptyMeetingInput", (error: EmptyMeetingInput) =>
-            Effect.fail(
-              new InvalidMeetingState({
-                meetingId,
-                message: error.message,
-              })
+        yield* writer.table("meetings").patch(meetingId, {
+          status: "processing",
+          updatedAt: timestamp,
+        });
+
+        return aiRunId;
+      })
+    )
+);
+
+/** Finishes a generation run with a persisted minutes draft. */
+const finishGeneration = FunctionImpl.make(
+  api,
+  "meetings",
+  "finishGeneration",
+  ({ aiRunId, draft, meetingId }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const reader = yield* DatabaseReader;
+        const writer = yield* DatabaseWriter;
+        const meeting = yield* reader
+          .table("meetings")
+          .get(meetingId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new MeetingNotFound({
+                  meetingId,
+                  message: "Meeting not found.",
+                })
             )
-          )
-        );
+          );
+
+        yield* ensureProjectAccess(meeting.projectId);
+        yield* insertMinutesDraft({ meetingId, draft });
 
         yield* writer.table("meetings").patch(meetingId, {
           status: "review",
           updatedAt: Date.now(),
         });
-
-        const sectionIds = yield* Effect.all(
-          draft.sections.map((section, index) =>
-            writer.table("minuteSections").insert({
-              meetingId,
-              title: section.title,
-              body: section.body,
-              order: index,
-              createdAt: Date.now(),
-            })
-          )
-        );
-
-        yield* Effect.all(
-          draft.sections.flatMap((section, sectionIndex) => {
-            const sectionId = sectionIds[sectionIndex];
-
-            if (!sectionId) {
-              return [];
-            }
-
-            return section.items.map((item) =>
-              writer.table("minuteItems").insert({
-                meetingId,
-                sectionId,
-                kind: item.kind,
-                title: item.title,
-                body: item.body,
-                status: item.kind === "action" ? "open" : undefined,
-                ownerName: item.ownerName,
-                dueDate: item.dueDate,
-                severity: item.severity,
-                citationsJson: JSON.stringify(item.citations),
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-              })
-            );
-          })
-        );
 
         yield* writer.table("aiRunEvents").insert({
           aiRunId,
@@ -223,7 +278,56 @@ const startGeneration = FunctionImpl.make(
           finishedAt: Date.now(),
         });
 
-        return aiRunId;
+        return null;
+      })
+    )
+);
+
+/** Marks a generation run as failed and returns the meeting to a retryable state. */
+const failGeneration = FunctionImpl.make(
+  api,
+  "meetings",
+  "failGeneration",
+  ({ aiRunId, meetingId, message }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const reader = yield* DatabaseReader;
+        const writer = yield* DatabaseWriter;
+        const meeting = yield* reader
+          .table("meetings")
+          .get(meetingId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new MeetingNotFound({
+                  meetingId,
+                  message: "Meeting not found.",
+                })
+            )
+          );
+
+        yield* ensureProjectAccess(meeting.projectId);
+
+        yield* writer.table("aiRunEvents").insert({
+          aiRunId,
+          order: 2,
+          kind: "failed",
+          message,
+          createdAt: Date.now(),
+        });
+
+        yield* writer.table("aiRuns").patch(aiRunId, {
+          status: "failed",
+          error: message,
+          finishedAt: Date.now(),
+        });
+
+        yield* writer.table("meetings").patch(meetingId, {
+          status: "failed",
+          updatedAt: Date.now(),
+        });
+
+        return null;
       })
     )
 );
@@ -411,6 +515,8 @@ export const meetings = GroupImpl.make(api, "meetings").pipe(
   Layer.provide(createDraft),
   Layer.provide(addInput),
   Layer.provide(startGeneration),
+  Layer.provide(finishGeneration),
+  Layer.provide(failGeneration),
   Layer.provide(getReviewState),
   Layer.provide(publishMinutes)
 );

@@ -1,4 +1,5 @@
 import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
+import { MinutesDraft } from "@repo/ai/schemas";
 import { AppError } from "@repo/backend/confect/errors";
 import {
   AiRunEvents,
@@ -50,6 +51,30 @@ export const meetings = GroupSpec.make("meetings")
       name: "startGeneration",
       args: Schema.Struct({ meetingId: GenericId.GenericId("meetings") }),
       returns: GenericId.GenericId("aiRuns"),
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicMutation({
+      name: "finishGeneration",
+      args: Schema.Struct({
+        meetingId: GenericId.GenericId("meetings"),
+        aiRunId: GenericId.GenericId("aiRuns"),
+        draft: MinutesDraft,
+      }),
+      returns: Schema.Null,
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicMutation({
+      name: "failGeneration",
+      args: Schema.Struct({
+        meetingId: GenericId.GenericId("meetings"),
+        aiRunId: GenericId.GenericId("aiRuns"),
+        message: Schema.String,
+      }),
+      returns: Schema.Null,
       error: AppError,
     })
   )

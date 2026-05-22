@@ -12,8 +12,9 @@ The current implementation is a Convex-first V1 foundation:
 - review generated sections and items before publishing
 - publish minutes into actions, decisions, risks, and memory chunks
 - generate weekly report drafts from project memory
+- bring your own OpenRouter key, encrypted per user, with demo fallback
 - create and resolve read-only share links
-- render a TanStack Start workspace with Coss UI and Evil Charts
+- render a dense TanStack Start workspace with Coss UI and Evil Charts
 
 ## Stack
 
@@ -21,6 +22,7 @@ The current implementation is a Convex-first V1 foundation:
 - Convex as the realtime source of truth
 - Confect for Effect schemas, Convex specs, and typed React hooks
 - Effect for AI/business logic
+- TanStack AI with OpenRouter for BYOK provider calls
 - Coss UI for components
 - Evil Charts/Recharts for charts
 
@@ -36,6 +38,7 @@ The current implementation is a Convex-first V1 foundation:
 - Coss skills: https://coss.com/ui/docs/skills
 - Coss styling: https://coss.com/ui/docs/styling
 - Evil Charts: https://evilcharts.com/docs
+- TanStack AI OpenRouter: https://tanstack.com/ai/latest/docs/adapters/openrouter
 
 ## Local Development
 
@@ -46,6 +49,17 @@ pnpm dev
 ```
 
 Copy `.env.example` to `.env.local` before running the app. The web app runs on `http://127.0.0.1:3000`.
+
+## Docker
+
+```bash
+cp .env.docker.example .env.docker
+docker compose --env-file .env.docker up --build
+```
+
+Docker serves the TanStack Start web app on `http://127.0.0.1:3000`. Set `BUILDLEDGER_PUBLIC_CONVEX_URL` to the Convex deployment URL that browsers can reach.
+
+AI runs in Convex. Set `BUILDLEDGER_AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY`, `BUILDLEDGER_AI_MODEL`, and `BUILDLEDGER_SECRET_KEY` on the backend deployment for environment-level AI, or use the in-app AI settings sheet for encrypted BYOK.
 
 ## Repository Layout
 

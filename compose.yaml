@@ -1,0 +1,11 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      BUILDLEDGER_PUBLIC_CONVEX_URL: ${BUILDLEDGER_PUBLIC_CONVEX_URL:-http://127.0.0.1:3210}
+      HOST: 0.0.0.0
+      PORT: 3000
+    ports:
+      - "${PORT:-3000}:3000"

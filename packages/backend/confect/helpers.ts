@@ -10,9 +10,38 @@ import {
 import type schema from "@repo/backend/confect/schema";
 import type { GenericId } from "convex/values";
 import type { Effect as EffectType } from "effect";
-import { Effect } from "effect";
+import { Config, Effect } from "effect";
 
 type ProjectId = GenericId<"projects">;
+
+const devAuthConfig = Config.string("BUILDLEDGER_DEV_AUTH").pipe(
+  Config.withDefault("disabled")
+);
+const nodeEnvConfig = Config.string("NODE_ENV").pipe(
+  Config.withDefault("development")
+);
+const devUserToken = "buildledger:local-dev-user";
+
+/** Returns the local Browser test identity when development auth is enabled. */
+const getDevUserToken = Effect.fn("auth.getDevUserToken")(function* () {
+  const mode = yield* devAuthConfig;
+
+  if (mode !== "enabled") {
+    return null;
+  }
+
+  const nodeEnv = yield* nodeEnvConfig;
+
+  if (nodeEnv === "production") {
+    return yield* Effect.fail(
+      new Forbidden({
+        message: "BUILDLEDGER_DEV_AUTH cannot run in production.",
+      })
+    );
+  }
+
+  return devUserToken;
+});
 
 /** Maps unknown boundary failures into the public app error union. */
 export function asAppError<A, R>(effect: EffectType.Effect<A, unknown, R>) {
@@ -22,14 +51,22 @@ export function asAppError<A, R>(effect: EffectType.Effect<A, unknown, R>) {
 /** Returns the authenticated Convex identity token for access checks. */
 export const getUserToken = Effect.fn("auth.getUserToken")(function* () {
   const identity = yield* Auth.getUserIdentity.pipe(
-    Effect.catchTag("NoUserIdentityFoundError", () =>
-      Effect.fail(
-        new Forbidden({
-          message: "Sign in before accessing BuildLedger.",
-        })
-      )
-    )
+    Effect.catchTag("NoUserIdentityFoundError", () => Effect.succeed(null))
   );
+
+  if (!identity) {
+    const token = yield* getDevUserToken();
+
+    if (token) {
+      return token;
+    }
+
+    return yield* Effect.fail(
+      new Forbidden({
+        message: "Sign in before accessing BuildLedger.",
+      })
+    );
+  }
 
   return identity.tokenIdentifier;
 });
@@ -41,7 +78,11 @@ export const getOptionalUserToken = Effect.fn("auth.getOptionalUserToken")(
       Effect.catchTag("NoUserIdentityFoundError", () => Effect.succeed(null))
     );
 
-    return identity?.tokenIdentifier ?? null;
+    if (identity) {
+      return identity.tokenIdentifier;
+    }
+
+    return yield* getDevUserToken();
   }
 );
 
@@ -66,12 +107,12 @@ export const ensureProjectAccess = Effect.fn("auth.ensureProjectAccess")(
 
     const membership = yield* reader
       .table("projectMembers")
-      .index("by_userToken", (q) => q.eq("userToken", userToken))
-      .collect()
+      .index("by_projectId_and_userToken", (q) =>
+        q.eq("projectId", projectId).eq("userToken", userToken)
+      )
+      .first()
       .pipe(
-        Effect.map((memberships) =>
-          memberships.find((member) => member.projectId === projectId)
-        ),
+        Effect.map((result) => (result._tag === "Some" ? result.value : null)),
         Effect.mapError(
           () =>
             new Forbidden({

@@ -9,6 +9,7 @@ import {
 import type { ReactNode } from "react";
 
 import { ConvexClientProvider } from "@/lib/convex";
+import { convexUrlMetaName, getPublicConvexUrl } from "@/lib/public-config";
 import appCss from "@/styles.css?url";
 
 export const Route = createRootRoute({
@@ -26,6 +27,10 @@ export const Route = createRootRoute({
         name: "description",
         content:
           "Open-source construction meeting intelligence with realtime project memory.",
+      },
+      {
+        name: convexUrlMetaName,
+        content: getPublicConvexUrl(),
       },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

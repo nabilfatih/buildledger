@@ -1,0 +1,13 @@
+.git
+.turbo
+**/.turbo
+**/.vinxi
+**/.output
+**/coverage
+**/dist
+**/node_modules
+*.tsbuildinfo
+.DS_Store
+.env
+.env.local
+.env.*.local

@@ -12,6 +12,8 @@ import {
 } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
 
+const recentProjectLimit = 12;
+
 /** Lists active projects for the signed-in user. */
 const listForCurrentUser = FunctionImpl.make(
   api,
@@ -30,7 +32,7 @@ const listForCurrentUser = FunctionImpl.make(
         const memberships = yield* reader
           .table("projectMembers")
           .index("by_userToken", (q) => q.eq("userToken", userToken), "desc")
-          .take(50);
+          .take(recentProjectLimit);
 
         const projects = yield* Effect.all(
           memberships.map((membership) =>
