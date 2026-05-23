@@ -1,5 +1,3 @@
-"use client";
-
 import { MinusSignIcon, PlusSignIcon } from "@hugeicons/core-free-icons";
 import { NumberField as NumberFieldPrimitive } from "@base-ui/react/number-field";
 import * as React from "react";

@@ -1,5 +1,3 @@
-"use client";
-
 import { Autocomplete as AutocompletePrimitive } from "@base-ui/react/autocomplete";
 import { Cancel01Icon, ChevronsUpDown } from "@hugeicons/core-free-icons";
 import type React from "react";

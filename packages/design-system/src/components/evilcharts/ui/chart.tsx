@@ -1,5 +1,3 @@
-"use client";
-
 import * as RechartsPrimitive from "recharts";
 import { cn } from "@repo/design-system/lib/utils";
 import * as React from "react";

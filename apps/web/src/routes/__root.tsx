@@ -84,9 +84,10 @@ function RootErrorComponent({ reset }: { readonly reset: () => void }) {
 /** Defines the HTML document and Base UI isolation root. */
 function RootDocument({ children }: { readonly children: ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <HeadContent />
+        <script src="/theme.js" suppressHydrationWarning />
       </head>
       <body className="relative">
         <div className="relative isolate flex min-h-svh flex-col">

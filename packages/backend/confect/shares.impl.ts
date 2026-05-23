@@ -37,6 +37,47 @@ const hashShareToken = Effect.fn("shares.hashShareToken")(function* (
   return bytesToHex(new Uint8Array(digest));
 });
 
+/** Resolves and validates a public share token. */
+const getShareLinkByToken = Effect.fn("shares.getShareLinkByToken")(function* (
+  token: string
+) {
+  const reader = yield* DatabaseReader;
+  const tokenHash = yield* hashShareToken(token);
+  const shareLinkOption = yield* reader
+    .table("shareLinks")
+    .index("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
+    .first();
+
+  if (shareLinkOption._tag === "None") {
+    return yield* Effect.fail(
+      new ShareLinkExpired({
+        message: "This share link is not valid.",
+      })
+    );
+  }
+
+  if (shareLinkOption.value.revokedAt) {
+    return yield* Effect.fail(
+      new ShareLinkExpired({
+        message: "This share link has been revoked.",
+      })
+    );
+  }
+
+  if (
+    shareLinkOption.value.expiresAt &&
+    shareLinkOption.value.expiresAt < Date.now()
+  ) {
+    return yield* Effect.fail(
+      new ShareLinkExpired({
+        message: "This share link has expired.",
+      })
+    );
+  }
+
+  return shareLinkOption.value;
+});
+
 /** Creates a revocable read-only share link for a project resource. */
 const createReadOnlyLink = FunctionImpl.make(
   api,
@@ -125,49 +166,96 @@ const resolvePublicToken = FunctionImpl.make(
   api,
   "shares",
   "resolvePublicToken",
+  ({ token }) => asAppError(getShareLinkByToken(token))
+);
+
+/** Resolves a public share link into a safe read-only resource payload. */
+const resolvePublicResource = FunctionImpl.make(
+  api,
+  "shares",
+  "resolvePublicResource",
   ({ token }) =>
     asAppError(
       Effect.gen(function* () {
         const reader = yield* DatabaseReader;
-        const tokenHash = yield* hashShareToken(token);
-        const shareLinkOption = yield* reader
-          .table("shareLinks")
-          .index("by_tokenHash", (q) => q.eq("tokenHash", tokenHash))
-          .first();
+        const shareLink = yield* getShareLinkByToken(token);
+        const project = yield* reader
+          .table("projects")
+          .get(shareLink.projectId);
 
-        if (shareLinkOption._tag === "None") {
+        if (shareLink.resourceType === "meeting") {
+          const meetings = yield* reader
+            .table("meetings")
+            .index("by_projectId", (q) => q.eq("projectId", project._id))
+            .take(100);
+          const meeting = meetings.find(
+            (candidate) => candidate._id === shareLink.resourceId
+          );
+
+          if (!meeting) {
+            return yield* Effect.fail(
+              new ShareTargetNotFound({
+                message: "Share target was not found.",
+                resourceId: shareLink.resourceId,
+                resourceType: "meeting",
+              })
+            );
+          }
+
+          const inputs = yield* reader
+            .table("meetingInputs")
+            .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
+            .collect();
+          const sections = yield* reader
+            .table("minuteSections")
+            .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
+            .collect();
+          const items = yield* reader
+            .table("minuteItems")
+            .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
+            .collect();
+
+          return {
+            resourceType: "meeting",
+            projectName: project.name,
+            projectCode: project.code,
+            meeting,
+            inputs,
+            sections,
+            items,
+          };
+        }
+
+        const reports = yield* reader
+          .table("reports")
+          .index("by_projectId", (q) => q.eq("projectId", project._id))
+          .take(50);
+        const report = reports.find(
+          (candidate) => candidate._id === shareLink.resourceId
+        );
+
+        if (!report) {
           return yield* Effect.fail(
-            new ShareLinkExpired({
-              message: "This share link is not valid.",
+            new ShareTargetNotFound({
+              message: "Share target was not found.",
+              resourceId: shareLink.resourceId,
+              resourceType: "report",
             })
           );
         }
 
-        if (shareLinkOption.value.revokedAt) {
-          return yield* Effect.fail(
-            new ShareLinkExpired({
-              message: "This share link has been revoked.",
-            })
-          );
-        }
-
-        if (
-          shareLinkOption.value.expiresAt &&
-          shareLinkOption.value.expiresAt < Date.now()
-        ) {
-          return yield* Effect.fail(
-            new ShareLinkExpired({
-              message: "This share link has expired.",
-            })
-          );
-        }
-
-        return shareLinkOption.value;
+        return {
+          resourceType: "report",
+          projectName: project.name,
+          projectCode: project.code,
+          report,
+        };
       })
     )
 );
 
 export const shares = GroupImpl.make(api, "shares").pipe(
   Layer.provide(createReadOnlyLink),
-  Layer.provide(resolvePublicToken)
+  Layer.provide(resolvePublicToken),
+  Layer.provide(resolvePublicResource)
 );

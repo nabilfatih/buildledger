@@ -1,8 +1,10 @@
 import type { useQuery } from "@confect/react";
 import type refs from "@repo/backend/confect/_generated/refs";
+import type { api } from "@repo/backend/convex/_generated/api";
+import type { usePaginatedQuery } from "convex/react";
 
 export type ProjectsResult = ReturnType<
-  typeof useQuery<typeof refs.public.projects.listForCurrentUser>
+  typeof usePaginatedQuery<typeof api.projects.listForCurrentUser>
 >;
 
 export type MeetingsResult = ReturnType<

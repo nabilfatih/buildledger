@@ -1,5 +1,3 @@
-"use client";
-
 import { Fieldset as FieldsetPrimitive } from "@base-ui/react/fieldset";
 import type React from "react";
 import { cn } from "@repo/design-system/lib/utils";

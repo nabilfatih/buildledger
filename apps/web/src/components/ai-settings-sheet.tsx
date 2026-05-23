@@ -1,5 +1,3 @@
-"use client";
-
 import { QueryResult, useAction, useMutation, useQuery } from "@confect/react";
 import { AiSettingIcon, Key01Icon } from "@hugeicons/core-free-icons";
 import { openRouterModelOptions } from "@repo/ai/schemas";
@@ -39,6 +37,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from "@repo/design-system/components/ui/sheet";
+import { SidebarMenuButton } from "@repo/design-system/components/ui/sidebar";
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -175,20 +174,9 @@ export function AiSettingsSheet() {
 
   return (
     <Sheet onOpenChange={handleOpenChange} open={isOpen}>
-      <SheetTrigger
-        render={
-          <Button
-            className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:px-0"
-            size="sm"
-            type="button"
-            variant="outline"
-          />
-        }
-      >
+      <SheetTrigger render={<SidebarMenuButton size="sm" type="button" />}>
         <HugeIcons icon={AiSettingIcon} />
-        <span className="group-data-[collapsible=icon]:sr-only">
-          AI Settings
-        </span>
+        <span>AI Settings</span>
       </SheetTrigger>
       <SheetPopup
         portalProps={{ keepMounted: true }}

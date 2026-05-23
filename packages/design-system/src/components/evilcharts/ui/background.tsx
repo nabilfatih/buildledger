@@ -1,5 +1,3 @@
-"use client";
-
 import { ZIndexLayer } from "recharts";
 import { useId } from "react";
 

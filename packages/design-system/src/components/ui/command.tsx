@@ -1,5 +1,3 @@
-"use client";
-
 import { Dialog as CommandDialogPrimitive } from "@base-ui/react/dialog";
 import { Search02Icon } from "@hugeicons/core-free-icons";
 import type * as React from "react";

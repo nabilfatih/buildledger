@@ -1,11 +1,13 @@
-"use client";
-
-import { QueryResult, useMutation } from "@confect/react";
+import { useMutation } from "@confect/react";
 import {
   Add01Icon,
   Building06Icon,
+  ComputerIcon,
+  Moon02Icon,
   Search01Icon,
+  Sun03Icon,
 } from "@hugeicons/core-free-icons";
+import { useIntersection, usePrevious } from "@mantine/hooks";
 import refs from "@repo/backend/confect/_generated/refs";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -28,6 +30,15 @@ import {
   InputGroupText,
 } from "@repo/design-system/components/ui/input-group";
 import {
+  Menu,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuPopup,
+  MenuRadioGroup,
+  MenuRadioItem,
+  MenuTrigger,
+} from "@repo/design-system/components/ui/menu";
+import {
   Sheet,
   SheetDescription,
   SheetHeader,
@@ -42,22 +53,28 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
-  SidebarMenuBadge,
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
-  SidebarRail,
+  useSidebar,
 } from "@repo/design-system/components/ui/sidebar";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import type { GenericId } from "convex/values";
-import { type FormEvent, useMemo, useState } from "react";
+import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { AiSettingsSheet } from "@/components/ai-settings-sheet";
 import type { ProjectsResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
+import {
+  applyThemePreference,
+  getStoredThemePreference,
+  type ThemePreference,
+  themeStorageKey,
+} from "@/lib/theme";
 
 const projectSkeletonRows = [
   "project-1",
@@ -68,10 +85,30 @@ const projectSkeletonRows = [
   "project-6",
 ];
 
+const projectPageSize = 8;
+
 const projectValidationMessages = {
   code: "Project code is required.",
   name: "Project name is required.",
 } as const;
+
+const themeOptions = [
+  {
+    icon: ComputerIcon,
+    label: "System",
+    value: "system",
+  },
+  {
+    icon: Sun03Icon,
+    label: "Light",
+    value: "light",
+  },
+  {
+    icon: Moon02Icon,
+    label: "Dark",
+    value: "dark",
+  },
+] as const;
 
 /** Creates projects and switches the active project from the app sidebar. */
 export function ProjectRail({
@@ -86,43 +123,78 @@ export function ProjectRail({
   ) => void;
 }) {
   const [search, setSearch] = useState("");
+  const { entry, ref: loadMoreRef } = useIntersection<HTMLLIElement>({
+    threshold: 0.25,
+  });
+  const isLoadMoreVisible = entry?.isIntersecting ?? false;
+  const wasLoadMoreVisible = usePrevious(isLoadMoreVisible);
+  const { loadMore, status } = projects;
   const filteredProjects = useMemo(() => {
-    if (projects._tag !== "Success") {
-      return [];
-    }
-
     const query = search.trim().toLowerCase();
 
     if (!query) {
-      return projects.value;
+      return projects.results;
     }
 
-    return projects.value.filter((project) =>
+    return projects.results.filter((project) =>
       `${project.name} ${project.code}`.toLowerCase().includes(query)
     );
-  }, [projects, search]);
-  const visibleProjects =
-    search.trim().length > 0 ? filteredProjects : filteredProjects.slice(0, 8);
+  }, [projects.results, search]);
+  const canLoadMoreProjects = status === "CanLoadMore";
+  const isLoadingInitialProjects = status === "LoadingFirstPage";
+  const isLoadingMoreProjects = status === "LoadingMore";
+  const showEmptyProjects =
+    filteredProjects.length === 0 &&
+    !isLoadingInitialProjects &&
+    status === "Exhausted";
+
+  useEffect(() => {
+    if (!(isLoadMoreVisible && canLoadMoreProjects)) {
+      return;
+    }
+
+    if (wasLoadMoreVisible) {
+      return;
+    }
+
+    loadMore(projectPageSize);
+  }, [canLoadMoreProjects, isLoadMoreVisible, loadMore, wasLoadMoreVisible]);
 
   return (
-    <Sidebar collapsible="icon" variant="inset">
+    <Sidebar
+      className="[&_[data-slot=sidebar-inner]]:border-0 [&_[data-slot=sidebar-inner]]:shadow-none"
+      collapsible="offcanvas"
+      variant="inset"
+    >
       <SidebarHeader>
-        <div className="flex min-w-0 items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background shadow-sm/5">
-            <HugeIcons className="size-4" icon={Building06Icon} />
-          </span>
-          <h1 className="truncate font-heading text-lg group-data-[collapsible=icon]:sr-only">
-            BuildLedger
-          </h1>
-        </div>
-        <NewProjectSheet
-          canCreateProject={projects._tag === "Success"}
-          onCreated={setSelectedProjectId}
-        />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <div className="flex h-12 min-w-0 items-center gap-2 rounded-lg px-2 text-sidebar-foreground">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-sidebar-primary text-sidebar-primary-foreground">
+                <HugeIcons icon={Building06Icon} />
+              </span>
+              <div className="grid min-w-0 flex-1 text-left leading-tight">
+                <span className="truncate font-heading font-medium text-sm">
+                  BuildLedger
+                </span>
+                <span className="truncate text-sidebar-foreground/72 text-xs">
+                  Project Memory
+                </span>
+              </div>
+            </div>
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <NewProjectSheet
+              canCreateProject={!isLoadingInitialProjects}
+              onCreated={setSelectedProjectId}
+            />
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupContent className="grid gap-2 group-data-[collapsible=icon]:hidden">
+          <SidebarGroupLabel>Projects</SidebarGroupLabel>
+          <SidebarGroupContent className="grid gap-2">
             <InputGroup>
               <InputGroupInput
                 onChange={(event) => setSearch(event.target.value)}
@@ -136,24 +208,14 @@ export function ProjectRail({
                 </InputGroupText>
               </InputGroupAddon>
             </InputGroup>
-            {QueryResult.match(projects, {
-              onLoading: () => (
-                <SidebarMenu>
-                  {projectSkeletonRows.map((row) => (
+            <SidebarMenu>
+              {isLoadingInitialProjects
+                ? projectSkeletonRows.map((row) => (
                     <SidebarMenuItem key={row}>
                       <SidebarMenuSkeleton />
                     </SidebarMenuItem>
-                  ))}
-                </SidebarMenu>
-              ),
-              onFailure: (error) => (
-                <p className="break-words px-2 text-muted-foreground text-sm">
-                  {error.message}
-                </p>
-              ),
-              onSuccess: () => (
-                <SidebarMenu>
-                  {visibleProjects.map((project) => (
+                  ))
+                : filteredProjects.map((project) => (
                     <SidebarMenuItem key={project._id}>
                       <SidebarMenuButton
                         aria-label={`${project.name} (${project.code})`}
@@ -168,30 +230,100 @@ export function ProjectRail({
                           </span>
                         </span>
                       </SidebarMenuButton>
-                      {project._id === selectedProjectId ? (
-                        <SidebarMenuBadge>Active</SidebarMenuBadge>
-                      ) : null}
                     </SidebarMenuItem>
                   ))}
-                  {visibleProjects.length < filteredProjects.length ? (
-                    <SidebarMenuItem>
-                      <p className="px-2 py-1 text-muted-foreground text-xs">
-                        Search to find{" "}
-                        {filteredProjects.length - visibleProjects.length} more.
-                      </p>
-                    </SidebarMenuItem>
-                  ) : null}
-                </SidebarMenu>
-              ),
-            })}
+              {showEmptyProjects ? (
+                <SidebarMenuItem>
+                  <p className="px-2 py-1 text-muted-foreground text-sm">
+                    No projects found.
+                  </p>
+                </SidebarMenuItem>
+              ) : null}
+              {canLoadMoreProjects || isLoadingMoreProjects ? (
+                <SidebarMenuItem ref={loadMoreRef}>
+                  <SidebarMenuSkeleton />
+                </SidebarMenuItem>
+              ) : null}
+            </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter className="group-data-[collapsible=icon]:items-center">
-        <AiSettingsSheet />
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <ThemeMenu />
+          </SidebarMenuItem>
+          <SidebarMenuItem>
+            <AiSettingsSheet />
+          </SidebarMenuItem>
+        </SidebarMenu>
       </SidebarFooter>
-      <SidebarRail />
     </Sidebar>
+  );
+}
+
+/** Lets users choose the app theme from the sidebar footer. */
+function ThemeMenu() {
+  const { isMobile } = useSidebar();
+  const [themePreference, setThemePreference] =
+    useState<ThemePreference | null>(null);
+  const activeThemePreference = themePreference ?? "system";
+  const selectedTheme =
+    themeOptions.find((option) => option.value === activeThemePreference) ??
+    themeOptions[0];
+
+  useEffect(() => {
+    setThemePreference(getStoredThemePreference());
+  }, []);
+
+  useEffect(() => {
+    if (!themePreference) {
+      return;
+    }
+
+    applyThemePreference(themePreference);
+    window.localStorage.setItem(themeStorageKey, themePreference);
+
+    if (themePreference !== "system") {
+      return;
+    }
+
+    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
+    const handleSystemThemeChange = () => applyThemePreference("system");
+
+    systemTheme.addEventListener("change", handleSystemThemeChange);
+    return () =>
+      systemTheme.removeEventListener("change", handleSystemThemeChange);
+  }, [themePreference]);
+
+  return (
+    <Menu>
+      <MenuTrigger render={<SidebarMenuButton size="sm" type="button" />}>
+        <HugeIcons icon={selectedTheme.icon} />
+        <span>Theme</span>
+      </MenuTrigger>
+      <MenuPopup align="start" side={isMobile ? "bottom" : "right"}>
+        <MenuGroup>
+          <MenuGroupLabel>Theme</MenuGroupLabel>
+          <MenuRadioGroup
+            onValueChange={(value) => {
+              if (value !== "system" && value !== "light" && value !== "dark") {
+                return;
+              }
+
+              setThemePreference(value);
+            }}
+            value={activeThemePreference}
+          >
+            {themeOptions.map((option) => (
+              <MenuRadioItem key={option.value} value={option.value}>
+                {option.label}
+              </MenuRadioItem>
+            ))}
+          </MenuRadioGroup>
+        </MenuGroup>
+      </MenuPopup>
+    </Menu>
   );
 }
 
@@ -275,17 +407,11 @@ function NewProjectSheet({
     <Sheet onOpenChange={setIsOpen} open={isOpen}>
       <SheetTrigger
         render={
-          <Button
-            className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:px-0"
-            size="sm"
-            type="button"
-          />
+          <Button className="w-full justify-start" size="sm" type="button" />
         }
       >
         <HugeIcons icon={Add01Icon} />
-        <span className="group-data-[collapsible=icon]:sr-only">
-          New Project
-        </span>
+        <span>New Project</span>
       </SheetTrigger>
       <SheetPopup side="left" variant="inset">
         <SheetHeader>

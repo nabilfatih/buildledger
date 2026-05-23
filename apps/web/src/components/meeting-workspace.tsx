@@ -447,7 +447,7 @@ function aiRunEventVariant(kind: string) {
 /** Displays AI run events without keeping a completed progress bar on screen. */
 function AiRunPanel({ review }: { readonly review: ReviewResult }) {
   return QueryResult.match(review, {
-    onLoading: () => <Skeleton className="h-48" />,
+    onLoading: () => <WorkflowPanelSkeleton />,
     onFailure: (error) => (
       <Alert variant="warning">
         <AlertDescription>{error.message}</AlertDescription>
@@ -502,7 +502,7 @@ function AiRunPanel({ review }: { readonly review: ReviewResult }) {
 /** Displays generated minute items for review without table overflow. */
 function ReviewList({ review }: { readonly review: ReviewResult }) {
   return QueryResult.match(review, {
-    onLoading: () => <Skeleton className="h-48" />,
+    onLoading: () => <WorkflowPanelSkeleton />,
     onFailure: (error) => (
       <Alert variant="warning">
         <AlertDescription>{error.message}</AlertDescription>
@@ -553,7 +553,7 @@ function MeetingsList({
   ) => void;
 }) {
   return QueryResult.match(meetings, {
-    onLoading: () => <Skeleton className="h-48" />,
+    onLoading: () => <WorkflowPanelSkeleton />,
     onFailure: (error) => (
       <Alert variant="warning">
         <AlertDescription>{error.message}</AlertDescription>
@@ -602,4 +602,19 @@ function MeetingsList({
         </div>
       ),
   });
+}
+
+/** Mirrors the loaded workflow panel height while query data resolves. */
+function WorkflowPanelSkeleton() {
+  return (
+    <FramePanel className="grid min-h-56 content-start gap-3 p-4">
+      <div className="flex min-w-0 items-center justify-between gap-3">
+        <Skeleton className="h-6 w-24" />
+        <Skeleton className="h-4 w-12" />
+      </div>
+      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-10 w-11/12" />
+      <Skeleton className="h-10 w-4/5" />
+    </FramePanel>
+  );
 }

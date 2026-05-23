@@ -1,5 +1,3 @@
-"use client";
-
 import { Meter as MeterPrimitive } from "@base-ui/react/meter";
 import type React from "react";
 import { cn } from "@repo/design-system/lib/utils";

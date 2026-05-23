@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --host 127.0.0.1 --port 3000 --strictPort",
-    "build": "vite build",
+    "build": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --disable-warning=DEP0205\" vite build",
     "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "test": "vitest run",
@@ -17,6 +17,7 @@
     "@confect/react": "8.0.0",
     "@fontsource-variable/inter": "^5.2.8",
     "@hugeicons/core-free-icons": "^4.1.4",
+    "@mantine/hooks": "^9.2.1",
     "@repo/ai": "workspace:*",
     "@repo/backend": "workspace:*",
     "@repo/design-system": "workspace:*",

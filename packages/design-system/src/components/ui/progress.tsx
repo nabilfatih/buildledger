@@ -1,5 +1,3 @@
-"use client";
-
 import { Progress as ProgressPrimitive } from "@base-ui/react/progress";
 import type React from "react";
 import { cn } from "@repo/design-system/lib/utils";

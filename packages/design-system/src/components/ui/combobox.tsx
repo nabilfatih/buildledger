@@ -1,5 +1,3 @@
-"use client";
-
 import { Combobox as ComboboxPrimitive } from "@base-ui/react/combobox";
 import { Cancel01Icon, ChevronsUpDown } from "@hugeicons/core-free-icons";
 import * as React from "react";

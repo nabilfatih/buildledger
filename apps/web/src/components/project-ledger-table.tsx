@@ -1,5 +1,3 @@
-"use client";
-
 import { QueryResult } from "@confect/react";
 import {
   Calendar03Icon,
@@ -12,6 +10,14 @@ import {
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Calendar } from "@repo/design-system/components/ui/calendar";
+import {
+  CardFrame,
+  CardFrameAction,
+  CardFrameDescription,
+  CardFrameFooter,
+  CardFrameHeader,
+  CardFrameTitle,
+} from "@repo/design-system/components/ui/card";
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
 import {
   Empty,
@@ -28,14 +34,6 @@ import {
   Fieldset,
   FieldsetLegend,
 } from "@repo/design-system/components/ui/fieldset";
-import {
-  Frame,
-  FrameDescription,
-  FrameFooter,
-  FrameHeader,
-  FramePanel,
-  FrameTitle,
-} from "@repo/design-system/components/ui/frame";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import { Input } from "@repo/design-system/components/ui/input";
 import {
@@ -121,15 +119,11 @@ const statusFilters = [
   { label: "Done", value: "done" },
   { label: "Recorded", value: "recorded" },
 ];
-const desktopSkeletonRows = [
-  "row-1",
-  "row-2",
-  "row-3",
-  "row-4",
-  "row-5",
-  "row-6",
-];
 const ledgerPageSize = 8;
+const desktopSkeletonRows = Array.from(
+  { length: ledgerPageSize },
+  (_, index) => `row-${index + 1}`
+);
 
 type QueryValue<Result> = Result extends {
   readonly _tag: "Success";
@@ -538,17 +532,15 @@ export function ProjectLedgerTable({
   }
 
   return (
-    <Frame className="min-w-0">
-      <FrameHeader className="gap-3">
-        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <FrameTitle>Project Ledger</FrameTitle>
-            <FrameDescription>
-              Search decisions, actions, risks, questions, and cited records.
-            </FrameDescription>
-          </div>
+    <CardFrame className="min-w-0">
+      <CardFrameHeader className="gap-3">
+        <CardFrameTitle>Project Ledger</CardFrameTitle>
+        <CardFrameDescription>
+          Search decisions, actions, risks, questions, and cited records.
+        </CardFrameDescription>
+        <CardFrameAction>
           <Badge variant="info">{filteredRows.length} Rows</Badge>
-        </div>
+        </CardFrameAction>
         <LedgerFilters
           endDate={endDate}
           kind={kind}
@@ -567,37 +559,33 @@ export function ProjectLedgerTable({
           startDate={startDate}
           status={status}
         />
-      </FrameHeader>
-      <FramePanel className="min-w-0 overflow-hidden p-0">
-        {QueryResult.match(ledger, {
-          onLoading: () => <LedgerTableSkeleton />,
-          onFailure: (error) => (
-            <div className="p-4 text-muted-foreground text-sm">
-              {error.message}
-            </div>
+      </CardFrameHeader>
+      {QueryResult.match(ledger, {
+        onLoading: () => <LedgerTableSkeleton />,
+        onFailure: (error) => (
+          <div className="p-4 text-muted-foreground text-sm">
+            {error.message}
+          </div>
+        ),
+        onSuccess: () =>
+          filteredRows.length === 0 ? (
+            <Empty className="min-h-72">
+              <EmptyHeader>
+                <EmptyTitle>No ledger rows yet</EmptyTitle>
+                <EmptyDescription>
+                  Create a meeting, generate minutes, publish them, then the
+                  ledger fills from the published project memory.
+                </EmptyDescription>
+              </EmptyHeader>
+            </Empty>
+          ) : (
+            <LedgerDataTable
+              onCopySelectedRows={handleCopySelectedRows}
+              table={table}
+            />
           ),
-          onSuccess: () =>
-            filteredRows.length === 0 ? (
-              <Empty className="min-h-72">
-                <EmptyHeader>
-                  <EmptyTitle>No ledger rows yet</EmptyTitle>
-                  <EmptyDescription>
-                    Create a meeting, generate minutes, publish them, then the
-                    ledger fills from the published project memory.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              <div className="grid min-w-0">
-                <LedgerDataTable
-                  onCopySelectedRows={handleCopySelectedRows}
-                  table={table}
-                />
-              </div>
-            ),
-        })}
-      </FramePanel>
-    </Frame>
+      })}
+    </CardFrame>
   );
 }
 
@@ -789,18 +777,68 @@ function DateFilter({
 /** Keeps the ledger surface stable during query refreshes. */
 function LedgerTableSkeleton() {
   return (
-    <div className="grid min-w-0 gap-3 p-3">
-      <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-4">
-        <Skeleton className="h-16 xl:col-span-2" />
-        <Skeleton className="h-16" />
-        <Skeleton className="h-16" />
-      </div>
-      <div className="grid min-w-0 gap-2 border-border border-y p-3">
-        {desktopSkeletonRows.map((row) => (
-          <Skeleton className="h-12" key={row} />
-        ))}
-      </div>
-    </div>
+    <>
+      <Table className="min-w-[58rem] table-fixed" variant="card">
+        <TableHeader>
+          <TableRow className="hover:bg-transparent">
+            <TableHead style={{ width: "54px" }}>
+              <Skeleton className="size-5 rounded-md" />
+            </TableHead>
+            <TableHead style={{ width: "116px" }}>
+              <Skeleton className="h-4 w-14" />
+            </TableHead>
+            <TableHead style={{ width: "340px" }}>
+              <Skeleton className="h-4 w-28" />
+            </TableHead>
+            <TableHead style={{ width: "220px" }}>
+              <Skeleton className="h-4 w-20" />
+            </TableHead>
+            <TableHead style={{ width: "126px" }}>
+              <Skeleton className="h-4 w-16" />
+            </TableHead>
+            <TableHead style={{ width: "126px" }}>
+              <Skeleton className="h-4 w-14" />
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {desktopSkeletonRows.map((row) => (
+            <TableRow key={row}>
+              <TableCell>
+                <Skeleton className="size-5 rounded-md" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-5 w-18" />
+              </TableCell>
+              <TableCell>
+                <div className="grid gap-2">
+                  <Skeleton className="h-4 w-52" />
+                  <Skeleton className="h-3 w-72" />
+                </div>
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-44" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-5 w-16" />
+              </TableCell>
+              <TableCell>
+                <Skeleton className="h-4 w-20" />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+      <CardFrameFooter className="p-2">
+        <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <Skeleton className="h-8 w-24" />
+            <Skeleton className="h-4 w-20" />
+          </div>
+          <Skeleton className="h-8 w-72" />
+        </div>
+      </CardFrameFooter>
+    </>
   );
 }
 
@@ -849,7 +887,7 @@ function LedgerDataTable({
   readonly table: ReactTable<LedgerRow>;
 }) {
   return (
-    <div className="grid min-w-0">
+    <>
       <Table className="min-w-[58rem] table-fixed" variant="card">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -886,7 +924,7 @@ function LedgerDataTable({
           ))}
         </TableBody>
       </Table>
-      <FrameFooter className="border-border border-t p-2">
+      <CardFrameFooter className="p-2">
         <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ColumnMenu table={table} />
@@ -898,8 +936,8 @@ function LedgerDataTable({
           </div>
           <LedgerPagination table={table} />
         </div>
-      </FrameFooter>
-    </div>
+      </CardFrameFooter>
+    </>
   );
 }
 

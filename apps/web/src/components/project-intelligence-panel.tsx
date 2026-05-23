@@ -1,6 +1,4 @@
-"use client";
-
-import { useAction, useMutation } from "@confect/react";
+import { useAction, useMutation, useQuery } from "@confect/react";
 import {
   Analytics01Icon,
   BubbleChatQuestionIcon,
@@ -59,10 +57,14 @@ export function ProjectIntelligencePanel({
   const answerQuestion = useAction(refs.public.ai.answerProjectQuestion);
   const generateReport = useAction(refs.public.ai.generateProjectReport);
   const createShareLink = useMutation(refs.public.shares.createReadOnlyLink);
+  const reports = useQuery(
+    refs.public.reports.listByProject,
+    selectedProjectId ? { projectId: selectedProjectId } : "skip"
+  );
   const [question, setQuestion] = useState(defaultQuestion);
   const [answer, setAnswer] = useState<string | null>(null);
   const [reportId, setReportId] = useState<GenericId<"reports"> | null>(null);
-  const [shareToken, setShareToken] = useState<string | null>(null);
+  const [shareLink, setShareLink] = useState<string | null>(null);
   const [isAsking, setIsAsking] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
@@ -78,6 +80,10 @@ export function ProjectIntelligencePanel({
   const questionHelp = canUseProjectMemory
     ? "Ask cited questions from published project memory."
     : "Publish minutes first so answers can cite project memory.";
+  const report =
+    reports._tag === "Success"
+      ? reports.value.find((item) => item._id === reportId)
+      : undefined;
 
   /** Asks the project memory service for a cited answer. */
   async function handleAskProject() {
@@ -98,7 +104,7 @@ export function ProjectIntelligencePanel({
       setIsAsking(true);
       setAnswer(null);
       setReportId(null);
-      setShareToken(null);
+      setShareLink(null);
 
       const result = await answerQuestion({
         projectId: selectedProjectId,
@@ -149,7 +155,7 @@ export function ProjectIntelligencePanel({
       setIsReporting(true);
       setAnswer(null);
       setReportId(null);
-      setShareToken(null);
+      setShareLink(null);
 
       const now = new Date();
       const weekAgo = new Date(now);
@@ -196,7 +202,7 @@ export function ProjectIntelligencePanel({
       setIsSharing(true);
       setAnswer(null);
       setReportId(null);
-      setShareToken(null);
+      setShareLink(null);
 
       const result = await createShareLink({
         projectId: selectedProjectId,
@@ -212,10 +218,10 @@ export function ProjectIntelligencePanel({
         return;
       }
 
-      setShareToken(result.right.token);
+      setShareLink(getShareLink(result.right.token));
       toastManager.add({
-        title: "Share Token Created",
-        description: "Use copy to keep the token out of the layout.",
+        title: "Share Link Created",
+        description: "Copy the read-only meeting link when you are ready.",
         type: "success",
       });
     } catch (error) {
@@ -328,16 +334,18 @@ export function ProjectIntelligencePanel({
           ) : null}
           {reportId ? (
             <ResultAlert
+              copyLabel="Copy Report"
               label="Report Draft"
-              onCopy={() => handleCopy(reportId)}
-              value={reportId}
+              onCopy={() => handleCopy(report?.body ?? reportId)}
+              value={report?.body ?? reportId}
             />
           ) : null}
-          {shareToken ? (
+          {shareLink ? (
             <ResultAlert
-              label="Share Token"
-              onCopy={() => handleCopy(shareToken)}
-              value={shareToken}
+              copyLabel="Copy Link"
+              label="Share Link"
+              onCopy={() => handleCopy(shareLink)}
+              value={shareLink}
             />
           ) : null}
         </div>
@@ -348,10 +356,12 @@ export function ProjectIntelligencePanel({
 
 /** Shows a copyable identifier without letting long tokens break layout. */
 function ResultAlert({
+  copyLabel,
   label,
   onCopy,
   value,
 }: {
+  readonly copyLabel: string;
   readonly label: string;
   readonly onCopy: () => void;
   readonly value: string;
@@ -360,17 +370,25 @@ function ResultAlert({
     <Alert variant="success">
       <AlertTitle>{label}</AlertTitle>
       <AlertDescription>
-        <code className="block max-w-full truncate rounded bg-muted px-2 py-1 text-xs">
-          {shortIdentifier(value)}
-        </code>
+        <span className="line-clamp-4 whitespace-pre-wrap break-words text-xs">
+          {value.length > 120 ? value : shortIdentifier(value)}
+        </span>
       </AlertDescription>
       <AlertAction>
         <Button onClick={onCopy} size="sm" type="button" variant="outline">
-          <HugeIcons icon={ClipboardCopyIcon} /> Copy
+          <HugeIcons icon={ClipboardCopyIcon} /> {copyLabel}
         </Button>
       </AlertAction>
     </Alert>
   );
+}
+
+/** Builds a public share URL from the current deployment origin. */
+function getShareLink(token: string) {
+  const url = new URL("/share", window.location.origin);
+  url.searchParams.set("token", token);
+
+  return url.toString();
 }
 
 /** Shortens generated ids and tokens for display only. */

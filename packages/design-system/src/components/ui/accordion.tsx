@@ -1,5 +1,3 @@
-"use client";
-
 import { Accordion as AccordionPrimitive } from "@base-ui/react/accordion";
 import { ChevronDown } from "@hugeicons/core-free-icons";
 import type React from "react";
