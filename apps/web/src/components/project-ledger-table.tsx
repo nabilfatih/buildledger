@@ -5,6 +5,7 @@ import {
   Calendar03Icon,
   ChevronDown,
   ChevronUp,
+  ClipboardCopyIcon,
   Search01Icon,
   TableColumnsSplitIcon,
 } from "@hugeicons/core-free-icons";
@@ -79,6 +80,7 @@ import {
   TableHeader,
   TableRow,
 } from "@repo/design-system/components/ui/table";
+import { toastManager } from "@repo/design-system/components/ui/toast";
 import {
   createColumnHelper,
   flexRender,
@@ -86,15 +88,14 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   type Header,
+  type PaginationState,
   type Table as ReactTable,
-  type Row,
   type RowSelectionState,
   type SortingState,
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
-
 import type { LedgerResult } from "@/lib/confect-results";
 
 const kindFilters = [
@@ -128,7 +129,7 @@ const desktopSkeletonRows = [
   "row-5",
   "row-6",
 ];
-const mobileSkeletonRows = ["card-1", "card-2", "card-3", "card-4"];
+const ledgerPageSize = 8;
 
 type QueryValue<Result> = Result extends {
   readonly _tag: "Success";
@@ -387,6 +388,16 @@ function getPageOption(table: ReactTable<LedgerRow>, index: number) {
   };
 }
 
+/** Formats selected ledger rows for sharing outside the table. */
+function formatSelectedRows(rows: readonly LedgerRow[]) {
+  return rows
+    .map(
+      (row) =>
+        `${formatKind(row.kind)}: ${row.title}\nSource: ${row.meetingTitle} (${row.meetingDate})\nStatus: ${formatStatus(row.status)}`
+    )
+    .join("\n\n");
+}
+
 /** Shows ledger item type using the same semantic badges as review cards. */
 function KindBadge({ kind }: { readonly kind: string }) {
   return <Badge variant={kindVariant(kind)}>{formatKind(kind)}</Badge>;
@@ -443,6 +454,10 @@ export function ProjectLedgerTable({
   const [source, setSource] = useState("");
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: ledgerPageSize,
+  });
   const [sorting, setSorting] = useState<SortingState>([
     { id: "meetingDate", desc: true },
   ]);
@@ -478,16 +493,49 @@ export function ProjectLedgerTable({
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
+    getRowId: (row) => row.id,
     getSortedRowModel: getSortedRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
+    onPaginationChange: setPagination,
     onRowSelectionChange: setRowSelection,
     onSortingChange: setSorting,
     state: {
       columnVisibility,
+      pagination,
       rowSelection,
       sorting,
     },
   });
+
+  /** Copies selected ledger rows so selection has a clear end-to-end action. */
+  async function handleCopySelectedRows() {
+    const selectedRows = table
+      .getSelectedRowModel()
+      .rows.map((row) => row.original);
+
+    if (selectedRows.length === 0) {
+      toastManager.add({
+        title: "Select ledger rows first",
+        type: "warning",
+      });
+      return;
+    }
+
+    try {
+      await navigator.clipboard.writeText(formatSelectedRows(selectedRows));
+      toastManager.add({
+        title: "Ledger rows copied",
+        description: `${selectedRows.length} selected row${selectedRows.length === 1 ? "" : "s"} copied.`,
+        type: "success",
+      });
+    } catch {
+      toastManager.add({
+        title: "Rows were not copied",
+        description: "Allow clipboard access and try again.",
+        type: "error",
+      });
+    }
+  }
 
   return (
     <Frame className="min-w-0">
@@ -541,11 +589,10 @@ export function ProjectLedgerTable({
               </Empty>
             ) : (
               <div className="grid min-w-0">
-                <DesktopLedgerTable table={table} />
-                <MobileLedgerCards rows={table.getRowModel().rows} />
-                <div className="border-border border-t p-2 xl:hidden">
-                  <LedgerPagination table={table} />
-                </div>
+                <LedgerDataTable
+                  onCopySelectedRows={handleCopySelectedRows}
+                  table={table}
+                />
               </div>
             ),
         })}
@@ -748,16 +795,9 @@ function LedgerTableSkeleton() {
         <Skeleton className="h-16" />
         <Skeleton className="h-16" />
       </div>
-      <div className="hidden min-w-0 border-border border-y xl:grid">
-        <div className="grid gap-2 p-3">
-          {desktopSkeletonRows.map((row) => (
-            <Skeleton className="h-12" key={row} />
-          ))}
-        </div>
-      </div>
-      <div className="grid gap-2 xl:hidden">
-        {mobileSkeletonRows.map((row) => (
-          <Skeleton className="h-24" key={row} />
+      <div className="grid min-w-0 gap-2 border-border border-y p-3">
+        {desktopSkeletonRows.map((row) => (
+          <Skeleton className="h-12" key={row} />
         ))}
       </div>
     </div>
@@ -800,14 +840,16 @@ function ColumnMenu({ table }: { readonly table: ReactTable<LedgerRow> }) {
   );
 }
 
-/** Renders the desktop ledger table inside its own scroll container. */
-function DesktopLedgerTable({
+/** Renders the ledger table across all devices with contained table scrolling. */
+function LedgerDataTable({
+  onCopySelectedRows,
   table,
 }: {
+  readonly onCopySelectedRows: () => Promise<void>;
   readonly table: ReactTable<LedgerRow>;
 }) {
   return (
-    <div className="hidden min-w-0 xl:grid">
+    <div className="grid min-w-0">
       <Table className="min-w-[58rem] table-fixed" variant="card">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
@@ -845,16 +887,56 @@ function DesktopLedgerTable({
         </TableBody>
       </Table>
       <FrameFooter className="border-border border-t p-2">
-        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+        <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
             <ColumnMenu table={table} />
-            <p className="text-muted-foreground text-sm">
-              {table.getSelectedRowModel().rows.length} Selected
-            </p>
+            <SelectionActions
+              onClearSelection={() => table.resetRowSelection()}
+              onCopySelectedRows={onCopySelectedRows}
+              selectedCount={table.getSelectedRowModel().rows.length}
+            />
           </div>
-          <LedgerPagination className="w-fit" table={table} />
+          <LedgerPagination table={table} />
         </div>
       </FrameFooter>
+    </div>
+  );
+}
+
+/** Shows the concrete action available after rows are selected. */
+function SelectionActions({
+  onClearSelection,
+  onCopySelectedRows,
+  selectedCount,
+}: {
+  readonly onClearSelection: () => void;
+  readonly onCopySelectedRows: () => Promise<void>;
+  readonly selectedCount: number;
+}) {
+  if (selectedCount === 0) {
+    return <p className="text-muted-foreground text-sm">0 Selected</p>;
+  }
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2">
+      <p className="text-muted-foreground text-sm">{selectedCount} Selected</p>
+      <Button
+        onClick={onCopySelectedRows}
+        size="sm"
+        type="button"
+        variant="outline"
+      >
+        <HugeIcons icon={ClipboardCopyIcon} />
+        Copy Selected
+      </Button>
+      <Button
+        onClick={onClearSelection}
+        size="sm"
+        type="button"
+        variant="ghost"
+      >
+        Clear
+      </Button>
     </div>
   );
 }
@@ -900,47 +982,6 @@ function ColumnHeaderButton({
   );
 }
 
-/** Renders compact ledger rows for mobile instead of shrinking the table. */
-function MobileLedgerCards({
-  rows,
-}: {
-  readonly rows: readonly Row<LedgerRow>[];
-}) {
-  return (
-    <div className="grid min-w-0 gap-2 xl:hidden">
-      {rows.map((row) => (
-        <Button
-          className="grid h-auto w-full min-w-0 justify-stretch gap-2 whitespace-normal rounded-lg p-3 text-left sm:h-auto"
-          key={row.id}
-          onClick={() => row.toggleSelected()}
-          type="button"
-          variant={row.getIsSelected() ? "secondary" : "outline"}
-        >
-          <div className="flex min-w-0 items-center justify-between gap-2">
-            <KindBadge kind={row.original.kind} />
-            <span className="text-muted-foreground text-xs">
-              {row.original.meetingDate}
-            </span>
-          </div>
-          <div className="min-w-0">
-            <h3 className="break-words font-medium text-sm">
-              {row.original.title}
-            </h3>
-            <p className="mt-1 line-clamp-2 break-words text-muted-foreground text-xs">
-              {row.original.body ?? row.original.meetingTitle}
-            </p>
-          </div>
-          <div className="flex min-w-0 flex-wrap gap-2 text-muted-foreground text-xs">
-            <span>{formatStatus(row.original.status)}</span>
-            <span>{row.original.ownerName ?? "Unassigned"}</span>
-            <span>{formatSeverity(row.original.severity)}</span>
-          </div>
-        </Button>
-      ))}
-    </div>
-  );
-}
-
 /** Controls TanStack pagination without adding another primary action. */
 function LedgerPagination({
   className,
@@ -956,7 +997,7 @@ function LedgerPagination({
 
   return (
     <div
-      className={`flex min-w-0 flex-wrap items-center justify-between gap-2 text-muted-foreground text-sm ${className ?? ""}`}
+      className={`flex min-w-0 flex-wrap items-center justify-between gap-2 text-muted-foreground text-sm lg:justify-end ${className ?? ""}`}
     >
       <div className="flex items-center gap-2 whitespace-nowrap">
         <span>Viewing</span>

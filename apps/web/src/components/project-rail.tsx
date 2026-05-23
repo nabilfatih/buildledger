@@ -105,13 +105,15 @@ export function ProjectRail({
     search.trim().length > 0 ? filteredProjects : filteredProjects.slice(0, 8);
 
   return (
-    <Sidebar collapsible="offcanvas" variant="inset">
+    <Sidebar collapsible="icon" variant="inset">
       <SidebarHeader>
-        <div className="flex min-w-0 items-center gap-2 px-2 py-1">
+        <div className="flex min-w-0 items-center gap-2 px-2 py-1 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
           <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background shadow-sm/5">
             <HugeIcons className="size-4" icon={Building06Icon} />
           </span>
-          <h1 className="truncate font-heading text-lg">BuildLedger</h1>
+          <h1 className="truncate font-heading text-lg group-data-[collapsible=icon]:sr-only">
+            BuildLedger
+          </h1>
         </div>
         <NewProjectSheet
           canCreateProject={projects._tag === "Success"}
@@ -120,7 +122,7 @@ export function ProjectRail({
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupContent className="grid gap-2">
+          <SidebarGroupContent className="grid gap-2 group-data-[collapsible=icon]:hidden">
             <InputGroup>
               <InputGroupInput
                 onChange={(event) => setSearch(event.target.value)}
@@ -185,7 +187,7 @@ export function ProjectRail({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-      <SidebarFooter>
+      <SidebarFooter className="group-data-[collapsible=icon]:items-center">
         <AiSettingsSheet />
       </SidebarFooter>
       <SidebarRail />
@@ -272,9 +274,18 @@ function NewProjectSheet({
   return (
     <Sheet onOpenChange={setIsOpen} open={isOpen}>
       <SheetTrigger
-        render={<Button className="w-full" size="sm" type="button" />}
+        render={
+          <Button
+            className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:px-0"
+            size="sm"
+            type="button"
+          />
+        }
       >
-        <HugeIcons icon={Add01Icon} /> New Project
+        <HugeIcons icon={Add01Icon} />
+        <span className="group-data-[collapsible=icon]:sr-only">
+          New Project
+        </span>
       </SheetTrigger>
       <SheetPopup side="left" variant="inset">
         <SheetHeader>

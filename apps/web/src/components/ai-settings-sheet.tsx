@@ -176,9 +176,19 @@ export function AiSettingsSheet() {
   return (
     <Sheet onOpenChange={handleOpenChange} open={isOpen}>
       <SheetTrigger
-        render={<Button size="sm" type="button" variant="outline" />}
+        render={
+          <Button
+            className="w-full group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:px-0"
+            size="sm"
+            type="button"
+            variant="outline"
+          />
+        }
       >
-        <HugeIcons icon={AiSettingIcon} /> AI Settings
+        <HugeIcons icon={AiSettingIcon} />
+        <span className="group-data-[collapsible=icon]:sr-only">
+          AI Settings
+        </span>
       </SheetTrigger>
       <SheetPopup
         portalProps={{ keepMounted: true }}
