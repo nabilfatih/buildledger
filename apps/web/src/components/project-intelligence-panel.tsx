@@ -39,6 +39,7 @@ import {
 } from "@repo/design-system/components/ui/toolbar";
 import type { GenericId } from "convex/values";
 import { subDays } from "date-fns";
+import { Effect, Either } from "effect";
 import { useState } from "react";
 
 import { formatDateInput } from "@/lib/dates";
@@ -88,7 +89,7 @@ export function ProjectIntelligencePanel({
       : undefined;
 
   /** Asks the project memory service for a cited answer. */
-  async function handleAskProject() {
+  function handleAskProject() {
     if (!selectedProjectId) {
       return;
     }
@@ -102,44 +103,49 @@ export function ProjectIntelligencePanel({
       return;
     }
 
-    try {
-      setIsAsking(true);
-      setAnswer(null);
-      setReportId(null);
-      setShareLink(null);
-
-      const result = await answerQuestion({
-        projectId: selectedProjectId,
-        question,
-      });
-
-      if (result._tag === "Left") {
-        toastManager.add({
-          title: "Answer was not generated",
-          description: result.left.message,
-          type: "error",
+    setIsAsking(true);
+    setAnswer(null);
+    setReportId(null);
+    setShareLink(null);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            answerQuestion({
+              projectId: selectedProjectId,
+              question,
+            }),
+          catch: getErrorMessage,
         });
-        return;
-      }
 
-      setAnswer(result.right.answer);
-      toastManager.add({
-        title: "Answer generated",
-        type: "success",
-      });
-    } catch (error) {
-      toastManager.add({
-        title: "Answer was not generated",
-        description: getErrorMessage(error),
-        type: "error",
-      });
-    } finally {
-      setIsAsking(false);
-    }
+        yield* Either.match(result, {
+          onLeft: (error) => Effect.fail(error.message),
+          onRight: (projectAnswer) =>
+            Effect.sync(() => {
+              setAnswer(projectAnswer.answer);
+              toastManager.add({
+                title: "Answer generated",
+                type: "success",
+              });
+            }),
+        });
+      }).pipe(
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Answer was not generated",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsAsking(false)))
+      )
+    );
   }
 
   /** Generates a weekly report draft from published project memory. */
-  async function handleGenerateReport() {
+  function handleGenerateReport() {
     if (!selectedProjectId) {
       return;
     }
@@ -153,90 +159,100 @@ export function ProjectIntelligencePanel({
       return;
     }
 
-    try {
-      setIsReporting(true);
-      setAnswer(null);
-      setReportId(null);
-      setShareLink(null);
-
-      const now = new Date();
-
-      const result = await generateReport({
-        projectId: selectedProjectId,
-        periodStart: formatDateInput(subDays(now, 7)),
-        periodEnd: formatDateInput(now),
-      });
-
-      if (result._tag === "Left") {
-        toastManager.add({
-          title: "Report was not generated",
-          description: result.left.message,
-          type: "error",
+    setIsReporting(true);
+    setAnswer(null);
+    setReportId(null);
+    setShareLink(null);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const now = new Date();
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            generateReport({
+              projectId: selectedProjectId,
+              periodStart: formatDateInput(subDays(now, 7)),
+              periodEnd: formatDateInput(now),
+            }),
+          catch: getErrorMessage,
         });
-        return;
-      }
 
-      setReportId(result.right);
-      toastManager.add({
-        title: "Report Draft Created",
-        type: "success",
-      });
-    } catch (error) {
-      toastManager.add({
-        title: "Report was not generated",
-        description: getErrorMessage(error),
-        type: "error",
-      });
-    } finally {
-      setIsReporting(false);
-    }
+        yield* Either.match(result, {
+          onLeft: (error) => Effect.fail(error.message),
+          onRight: (nextReportId) =>
+            Effect.sync(() => {
+              setReportId(nextReportId);
+              toastManager.add({
+                title: "Report Draft Created",
+                type: "success",
+              });
+            }),
+        });
+      }).pipe(
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Report was not generated",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsReporting(false)))
+      )
+    );
   }
 
   /** Creates a read-only share token for the active meeting. */
-  async function handleCreateShareLink() {
+  function handleCreateShareLink() {
     if (!(selectedProjectId && selectedMeetingId)) {
       return;
     }
 
-    try {
-      setIsSharing(true);
-      setAnswer(null);
-      setReportId(null);
-      setShareLink(null);
-
-      const result = await createShareLink({
-        projectId: selectedProjectId,
-        meetingId: selectedMeetingId,
-      });
-
-      if (result._tag === "Left") {
-        toastManager.add({
-          title: "Share link was not created",
-          description: result.left.message,
-          type: "error",
+    setIsSharing(true);
+    setAnswer(null);
+    setReportId(null);
+    setShareLink(null);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            createShareLink({
+              projectId: selectedProjectId,
+              meetingId: selectedMeetingId,
+            }),
+          catch: getErrorMessage,
         });
-        return;
-      }
 
-      setShareLink(getShareLink(result.right.token));
-      toastManager.add({
-        title: "Share Link Created",
-        description: "Copy the read-only meeting link when you are ready.",
-        type: "success",
-      });
-    } catch (error) {
-      toastManager.add({
-        title: "Share link was not created",
-        description: getErrorMessage(error),
-        type: "error",
-      });
-    } finally {
-      setIsSharing(false);
-    }
+        yield* Either.match(result, {
+          onLeft: (error) => Effect.fail(error.message),
+          onRight: (share) =>
+            Effect.sync(() => {
+              setShareLink(getShareLink(share.token));
+              toastManager.add({
+                title: "Share Link Created",
+                description:
+                  "Copy the read-only meeting link when you are ready.",
+                type: "success",
+              });
+            }),
+        });
+      }).pipe(
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Share link was not created",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsSharing(false)))
+      )
+    );
   }
 
   /** Copies a generated token or identifier without rendering it inline. */
-  async function handleCopy(value: string) {
+  function handleCopy(value: string) {
     if (!navigator.clipboard) {
       toastManager.add({
         title: "Clipboard unavailable",
@@ -246,19 +262,30 @@ export function ProjectIntelligencePanel({
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(value);
-      toastManager.add({
-        title: "Copied",
-        type: "success",
-      });
-    } catch {
-      toastManager.add({
-        title: "Clipboard unavailable",
-        description: "Clipboard is not available in this browser.",
-        type: "warning",
-      });
-    }
+    return Effect.runPromise(
+      Effect.tryPromise({
+        try: () => navigator.clipboard.writeText(value),
+        catch: () => undefined,
+      }).pipe(
+        Effect.tap(() =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Copied",
+              type: "success",
+            })
+          )
+        ),
+        Effect.catchAll(() =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Clipboard unavailable",
+              description: "Clipboard is not available in this browser.",
+              type: "warning",
+            })
+          )
+        )
+      )
+    );
   }
 
   return (

@@ -34,6 +34,7 @@ import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import type { GenericId } from "convex/values";
+import { Effect, Either } from "effect";
 import { type FormEvent, useState } from "react";
 
 import {
@@ -63,44 +64,51 @@ export function NewMeetingSheet({
       title: "",
       type: meetingTypeItems[0].value,
     },
-    onSubmit: async ({ value }) => {
+    onSubmit: ({ value }) => {
       if (!selectedProjectId) {
         return;
       }
 
-      try {
-        const result = await createDraft({
-          projectId: selectedProjectId,
-          title: value.title.trim(),
-          meetingType: value.type,
-          meetingDate: value.date,
-          agenda: optionalText(value.agenda),
-        });
-
-        if (result._tag === "Left") {
-          toastManager.add({
-            title: "Meeting was not created",
-            description: result.left.message,
-            type: "error",
+      return Effect.runPromise(
+        Effect.gen(function* () {
+          const result = yield* Effect.tryPromise({
+            try: () =>
+              createDraft({
+                projectId: selectedProjectId,
+                title: value.title.trim(),
+                meetingType: value.type,
+                meetingDate: value.date,
+                agenda: optionalText(value.agenda),
+              }),
+            catch: getErrorMessage,
           });
-          return;
-        }
 
-        onCreated(result.right);
-        setIsOpen(false);
-        form.reset(defaultMeetingFormValues());
-        toastManager.add({
-          title: "Meeting created",
-          description: "Add notes, then generate minutes.",
-          type: "success",
-        });
-      } catch (error) {
-        toastManager.add({
-          title: "Meeting was not created",
-          description: getErrorMessage(error),
-          type: "error",
-        });
-      }
+          yield* Either.match(result, {
+            onLeft: (error) => Effect.fail(error.message),
+            onRight: (meetingId) =>
+              Effect.sync(() => {
+                onCreated(meetingId);
+                setIsOpen(false);
+                form.reset(defaultMeetingFormValues());
+                toastManager.add({
+                  title: "Meeting created",
+                  description: "Add notes, then generate minutes.",
+                  type: "success",
+                });
+              }),
+          });
+        }).pipe(
+          Effect.catchAll((description) =>
+            Effect.sync(() =>
+              toastManager.add({
+                title: "Meeting was not created",
+                description,
+                type: "error",
+              })
+            )
+          )
+        )
+      );
     },
     onSubmitInvalid: () => {
       toastManager.add({
@@ -121,10 +129,10 @@ export function NewMeetingSheet({
   }
 
   /** Submits the TanStack-managed meeting form. */
-  async function handleCreate(event: FormEvent<HTMLFormElement>) {
+  function handleCreate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     event.stopPropagation();
-    await form.handleSubmit();
+    return form.handleSubmit();
   }
 
   return (

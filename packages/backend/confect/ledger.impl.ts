@@ -9,12 +9,14 @@ const maxDerivedRows = 100;
 
 /** Counts citations from the persisted minute-item citation payload. */
 export function countCitations(citationsJson: string) {
-  try {
-    const citations = JSON.parse(citationsJson);
-    return Array.isArray(citations) ? citations.length : 0;
-  } catch {
-    return 0;
-  }
+  const citations = Effect.runSync(
+    Effect.try({
+      try: () => JSON.parse(citationsJson),
+      catch: () => null,
+    }).pipe(Effect.catchAll(() => Effect.succeed(null)))
+  );
+
+  return Array.isArray(citations) ? citations.length : 0;
 }
 
 /** Sorts newest ledger rows first and keeps the response bounded. */

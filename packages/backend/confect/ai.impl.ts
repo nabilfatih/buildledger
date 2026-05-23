@@ -12,7 +12,7 @@ import {
   QueryRunner,
 } from "@repo/backend/confect/_generated/services";
 import { asAppError } from "@repo/backend/confect/helpers";
-import { Effect, Layer } from "effect";
+import { Effect, Either, Layer } from "effect";
 
 /** Picks a stable message from unknown action failures. */
 function failureMessage(error: unknown) {
@@ -66,15 +66,19 @@ const generateMinutes = FunctionImpl.make(
           });
         }).pipe(Effect.either);
 
-        if (result._tag === "Left") {
-          yield* runMutation(refs.public.meetings.failGeneration, {
-            meetingId,
-            aiRunId,
-            message: failureMessage(result.left),
-          });
+        yield* Either.match(result, {
+          onLeft: (error) =>
+            Effect.gen(function* () {
+              yield* runMutation(refs.public.meetings.failGeneration, {
+                meetingId,
+                aiRunId,
+                message: failureMessage(error),
+              });
 
-          return yield* Effect.fail(result.left);
-        }
+              return yield* Effect.fail(error);
+            }),
+          onRight: () => Effect.void,
+        });
 
         return aiRunId;
       })

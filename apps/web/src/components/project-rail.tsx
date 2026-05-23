@@ -7,7 +7,12 @@ import {
   Search01Icon,
   Sun03Icon,
 } from "@hugeicons/core-free-icons";
-import { useIntersection, usePrevious } from "@mantine/hooks";
+import {
+  useColorScheme,
+  useIntersection,
+  useLocalStorage,
+  usePrevious,
+} from "@mantine/hooks";
 import refs from "@repo/backend/confect/_generated/refs";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -64,6 +69,7 @@ import {
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import type { GenericId } from "convex/values";
+import { Effect, Either } from "effect";
 import { type FormEvent, useEffect, useMemo, useState } from "react";
 
 import { AiSettingsSheet } from "@/components/ai-settings-sheet";
@@ -71,8 +77,8 @@ import type { ProjectsResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
 import {
   applyThemePreference,
-  getStoredThemePreference,
-  type ThemePreference,
+  parseThemePreference,
+  resolveThemePreference,
   themeStorageKey,
 } from "@/lib/theme";
 
@@ -265,41 +271,26 @@ export function ProjectRail({
 /** Lets users choose the app theme from the sidebar footer. */
 function ThemeMenu() {
   const { isMobile } = useSidebar();
-  const [themePreference, setThemePreference] =
-    useState<ThemePreference | null>(null);
-  const activeThemePreference = themePreference ?? "system";
-  const selectedTheme =
-    themeOptions.find((option) => option.value === activeThemePreference) ??
-    themeOptions[0];
+  const [themePreference, setThemePreference] = useLocalStorage({
+    defaultValue: "system",
+    deserialize: parseThemePreference,
+    getInitialValueInEffect: false,
+    key: themeStorageKey,
+    serialize: (value) => value,
+  });
+  const systemTheme = useColorScheme("light");
+  const activeThemePreference = parseThemePreference(themePreference);
 
   useEffect(() => {
-    setThemePreference(getStoredThemePreference());
-  }, []);
-
-  useEffect(() => {
-    if (!themePreference) {
-      return;
-    }
-
-    applyThemePreference(themePreference);
-    window.localStorage.setItem(themeStorageKey, themePreference);
-
-    if (themePreference !== "system") {
-      return;
-    }
-
-    const systemTheme = window.matchMedia("(prefers-color-scheme: dark)");
-    const handleSystemThemeChange = () => applyThemePreference("system");
-
-    systemTheme.addEventListener("change", handleSystemThemeChange);
-    return () =>
-      systemTheme.removeEventListener("change", handleSystemThemeChange);
-  }, [themePreference]);
+    applyThemePreference(
+      resolveThemePreference(activeThemePreference, systemTheme)
+    );
+  }, [activeThemePreference, systemTheme]);
 
   return (
     <Menu>
       <MenuTrigger render={<SidebarMenuButton size="sm" type="button" />}>
-        <HugeIcons icon={selectedTheme.icon} />
+        <HugeIcons icon={ComputerIcon} />
         <span>Theme</span>
       </MenuTrigger>
       <MenuPopup align="start" side={isMobile ? "bottom" : "right"}>
@@ -339,52 +330,60 @@ function NewProjectSheet({
   const [isOpen, setIsOpen] = useState(false);
   const form = useForm({
     defaultValues: defaultProjectFormValues(),
-    onSubmit: async ({ value }) => {
-      try {
-        if (!canCreateProject) {
-          toastManager.add({
-            title: "Sign in required",
-            description: "Sign in before creating projects.",
-            type: "warning",
+    onSubmit: ({ value }) =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          if (!canCreateProject) {
+            return yield* Effect.sync(() =>
+              toastManager.add({
+                title: "Sign in required",
+                description: "Sign in before creating projects.",
+                type: "warning",
+              })
+            );
+          }
+
+          const projectName = value.name.trim();
+          const projectCode = value.code.trim();
+
+          const result = yield* Effect.tryPromise({
+            try: () =>
+              createProject({
+                organizationName: projectName,
+                name: projectName,
+                code: projectCode,
+                description:
+                  "Project workspace for construction meeting memory.",
+              }),
+            catch: getErrorMessage,
           });
-          return;
-        }
 
-        const projectName = value.name.trim();
-        const projectCode = value.code.trim();
-
-        const result = await createProject({
-          organizationName: projectName,
-          name: projectName,
-          code: projectCode,
-          description: "Project workspace for construction meeting memory.",
-        });
-
-        if (result._tag === "Left") {
-          toastManager.add({
-            title: "Project was not created",
-            description: result.left.message,
-            type: "error",
+          yield* Either.match(result, {
+            onLeft: (error) => Effect.fail(error.message),
+            onRight: (projectId) =>
+              Effect.sync(() => {
+                onCreated(projectId);
+                setIsOpen(false);
+                form.reset(defaultProjectFormValues());
+                toastManager.add({
+                  title: "Project created",
+                  description: "Create a meeting next.",
+                  type: "success",
+                });
+              }),
           });
-          return;
-        }
-
-        onCreated(result.right);
-        setIsOpen(false);
-        form.reset(defaultProjectFormValues());
-        toastManager.add({
-          title: "Project created",
-          description: "Create a meeting next.",
-          type: "success",
-        });
-      } catch (error) {
-        toastManager.add({
-          title: "Project was not created",
-          description: getErrorMessage(error),
-          type: "error",
-        });
-      }
-    },
+        }).pipe(
+          Effect.catchAll((description) =>
+            Effect.sync(() =>
+              toastManager.add({
+                title: "Project was not created",
+                description,
+                type: "error",
+              })
+            )
+          )
+        )
+      ),
     onSubmitInvalid: () => {
       toastManager.add({
         title: "Project details required",
@@ -395,10 +394,10 @@ function NewProjectSheet({
   });
 
   /** Creates a project workspace for the current user. */
-  async function handleCreateProject(event: FormEvent<HTMLFormElement>) {
+  function handleCreateProject(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     event.stopPropagation();
-    await form.handleSubmit();
+    return form.handleSubmit();
   }
 
   /** Keeps each new project form session empty and production-facing. */

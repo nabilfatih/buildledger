@@ -18,7 +18,7 @@ import {
   getOptionalUserToken,
   getUserToken,
 } from "@repo/backend/confect/helpers";
-import { Config, Effect, Layer } from "effect";
+import { Config, Effect, Layer, Option } from "effect";
 
 const secretKeyConfig = Config.string("BUILDLEDGER_SECRET_KEY").pipe(
   Config.withDefault("")
@@ -128,11 +128,10 @@ const getSavedSettings = Effect.fn("aiSettings.getSavedSettings")(function* (
     .index("by_userToken", (q) => q.eq("userToken", userToken), "desc")
     .first();
 
-  if (result._tag === "None") {
-    return null;
-  }
-
-  return result.value;
+  return Option.match(result, {
+    onNone: () => null,
+    onSome: (settings) => settings,
+  });
 });
 
 /** Returns the active provider state without raw key material. */

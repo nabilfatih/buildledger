@@ -10,7 +10,7 @@ import {
 import type schema from "@repo/backend/confect/schema";
 import type { GenericId } from "convex/values";
 import type { Effect as EffectType } from "effect";
-import { Effect } from "effect";
+import { Effect, Option } from "effect";
 
 type ProjectId = GenericId<"projects">;
 
@@ -115,7 +115,12 @@ export const ensureProjectAccess = Effect.fn("auth.ensureProjectAccess")(
       )
       .first()
       .pipe(
-        Effect.map((result) => (result._tag === "Some" ? result.value : null)),
+        Effect.map(
+          Option.match({
+            onNone: () => null,
+            onSome: (membership) => membership,
+          })
+        ),
         Effect.mapError(
           () =>
             new Forbidden({

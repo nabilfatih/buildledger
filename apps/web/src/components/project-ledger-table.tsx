@@ -92,6 +92,7 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
+import { Effect } from "effect";
 import { useMemo, useState } from "react";
 import type { LedgerResult } from "@/lib/confect-results";
 import {
@@ -496,7 +497,7 @@ export function ProjectLedgerTable({
   });
 
   /** Copies selected ledger rows so selection has a clear end-to-end action. */
-  async function handleCopySelectedRows() {
+  function handleCopySelectedRows() {
     const selectedRows = table
       .getSelectedRowModel()
       .rows.map((row) => row.original);
@@ -509,20 +510,32 @@ export function ProjectLedgerTable({
       return;
     }
 
-    try {
-      await navigator.clipboard.writeText(formatSelectedRows(selectedRows));
-      toastManager.add({
-        title: "Ledger rows copied",
-        description: `${selectedRows.length} selected row${selectedRows.length === 1 ? "" : "s"} copied.`,
-        type: "success",
-      });
-    } catch {
-      toastManager.add({
-        title: "Rows were not copied",
-        description: "Allow clipboard access and try again.",
-        type: "error",
-      });
-    }
+    return Effect.runPromise(
+      Effect.tryPromise({
+        try: () =>
+          navigator.clipboard.writeText(formatSelectedRows(selectedRows)),
+        catch: () => undefined,
+      }).pipe(
+        Effect.tap(() =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Ledger rows copied",
+              description: `${selectedRows.length} selected row${selectedRows.length === 1 ? "" : "s"} copied.`,
+              type: "success",
+            })
+          )
+        ),
+        Effect.catchAll(() =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Rows were not copied",
+              description: "Allow clipboard access and try again.",
+              type: "error",
+            })
+          )
+        )
+      )
+    );
   }
 
   return (
@@ -872,7 +885,7 @@ function LedgerDataTable({
   onCopySelectedRows,
   table,
 }: {
-  readonly onCopySelectedRows: () => Promise<void>;
+  readonly onCopySelectedRows: () => void;
   readonly table: ReactTable<LedgerRow>;
 }) {
   return (
@@ -935,7 +948,7 @@ function SelectionActions({
   selectedCount,
 }: {
   readonly onClearSelection: () => void;
-  readonly onCopySelectedRows: () => Promise<void>;
+  readonly onCopySelectedRows: () => void;
   readonly selectedCount: number;
 }) {
   if (selectedCount === 0) {

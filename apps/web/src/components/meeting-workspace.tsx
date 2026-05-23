@@ -17,7 +17,8 @@ import {
 } from "@repo/design-system/components/ui/tabs";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import type { GenericId } from "convex/values";
-import { useEffect, useMemo, useState } from "react";
+import { Effect, Either } from "effect";
+import { useMemo, useState } from "react";
 
 import { ReviewEditor } from "@/components/meeting-review-editor";
 import { InputPanel, MeetingsList } from "@/components/meeting-workflow-panels";
@@ -38,14 +39,7 @@ import { NewMeetingSheet } from "@/components/new-meeting-sheet";
 import type { MeetingsResult, ReviewResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
 
-/** Coordinates one meeting through input, generation, review, and publish. */
-export function MeetingWorkspace({
-  meetings,
-  review,
-  selectedMeetingId,
-  selectedProjectId,
-  setSelectedMeetingId,
-}: {
+interface MeetingWorkspaceProps {
   readonly meetings: MeetingsResult;
   readonly review: ReviewResult;
   readonly selectedMeetingId: GenericId<"meetings"> | null;
@@ -53,7 +47,26 @@ export function MeetingWorkspace({
   readonly setSelectedMeetingId: (
     meetingId: GenericId<"meetings"> | null
   ) => void;
-}) {
+}
+
+/** Coordinates one meeting through input, generation, review, and publish. */
+export function MeetingWorkspace(props: MeetingWorkspaceProps) {
+  return (
+    <MeetingWorkspaceSession
+      key={props.selectedMeetingId ?? "no-selected-meeting"}
+      {...props}
+    />
+  );
+}
+
+/** Keeps local editing state scoped to the selected meeting. */
+function MeetingWorkspaceSession({
+  meetings,
+  review,
+  selectedMeetingId,
+  selectedProjectId,
+  setSelectedMeetingId,
+}: MeetingWorkspaceProps) {
   const saveInput = useMutation(refs.public.meetings.saveInput);
   const updateReviewItem = useMutation(refs.public.meetings.updateReviewItem);
   const generateMinutes = useAction(refs.public.ai.generateMinutes);
@@ -66,13 +79,38 @@ export function MeetingWorkspace({
     () => (reviewState ? meetingNotes(reviewState.inputs) : ""),
     [reviewState]
   );
-  const [notes, setNotes] = useState(persistedNotes);
-  const [hydratedMeetingId, setHydratedMeetingId] =
-    useState<GenericId<"meetings"> | null>(selectedMeetingId);
-  const [reviewDrafts, setReviewDrafts] = useState<ReviewDraft[]>([]);
+  const [notesState, setNotesState] = useState(() => ({
+    meetingId: selectedMeetingId,
+    value: persistedNotes,
+  }));
+  const reviewVersion =
+    reviewState?.items
+      .map((item) => `${item._id}:${item.updatedAt ?? item.createdAt}`)
+      .join("|") ?? "";
+  const [reviewDraftState, setReviewDraftState] = useState(() => ({
+    drafts: reviewState?.items.map(reviewDraftFromItem) ?? [],
+    version: reviewVersion,
+  }));
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSavingReview, setIsSavingReview] = useState(false);
+  if (notesState.meetingId !== selectedMeetingId) {
+    setNotesState({ meetingId: selectedMeetingId, value: persistedNotes });
+  } else if (notesState.value.length === 0 && persistedNotes.length > 0) {
+    setNotesState({ meetingId: selectedMeetingId, value: persistedNotes });
+  }
+
+  if (reviewDraftState.version !== reviewVersion) {
+    setReviewDraftState({
+      drafts: reviewState?.items.map(reviewDraftFromItem) ?? [],
+      version: reviewVersion,
+    });
+  }
+
+  const notes =
+    notesState.meetingId === selectedMeetingId ? notesState.value : "";
+  const reviewDrafts =
+    reviewDraftState.version === reviewVersion ? reviewDraftState.drafts : [];
   const hasReviewItems = Boolean(reviewState?.items.length);
   const isReviewDirty = reviewState
     ? reviewDrafts.some((draft) => {
@@ -92,33 +130,11 @@ export function MeetingWorkspace({
     selectedMeetingId,
     selectedProjectId,
   });
-  useEffect(() => {
-    setActiveTab(workflowTab);
-  }, [workflowTab]);
-
-  useEffect(() => {
-    if (selectedMeetingId !== hydratedMeetingId) {
-      setNotes(persistedNotes);
-      setHydratedMeetingId(selectedMeetingId);
-      return;
-    }
-
-    if (notes.length === 0 && persistedNotes.length > 0) {
-      setNotes(persistedNotes);
-    }
-  }, [hydratedMeetingId, notes.length, persistedNotes, selectedMeetingId]);
-
-  useEffect(() => {
-    if (!reviewState) {
-      setReviewDrafts([]);
-      return;
-    }
-
-    setReviewDrafts(reviewState.items.map(reviewDraftFromItem));
-  }, [reviewState]);
+  const setNotes = (value: string) =>
+    setNotesState({ meetingId: selectedMeetingId, value });
 
   /** Persists meeting input and starts the AI minutes action. */
-  async function handleGenerate() {
+  function handleGenerate() {
     if (!selectedMeetingId) {
       return;
     }
@@ -132,77 +148,71 @@ export function MeetingWorkspace({
       return;
     }
 
-    try {
-      setIsGenerating(true);
-
-      const inputResult = await saveInput({
-        meetingId: selectedMeetingId,
-        kind: "notes",
-        text: notes,
-      });
-
-      if (inputResult._tag === "Left") {
-        toastManager.add({
-          title: "Notes were not saved",
-          description: inputResult.left.message,
-          type: "error",
+    setIsGenerating(true);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const inputResult = yield* Effect.tryPromise({
+          try: () =>
+            saveInput({
+              meetingId: selectedMeetingId,
+              kind: "notes",
+              text: notes,
+            }),
+          catch: (error) => ({
+            title: "Minutes were not generated",
+            description: getErrorMessage(error),
+            type: "error" as const,
+          }),
         });
-        return;
-      }
 
-      const result = await generateMinutes({ meetingId: selectedMeetingId });
-
-      if (result._tag === "Left") {
-        toastManager.add({
-          title: "Minutes were not generated",
-          description: result.left.message,
-          type: "error",
+        yield* Either.match(inputResult, {
+          onLeft: (error) =>
+            Effect.fail({
+              title: "Notes were not saved",
+              description: error.message,
+              type: "error" as const,
+            }),
+          onRight: () => Effect.void,
         });
-        return;
-      }
 
-      toastManager.add({
-        title: "Minutes ready",
-        description: "Review generated items before publishing.",
-        type: "success",
-      });
-      setActiveTab("review");
-    } catch (error) {
-      toastManager.add({
-        title: "Minutes were not generated",
-        description: getErrorMessage(error),
-        type: "error",
-      });
-    } finally {
-      setIsGenerating(false);
-    }
-  }
+        const result = yield* Effect.tryPromise({
+          try: () => generateMinutes({ meetingId: selectedMeetingId }),
+          catch: (error) => ({
+            title: "Minutes were not generated",
+            description: getErrorMessage(error),
+            type: "error" as const,
+          }),
+        });
 
-  /** Persists each edited review item and returns the first backend failure. */
-  async function saveChangedReviewDrafts(drafts: readonly ReviewDraft[]) {
-    for (const draft of drafts) {
-      const result = await updateReviewItem({
-        itemId: draft.itemId,
-        kind: draft.kind,
-        title: draft.title,
-        body: draft.body,
-        ownerName:
-          draft.kind === "action" ? optionalText(draft.ownerName) : undefined,
-        dueDate:
-          draft.kind === "action" ? optionalText(draft.dueDate) : undefined,
-        severity: draft.kind === "risk" ? draft.severity : undefined,
-      });
+        yield* Either.match(result, {
+          onLeft: (error) =>
+            Effect.fail({
+              title: "Minutes were not generated",
+              description: error.message,
+              type: "error" as const,
+            }),
+          onRight: () => Effect.void,
+        });
 
-      if (result._tag === "Left") {
-        return result.left.message;
-      }
-    }
-
-    return;
+        yield* Effect.sync(() => {
+          toastManager.add({
+            title: "Minutes ready",
+            description: "Review generated items before publishing.",
+            type: "success",
+          });
+          setActiveTab("review");
+        });
+      }).pipe(
+        Effect.catchAll((failure) =>
+          Effect.sync(() => toastManager.add(failure))
+        ),
+        Effect.ensuring(Effect.sync(() => setIsGenerating(false)))
+      )
+    );
   }
 
   /** Saves dirty generated review items before publishing. */
-  async function handleSaveReview() {
+  function handleSaveReview() {
     if (!reviewState) {
       return;
     }
@@ -213,38 +223,34 @@ export function MeetingWorkspace({
       return;
     }
 
-    try {
-      setIsSavingReview(true);
-
-      const failure = await saveChangedReviewDrafts(changedDrafts);
-
-      if (failure) {
-        toastManager.add({
-          title: "Review was not saved",
-          description: failure,
-          type: "error",
-        });
-        return;
-      }
-
-      toastManager.add({
-        title: "Review saved",
-        description: "Publish when the minutes are ready.",
-        type: "success",
-      });
-    } catch (error) {
-      toastManager.add({
-        title: "Review was not saved",
-        description: getErrorMessage(error),
-        type: "error",
-      });
-    } finally {
-      setIsSavingReview(false);
-    }
+    setIsSavingReview(true);
+    return Effect.runPromise(
+      saveChangedReviewDrafts(changedDrafts).pipe(
+        Effect.tap(() =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Review saved",
+              description: "Publish when the minutes are ready.",
+              type: "success",
+            })
+          )
+        ),
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Review was not saved",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsSavingReview(false)))
+      )
+    );
   }
 
   /** Publishes reviewed minutes into project memory and the ledger. */
-  async function handlePublish() {
+  function handlePublish() {
     if (!selectedMeetingId) {
       return;
     }
@@ -258,51 +264,55 @@ export function MeetingWorkspace({
       return;
     }
 
-    try {
-      setIsPublishing(true);
-
-      const result = await publishMinutes({ meetingId: selectedMeetingId });
-
-      if (result._tag === "Left") {
-        toastManager.add({
-          title: "Minutes were not published",
-          description: result.left.message,
-          type: "error",
+    setIsPublishing(true);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* Effect.tryPromise({
+          try: () => publishMinutes({ meetingId: selectedMeetingId }),
+          catch: getErrorMessage,
         });
-        return;
-      }
 
-      toastManager.add({
-        title: "Minutes published",
-        description: "Ledger rows and project intelligence are ready.",
-        type: "success",
-      });
-      setActiveTab("meetings");
-    } catch (error) {
-      toastManager.add({
-        title: "Minutes were not published",
-        description: getErrorMessage(error),
-        type: "error",
-      });
-    } finally {
-      setIsPublishing(false);
-    }
+        yield* Either.match(result, {
+          onLeft: (error) => Effect.fail(error.message),
+          onRight: () =>
+            Effect.sync(() => {
+              toastManager.add({
+                title: "Minutes published",
+                description: "Ledger rows and project intelligence are ready.",
+                type: "success",
+              });
+              setActiveTab("meetings");
+            }),
+        });
+      }).pipe(
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Minutes were not published",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsPublishing(false)))
+      )
+    );
   }
 
   /** Runs the currently valid next step in the meeting workflow. */
-  async function handlePrimaryAction() {
+  function handlePrimaryAction() {
     if (primaryAction.step === "generate") {
-      await handleGenerate();
+      handleGenerate();
       return;
     }
 
     if (primaryAction.step === "saveReview") {
-      await handleSaveReview();
+      handleSaveReview();
       return;
     }
 
     if (primaryAction.step === "publish") {
-      await handlePublish();
+      handlePublish();
     }
   }
 
@@ -311,8 +321,9 @@ export function MeetingWorkspace({
     itemId: GenericId<"minuteItems">,
     patch: Partial<ReviewDraft>
   ) {
-    setReviewDrafts((drafts) =>
-      drafts.map((draft) => {
+    setReviewDraftState((state) => ({
+      ...state,
+      drafts: state.drafts.map((draft) => {
         if (draft.itemId !== itemId) {
           return draft;
         }
@@ -329,8 +340,40 @@ export function MeetingWorkspace({
         }
 
         return next;
-      })
-    );
+      }),
+    }));
+  }
+
+  /** Persists edited review items sequentially so the first failure is visible. */
+  function saveChangedReviewDrafts(drafts: readonly ReviewDraft[]) {
+    return Effect.gen(function* () {
+      for (const draft of drafts) {
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            updateReviewItem({
+              itemId: draft.itemId,
+              kind: draft.kind,
+              title: draft.title,
+              body: draft.body,
+              ownerName:
+                draft.kind === "action"
+                  ? optionalText(draft.ownerName)
+                  : undefined,
+              dueDate:
+                draft.kind === "action"
+                  ? optionalText(draft.dueDate)
+                  : undefined,
+              severity: draft.kind === "risk" ? draft.severity : undefined,
+            }),
+          catch: getErrorMessage,
+        });
+
+        yield* Either.match(result, {
+          onLeft: (error) => Effect.fail(error.message),
+          onRight: () => Effect.void,
+        });
+      }
+    });
   }
 
   return (

@@ -41,6 +41,7 @@ import { SidebarMenuButton } from "@repo/design-system/components/ui/sidebar";
 import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
+import { Effect, Either } from "effect";
 import { type FormEvent, useState } from "react";
 
 import { getErrorMessage } from "@/lib/errors";
@@ -69,53 +70,60 @@ export function AiSettingsSheet() {
       apiKey: "",
       model: currentSettings?.model ?? openRouterModelOptions[0],
     },
-    onSubmit: async ({ value }) => {
-      try {
-        const apiKey = value.apiKey.trim();
-        const supportedModel = openRouterModelOptions.find(
-          (option) => option === value.model
-        );
+    onSubmit: ({ value }) =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const apiKey = value.apiKey.trim();
+          const supportedModel = openRouterModelOptions.find(
+            (option) => option === value.model
+          );
 
-        if (!supportedModel) {
-          toastManager.add({
-            title: "Choose a supported model",
-            type: "warning",
+          if (!supportedModel) {
+            return yield* Effect.sync(() =>
+              toastManager.add({
+                title: "Choose a supported model",
+                type: "warning",
+              })
+            );
+          }
+
+          const result = yield* Effect.tryPromise({
+            try: () =>
+              saveKey({
+                apiKey,
+                model: supportedModel,
+              }),
+            catch: getErrorMessage,
           });
-          return;
-        }
 
-        const result = await saveKey({
-          apiKey,
-          model: supportedModel,
-        });
-
-        if (result._tag === "Left") {
-          toastManager.add({
-            title: "Key was not saved",
-            description: result.left.message,
-            type: "error",
+          yield* Either.match(result, {
+            onLeft: (error) => Effect.fail(error.message),
+            onRight: () =>
+              Effect.sync(() => {
+                form.reset({
+                  apiKey: "",
+                  model: supportedModel,
+                });
+                toastManager.add({
+                  title: "OpenRouter key saved",
+                  description:
+                    "BuildLedger will use the saved provider for AI actions.",
+                  type: "success",
+                });
+              }),
           });
-          return;
-        }
-
-        form.reset({
-          apiKey: "",
-          model: supportedModel,
-        });
-        toastManager.add({
-          title: "OpenRouter key saved",
-          description:
-            "BuildLedger will use the saved provider for AI actions.",
-          type: "success",
-        });
-      } catch (error) {
-        toastManager.add({
-          title: "Key was not saved",
-          description: getErrorMessage(error),
-          type: "error",
-        });
-      }
-    },
+        }).pipe(
+          Effect.catchAll((description) =>
+            Effect.sync(() =>
+              toastManager.add({
+                title: "Key was not saved",
+                description,
+                type: "error",
+              })
+            )
+          )
+        )
+      ),
     onSubmitInvalid: () => {
       toastManager.add({
         title: "Check AI settings",
@@ -138,38 +146,50 @@ export function AiSettingsSheet() {
   }
 
   /** Submits the TanStack-managed provider settings form. */
-  async function handleSave(event: FormEvent<HTMLFormElement>) {
+  function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     event.stopPropagation();
-    await form.handleSubmit();
+    return form.handleSubmit();
   }
 
   /** Clears the encrypted user key and falls back to managed settings. */
-  async function handleClear() {
+  function handleClear() {
     setIsClearing(true);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* Effect.tryPromise({
+          try: () => clearKey({}),
+          catch: getErrorMessage,
+        });
 
-    const result = await clearKey({});
-
-    setIsClearing(false);
-
-    if (result._tag === "Left") {
-      toastManager.add({
-        title: "Key was not cleared",
-        description: result.left.message,
-        type: "error",
-      });
-      return;
-    }
-
-    form.reset({
-      apiKey: "",
-      model: currentSettings?.model ?? form.state.values.model,
-    });
-    toastManager.add({
-      title: "Saved key cleared",
-      description: "BuildLedger will use the managed provider.",
-      type: "success",
-    });
+        yield* Either.match(result, {
+          onLeft: (error) => Effect.fail(error.message),
+          onRight: () =>
+            Effect.sync(() => {
+              form.reset({
+                apiKey: "",
+                model: currentSettings?.model ?? form.state.values.model,
+              });
+              toastManager.add({
+                title: "Saved key cleared",
+                description: "BuildLedger will use the managed provider.",
+                type: "success",
+              });
+            }),
+        });
+      }).pipe(
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Key was not cleared",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsClearing(false)))
+      )
+    );
   }
 
   return (
