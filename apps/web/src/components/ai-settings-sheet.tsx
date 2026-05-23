@@ -8,14 +8,29 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Badge,
-  Button,
+} from "@repo/design-system/components/ui/alert";
+import { Button } from "@repo/design-system/components/ui/button";
+import {
   Field,
   FieldDescription,
+  FieldError,
   FieldLabel,
-  Form,
-  HugeIcons,
-  Input,
+} from "@repo/design-system/components/ui/field";
+import {
+  Fieldset,
+  FieldsetLegend,
+} from "@repo/design-system/components/ui/fieldset";
+import { Form } from "@repo/design-system/components/ui/form";
+import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
+import { Input } from "@repo/design-system/components/ui/input";
+import {
+  Select,
+  SelectItem,
+  SelectPopup,
+  SelectTrigger,
+  SelectValue,
+} from "@repo/design-system/components/ui/select";
+import {
   Sheet,
   SheetDescription,
   SheetHeader,
@@ -23,101 +38,162 @@ import {
   SheetPopup,
   SheetTitle,
   SheetTrigger,
-} from "@repo/design-system";
+} from "@repo/design-system/components/ui/sheet";
+import { Skeleton } from "@repo/design-system/components/ui/skeleton";
+import { toastManager } from "@repo/design-system/components/ui/toast";
+import { useForm } from "@tanstack/react-form";
 import { type FormEvent, useState } from "react";
+
+import { getErrorMessage } from "@/lib/errors";
+
+const modelItems = openRouterModelOptions.map((model) => ({
+  label: model,
+  value: model,
+}));
+
+const validationMessages = {
+  apiKey: "Enter an OpenRouter key before saving.",
+  model: "Choose a supported OpenRouter model.",
+} as const;
 
 /** Lets users save, clear, and inspect their active BYOK AI provider. */
 export function AiSettingsSheet() {
   const [isOpen, setIsOpen] = useState(false);
-  const settings = useQuery(
-    refs.public.aiSettings.getCurrent,
-    isOpen ? {} : "skip"
-  );
+  const settings = useQuery(refs.public.aiSettings.getCurrent, {});
   const saveKey = useAction(refs.public.aiSettings.saveOpenRouterKey);
   const clearKey = useMutation(refs.public.aiSettings.clearCurrent);
   const currentSettings =
     settings._tag === "Success" ? settings.value : undefined;
-  const [apiKey, setApiKey] = useState("");
-  const [model, setModel] = useState("");
-  const [message, setMessage] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const selectedModel =
-    model || currentSettings?.model || openRouterModelOptions[0];
-  const supportedModel = openRouterModelOptions.find(
-    (option) => option === selectedModel
-  );
+  const [isClearing, setIsClearing] = useState(false);
+  const form = useForm({
+    defaultValues: {
+      apiKey: "",
+      model: currentSettings?.model ?? openRouterModelOptions[0],
+    },
+    onSubmit: async ({ value }) => {
+      try {
+        const apiKey = value.apiKey.trim();
+        const supportedModel = openRouterModelOptions.find(
+          (option) => option === value.model
+        );
+
+        if (!supportedModel) {
+          toastManager.add({
+            title: "Choose a supported model",
+            type: "warning",
+          });
+          return;
+        }
+
+        const result = await saveKey({
+          apiKey,
+          model: supportedModel,
+        });
+
+        if (result._tag === "Left") {
+          toastManager.add({
+            title: "Key was not saved",
+            description: result.left.message,
+            type: "error",
+          });
+          return;
+        }
+
+        form.reset({
+          apiKey: "",
+          model: supportedModel,
+        });
+        toastManager.add({
+          title: "OpenRouter key saved",
+          description:
+            "BuildLedger will use the saved provider for AI actions.",
+          type: "success",
+        });
+      } catch (error) {
+        toastManager.add({
+          title: "Key was not saved",
+          description: getErrorMessage(error),
+          type: "error",
+        });
+      }
+    },
+    onSubmitInvalid: () => {
+      toastManager.add({
+        title: "Check AI settings",
+        description: "Fix the highlighted fields before saving.",
+        type: "warning",
+      });
+    },
+  });
 
   /** Tracks sheet visibility so provider settings load only when needed. */
   function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      form.reset({
+        apiKey: "",
+        model: currentSettings?.model ?? openRouterModelOptions[0],
+      });
+    }
+
     setIsOpen(nextOpen);
   }
 
-  /** Saves the entered OpenRouter key encrypted in the backend. */
+  /** Submits the TanStack-managed provider settings form. */
   async function handleSave(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-
-    if (!apiKey.trim()) {
-      setMessage("Enter an OpenRouter key before saving.");
-      return;
-    }
-
-    if (!supportedModel) {
-      setMessage("Choose a supported OpenRouter model.");
-      return;
-    }
-
-    setIsSaving(true);
-    setMessage(null);
-
-    const result = await saveKey({
-      apiKey,
-      model: supportedModel,
-    });
-
-    setIsSaving(false);
-
-    if (result._tag === "Left") {
-      setMessage(result.left.message);
-      return;
-    }
-
-    setApiKey("");
-    setMessage("OpenRouter key saved.");
+    event.stopPropagation();
+    await form.handleSubmit();
   }
 
-  /** Clears the encrypted user key and falls back to env or demo settings. */
+  /** Clears the encrypted user key and falls back to managed settings. */
   async function handleClear() {
-    setIsSaving(true);
-    setMessage(null);
+    setIsClearing(true);
 
     const result = await clearKey({});
 
-    setIsSaving(false);
+    setIsClearing(false);
 
     if (result._tag === "Left") {
-      setMessage(result.left.message);
+      toastManager.add({
+        title: "Key was not cleared",
+        description: result.left.message,
+        type: "error",
+      });
       return;
     }
 
-    setApiKey("");
-    setMessage("Saved key cleared.");
+    form.reset({
+      apiKey: "",
+      model: currentSettings?.model ?? form.state.values.model,
+    });
+    toastManager.add({
+      title: "Saved key cleared",
+      description: "BuildLedger will use the managed provider.",
+      type: "success",
+    });
   }
 
   return (
     <Sheet onOpenChange={handleOpenChange} open={isOpen}>
-      <SheetTrigger render={<Button size="sm" variant="outline" />}>
-        <HugeIcons icon={AiSettingIcon} /> AI settings
+      <SheetTrigger
+        render={<Button size="sm" type="button" variant="outline" />}
+      >
+        <HugeIcons icon={AiSettingIcon} /> AI Settings
       </SheetTrigger>
-      <SheetPopup side="right" variant="inset">
+      <SheetPopup
+        portalProps={{ keepMounted: true }}
+        side="right"
+        variant="inset"
+      >
         <SheetHeader>
-          <SheetTitle>AI settings</SheetTitle>
+          <SheetTitle>AI Settings</SheetTitle>
           <SheetDescription>
-            Bring your own OpenRouter key or keep the local demo provider.
+            Bring your own OpenRouter key or use the built-in provider.
           </SheetDescription>
         </SheetHeader>
         <SheetPanel className="flex flex-col gap-4">
           {QueryResult.match(settings, {
-            onLoading: () => <Badge variant="outline">Loading provider</Badge>,
+            onLoading: () => <Skeleton className="h-24" />,
             onFailure: (error) => (
               <Alert variant="warning">
                 <AlertTitle>Provider unavailable</AlertTitle>
@@ -128,7 +204,7 @@ export function AiSettingsSheet() {
               <Alert variant={value.hasKey ? "success" : "info"}>
                 <HugeIcons icon={Key01Icon} />
                 <AlertTitle>
-                  {value.source === "demo" ? "Demo provider" : "OpenRouter"}
+                  {value.source === "demo" ? "Built-in Provider" : "OpenRouter"}
                 </AlertTitle>
                 <AlertDescription>
                   Model: {value.model}
@@ -139,58 +215,129 @@ export function AiSettingsSheet() {
           })}
 
           <Form className="flex flex-col gap-4" onSubmit={handleSave}>
-            <Field>
-              <FieldLabel>Provider</FieldLabel>
-              <Input disabled value="OpenRouter" />
-              <FieldDescription>
-                OpenRouter keeps BuildLedger provider-neutral for self-hosting.
-              </FieldDescription>
-            </Field>
-            <Field>
-              <FieldLabel>Model</FieldLabel>
-              <Input
-                list="buildledger-openrouter-models"
-                onChange={(event) => setModel(event.target.value)}
-                value={selectedModel}
-              />
-              <datalist id="buildledger-openrouter-models">
-                {openRouterModelOptions.map((option) => (
-                  <option key={option} value={option} />
-                ))}
-              </datalist>
-            </Field>
-            <Field>
-              <FieldLabel>API key</FieldLabel>
-              <Input
-                autoComplete="off"
-                onChange={(event) => setApiKey(event.target.value)}
-                placeholder="sk-or-..."
-                type="password"
-                value={apiKey}
-              />
-              <FieldDescription>
-                Keys are encrypted before storage and are never returned to the
-                browser.
-              </FieldDescription>
-            </Field>
+            <Fieldset className="grid gap-4">
+              <FieldsetLegend className="sr-only">
+                OpenRouter Provider Settings
+              </FieldsetLegend>
+              <Field>
+                <FieldLabel>Provider</FieldLabel>
+                <Input disabled type="text" value="OpenRouter" />
+                <FieldDescription>
+                  OpenRouter keeps BuildLedger provider-neutral for
+                  self-hosting.
+                </FieldDescription>
+              </Field>
+              <form.Field
+                name="model"
+                validators={{
+                  onSubmit: ({ value }) =>
+                    openRouterModelOptions.some((option) => option === value)
+                      ? undefined
+                      : validationMessages.model,
+                }}
+              >
+                {(field) => {
+                  const fieldError =
+                    field.state.meta.errors[0] ??
+                    (field.state.meta.isValid ? "" : validationMessages.model);
+                  const selectedModelItem =
+                    modelItems.find(
+                      (item) => item.value === field.state.value
+                    ) ?? null;
 
-            {message ? (
-              <Alert variant="info">
-                <AlertDescription>{message}</AlertDescription>
-              </Alert>
-            ) : null}
+                  return (
+                    <Field invalid={!field.state.meta.isValid}>
+                      <FieldLabel>Model</FieldLabel>
+                      <Select
+                        items={modelItems}
+                        itemToStringValue={(item) => item.value}
+                        onValueChange={(item) => {
+                          if (!item) {
+                            return;
+                          }
 
-            <Button loading={isSaving} type="submit">
-              Save key
-            </Button>
+                          field.handleChange(item.value);
+                        }}
+                        value={selectedModelItem}
+                      >
+                        <SelectTrigger aria-invalid={!field.state.meta.isValid}>
+                          <SelectValue placeholder="Model" />
+                        </SelectTrigger>
+                        <SelectPopup alignItemWithTrigger={false}>
+                          {modelItems.map((option) => (
+                            <SelectItem key={option.value} value={option}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectPopup>
+                      </Select>
+                      {fieldError ? (
+                        <FieldError match={true}>{fieldError}</FieldError>
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+              <form.Field
+                name="apiKey"
+                validators={{
+                  onSubmit: ({ value }) =>
+                    value.trim() ? undefined : validationMessages.apiKey,
+                }}
+              >
+                {(field) => {
+                  const fieldError =
+                    field.state.meta.errors[0] ??
+                    (field.state.meta.isValid ? "" : validationMessages.apiKey);
+
+                  return (
+                    <Field invalid={!field.state.meta.isValid}>
+                      <FieldLabel>API Key</FieldLabel>
+                      <Input
+                        aria-invalid={!field.state.meta.isValid}
+                        autoComplete="off"
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="sk-or-..."
+                        type="password"
+                        value={field.state.value}
+                      />
+                      <FieldDescription>
+                        Keys are encrypted before storage and are never returned
+                        to the browser.
+                      </FieldDescription>
+                      {fieldError ? (
+                        <FieldError match={true}>{fieldError}</FieldError>
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+            </Fieldset>
+
+            <form.Subscribe selector={(state) => state.isSubmitting}>
+              {(isSubmitting) => (
+                <Button
+                  disabled={isClearing}
+                  loading={isSubmitting}
+                  type="submit"
+                >
+                  Save Key
+                </Button>
+              )}
+            </form.Subscribe>
           </Form>
           <Button
-            disabled={isSaving}
+            disabled={isClearing}
+            loading={isClearing}
             onClick={handleClear}
             type="button"
-            variant="secondary"
+            variant="destructive-outline"
           >
-            Clear saved key
+            Clear Saved Key
           </Button>
         </SheetPanel>
       </SheetPopup>

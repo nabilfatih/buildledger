@@ -2,53 +2,91 @@
 
 import { QueryResult } from "@confect/react";
 import {
+  Calendar03Icon,
+  ChevronDown,
+  ChevronUp,
   Search01Icon,
-  SortingDownIcon,
-  SortingUpIcon,
+  TableColumnsSplitIcon,
 } from "@hugeicons/core-free-icons";
+import { Badge } from "@repo/design-system/components/ui/badge";
+import { Button } from "@repo/design-system/components/ui/button";
+import { Calendar } from "@repo/design-system/components/ui/calendar";
+import { Checkbox } from "@repo/design-system/components/ui/checkbox";
 import {
-  Badge,
-  Button,
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
+} from "@repo/design-system/components/ui/empty";
+import {
   Field,
+  FieldDescription,
   FieldLabel,
+} from "@repo/design-system/components/ui/field";
+import {
+  Fieldset,
+  FieldsetLegend,
+} from "@repo/design-system/components/ui/fieldset";
+import {
   Frame,
   FrameDescription,
+  FrameFooter,
   FrameHeader,
   FramePanel,
   FrameTitle,
-  HugeIcons,
-  Input,
+} from "@repo/design-system/components/ui/frame";
+import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
+import { Input } from "@repo/design-system/components/ui/input";
+import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
   InputGroupText,
-  Progress,
-  ScrollArea,
+} from "@repo/design-system/components/ui/input-group";
+import {
+  Menu,
+  MenuCheckboxItem,
+  MenuGroup,
+  MenuGroupLabel,
+  MenuPopup,
+  MenuTrigger,
+} from "@repo/design-system/components/ui/menu";
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationNext,
+  PaginationPrevious,
+} from "@repo/design-system/components/ui/pagination";
+import {
+  Popover,
+  PopoverPopup,
+  PopoverTrigger,
+} from "@repo/design-system/components/ui/popover";
+import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
+import {
   Select,
   SelectItem,
   SelectPopup,
   SelectTrigger,
   SelectValue,
+} from "@repo/design-system/components/ui/select";
+import { Skeleton } from "@repo/design-system/components/ui/skeleton";
+import {
   Table,
   TableBody,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
-  Toolbar,
-  ToolbarGroup,
-} from "@repo/design-system";
+} from "@repo/design-system/components/ui/table";
 import {
   createColumnHelper,
   flexRender,
   getCoreRowModel,
-  getFilteredRowModel,
   getPaginationRowModel,
   getSortedRowModel,
+  type Header,
   type Table as ReactTable,
   type Row,
   type RowSelectionState,
@@ -83,6 +121,15 @@ const statusFilters = [
   { label: "Done", value: "done" },
   { label: "Recorded", value: "recorded" },
 ];
+const desktopSkeletonRows = [
+  "row-1",
+  "row-2",
+  "row-3",
+  "row-4",
+  "row-5",
+  "row-6",
+];
+const mobileSkeletonRows = ["card-1", "card-2", "card-3", "card-4"];
 
 type QueryValue<Result> = Result extends {
   readonly _tag: "Success";
@@ -105,12 +152,36 @@ interface LedgerFilterState {
 const columnHelper = createColumnHelper<LedgerRow>();
 
 const columns = [
+  columnHelper.display({
+    id: "select",
+    size: 36,
+    enableSorting: false,
+    header: ({ table }) => (
+      <Checkbox
+        aria-label="Select all ledger rows"
+        checked={table.getIsAllPageRowsSelected()}
+        indeterminate={
+          table.getIsSomePageRowsSelected() && !table.getIsAllPageRowsSelected()
+        }
+        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+      />
+    ),
+    cell: ({ row }) => (
+      <Checkbox
+        aria-label={`Select ${row.original.title}`}
+        checked={row.getIsSelected()}
+        onCheckedChange={(value) => row.toggleSelected(!!value)}
+      />
+    ),
+  }),
   columnHelper.accessor("kind", {
     header: "Type",
-    cell: (info) => <Badge variant="outline">{info.getValue()}</Badge>,
+    size: 92,
+    cell: (info) => <KindBadge kind={info.getValue()} />,
   }),
   columnHelper.accessor("title", {
     header: "Description",
+    size: 300,
     cell: (info) => (
       <div className="grid min-w-0 gap-1">
         <span className="break-words font-medium leading-snug">
@@ -126,31 +197,42 @@ const columns = [
   }),
   columnHelper.accessor("meetingTitle", {
     header: "Source",
+    size: 156,
     cell: (info) => (
-      <span className="block max-w-44 truncate">{info.getValue()}</span>
+      <span className="block min-w-0 truncate">{info.getValue()}</span>
     ),
   }),
   columnHelper.accessor("ownerName", {
     header: "Owner",
-    cell: (info) => info.getValue() ?? "Unassigned",
+    size: 132,
+    cell: (info) => (
+      <MutedValue fallback="Unassigned" value={info.getValue()} />
+    ),
   }),
   columnHelper.accessor("dueDate", {
     header: "Due",
-    cell: (info) => info.getValue() ?? "None",
+    size: 112,
+    cell: (info) => (
+      <MutedValue fallback="No due date" value={info.getValue()} />
+    ),
   }),
   columnHelper.accessor("severity", {
     header: "Severity",
-    cell: (info) => info.getValue() ?? "None",
+    size: 112,
+    cell: (info) => <SeverityBadge severity={info.getValue()} />,
   }),
   columnHelper.accessor("status", {
     header: "Status",
-    cell: (info) => <Badge variant="success">{info.getValue()}</Badge>,
+    size: 96,
+    cell: (info) => <StatusBadge status={info.getValue()} />,
   }),
   columnHelper.accessor("meetingDate", {
     header: "Date",
+    size: 100,
   }),
   columnHelper.accessor("citationCount", {
     header: "Citations",
+    size: 88,
     cell: (info) => info.getValue(),
   }),
 ];
@@ -216,30 +298,136 @@ function matchesLedgerFilters(row: LedgerRow, filters: LedgerFilterState) {
   return matchesDateRange(row, filters);
 }
 
-/** Keeps desktop ledger columns readable without widening the document. */
-function getColumnWidth(columnId: string) {
-  switch (columnId) {
-    case "kind":
-      return "w-24";
-    case "title":
-      return "w-80";
-    case "meetingTitle":
-      return "w-44";
-    case "ownerName":
-      return "w-32";
-    case "dueDate":
-      return "w-28";
-    case "severity":
-      return "w-28";
-    case "status":
-      return "w-28";
-    case "meetingDate":
-      return "w-28";
-    case "citationCount":
-      return "w-24";
-    default:
-      return "w-28";
+/** Formats ledger enum values for consistent user-facing labels. */
+function titleCase(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
+
+/** Formats ledger item types for badges and cards. */
+function formatKind(value: string) {
+  return titleCase(value);
+}
+
+/** Formats workflow status values for badges and cards. */
+function formatStatus(value: string) {
+  return titleCase(value);
+}
+
+/** Formats optional severity values without exposing raw nulls. */
+function formatSeverity(value: string | null | undefined) {
+  return value ? titleCase(value) : "No Severity";
+}
+
+/** Maps ledger status to semantic COSS badge variants. */
+function statusVariant(value: string) {
+  if (value === "done" || value === "recorded") {
+    return "success";
   }
+
+  if (value === "blocked") {
+    return "warning";
+  }
+
+  return "outline";
+}
+
+/** Maps ledger type to semantic COSS badge variants. */
+function kindVariant(value: string) {
+  if (value === "risk") {
+    return "warning";
+  }
+
+  if (value === "decision") {
+    return "success";
+  }
+
+  if (value === "action" || value === "question") {
+    return "info";
+  }
+
+  return "outline";
+}
+
+/** Formats dates for backend filters without timezone drift. */
+function formatDateInput(date: Date) {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+
+  return `${year}-${month}-${day}`;
+}
+
+/** Parses yyyy-mm-dd filters into Calendar dates. */
+function parseDateInput(value: string) {
+  if (!value) {
+    return;
+  }
+
+  const [year, month, day] = value.split("-").map(Number);
+
+  if (!(year && month && day)) {
+    return;
+  }
+
+  return new Date(year, month - 1, day);
+}
+
+/** Creates the displayed page range for the pagination select. */
+function getPageOption(table: ReactTable<LedgerRow>, index: number) {
+  const pageSize = table.getState().pagination.pageSize;
+  const start = index * pageSize + 1;
+  const end = Math.min((index + 1) * pageSize, table.getRowCount());
+
+  return {
+    label: `${start}-${end}`,
+    value: index,
+  };
+}
+
+/** Shows ledger item type using the same semantic badges as review cards. */
+function KindBadge({ kind }: { readonly kind: string }) {
+  return <Badge variant={kindVariant(kind)}>{formatKind(kind)}</Badge>;
+}
+
+/** Shows status with semantic color and consistent capitalization. */
+function StatusBadge({ status }: { readonly status: string }) {
+  return <Badge variant={statusVariant(status)}>{formatStatus(status)}</Badge>;
+}
+
+/** Shows severity only when project memory has one. */
+function SeverityBadge({
+  severity,
+}: {
+  readonly severity: string | null | undefined;
+}) {
+  if (!severity) {
+    return <MutedValue fallback="No Severity" value={severity} />;
+  }
+
+  return (
+    <Badge variant={severity === "high" ? "warning" : "outline"}>
+      {formatSeverity(severity)}
+    </Badge>
+  );
+}
+
+/** Displays optional values without heavy badges. */
+function MutedValue({
+  fallback,
+  value,
+}: {
+  readonly fallback: string;
+  readonly value: string | null | undefined;
+}) {
+  return (
+    <span className={value ? undefined : "text-muted-foreground"}>
+      {value ?? fallback}
+    </span>
+  );
 }
 
 /** Shows derived project memory as a sortable and filterable ledger. */
@@ -287,9 +475,9 @@ export function ProjectLedgerTable({
   const table = useReactTable({
     columns,
     data: filteredRows,
+    enableRowSelection: true,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
-    getFilteredRowModel: getFilteredRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
@@ -307,12 +495,12 @@ export function ProjectLedgerTable({
       <FrameHeader className="gap-3">
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <FrameTitle>Project ledger</FrameTitle>
+            <FrameTitle>Project Ledger</FrameTitle>
             <FrameDescription>
               Search decisions, actions, risks, questions, and cited records.
             </FrameDescription>
           </div>
-          <Badge variant="info">{filteredRows.length} rows</Badge>
+          <Badge variant="info">{filteredRows.length} Rows</Badge>
         </div>
         <LedgerFilters
           endDate={endDate}
@@ -333,9 +521,9 @@ export function ProjectLedgerTable({
           status={status}
         />
       </FrameHeader>
-      <FramePanel className="min-w-0 p-0">
+      <FramePanel className="min-w-0 overflow-hidden p-0">
         {QueryResult.match(ledger, {
-          onLoading: () => <Progress value={40} />,
+          onLoading: () => <LedgerTableSkeleton />,
           onFailure: (error) => (
             <div className="p-4 text-muted-foreground text-sm">
               {error.message}
@@ -353,11 +541,12 @@ export function ProjectLedgerTable({
                 </EmptyHeader>
               </Empty>
             ) : (
-              <div className="grid min-w-0 gap-3 p-3">
-                <ColumnControls table={table} />
+              <div className="grid min-w-0">
                 <DesktopLedgerTable table={table} />
                 <MobileLedgerCards rows={table.getRowModel().rows} />
-                <LedgerPagination table={table} />
+                <div className="border-border border-t p-2 lg:hidden">
+                  <LedgerPagination table={table} />
+                </div>
               </div>
             ),
         })}
@@ -403,20 +592,22 @@ function LedgerFilters({
   readonly status: string;
 }) {
   return (
-    <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-4">
+    <Fieldset className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-4">
+      <FieldsetLegend className="sr-only">Ledger Filters</FieldsetLegend>
       <Field className="min-w-0 xl:col-span-2">
         <FieldLabel>Search</FieldLabel>
         <InputGroup>
-          <InputGroupAddon>
-            <InputGroupText>
-              <HugeIcons icon={Search01Icon} />
-            </InputGroupText>
-          </InputGroupAddon>
           <InputGroupInput
             onChange={(event) => setSearch(event.target.value)}
             placeholder="Description or source"
+            type="search"
             value={search}
           />
+          <InputGroupAddon>
+            <InputGroupText>
+              <HugeIcons className="mx-0 size-4" icon={Search01Icon} />
+            </InputGroupText>
+          </InputGroupAddon>
         </InputGroup>
       </Field>
       <FilterSelect
@@ -442,34 +633,22 @@ function LedgerFilters({
         <Input
           onChange={(event) => setOwner(event.target.value)}
           placeholder="Owner"
+          type="text"
           value={owner}
         />
       </Field>
       <Field className="min-w-0">
-        <FieldLabel>Source meeting</FieldLabel>
+        <FieldLabel>Source Meeting</FieldLabel>
         <Input
           onChange={(event) => setSource(event.target.value)}
           placeholder="Meeting title"
+          type="text"
           value={source}
         />
       </Field>
-      <Field className="min-w-0">
-        <FieldLabel>From</FieldLabel>
-        <Input
-          onChange={(event) => setStartDate(event.target.value)}
-          type="date"
-          value={startDate}
-        />
-      </Field>
-      <Field className="min-w-0">
-        <FieldLabel>To</FieldLabel>
-        <Input
-          onChange={(event) => setEndDate(event.target.value)}
-          type="date"
-          value={endDate}
-        />
-      </Field>
-    </div>
+      <DateFilter label="From" onChange={setStartDate} value={startDate} />
+      <DateFilter label="To" onChange={setEndDate} value={endDate} />
+    </Fieldset>
   );
 }
 
@@ -520,29 +699,105 @@ function FilterSelect({
   );
 }
 
-/** Toggles optional table columns for dense desktop scanning. */
-function ColumnControls({ table }: { readonly table: ReactTable<LedgerRow> }) {
+/** Provides a COSS calendar-backed date filter instead of a native date popup. */
+function DateFilter({
+  label,
+  onChange,
+  value,
+}: {
+  readonly label: string;
+  readonly onChange: (value: string) => void;
+  readonly value: string;
+}) {
+  return (
+    <Field className="min-w-0">
+      <FieldLabel>{label}</FieldLabel>
+      <Popover>
+        <PopoverTrigger
+          render={
+            <Button
+              className="w-full justify-between"
+              type="button"
+              variant="outline"
+            />
+          }
+        >
+          <span>{value || "Any Date"}</span>
+          <HugeIcons icon={Calendar03Icon} />
+        </PopoverTrigger>
+        <PopoverPopup align="start">
+          <Calendar
+            mode="single"
+            onSelect={(date) => onChange(date ? formatDateInput(date) : "")}
+            selected={parseDateInput(value)}
+          />
+        </PopoverPopup>
+      </Popover>
+      <FieldDescription className="sr-only">
+        Filters ledger rows by meeting date.
+      </FieldDescription>
+    </Field>
+  );
+}
+
+/** Keeps the ledger surface stable during query refreshes. */
+function LedgerTableSkeleton() {
+  return (
+    <div className="grid min-w-0 gap-3 p-3">
+      <div className="grid min-w-0 gap-2 md:grid-cols-2 xl:grid-cols-4">
+        <Skeleton className="h-16 xl:col-span-2" />
+        <Skeleton className="h-16" />
+        <Skeleton className="h-16" />
+      </div>
+      <div className="hidden min-w-0 border-border border-y lg:grid">
+        <div className="grid gap-2 p-3">
+          {desktopSkeletonRows.map((row) => (
+            <Skeleton className="h-12" key={row} />
+          ))}
+        </div>
+      </div>
+      <div className="grid gap-2 lg:hidden">
+        {mobileSkeletonRows.map((row) => (
+          <Skeleton className="h-24" key={row} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Toggles optional table columns from one compact COSS menu. */
+function ColumnMenu({ table }: { readonly table: ReactTable<LedgerRow> }) {
   const optionalColumns = table
     .getAllLeafColumns()
-    .filter((column) => column.id !== "kind" && column.id !== "title");
+    .filter(
+      (column) =>
+        column.id !== "select" && column.id !== "kind" && column.id !== "title"
+    );
 
   return (
-    <Toolbar className="min-w-0 flex-wrap justify-between gap-2">
-      <ToolbarGroup className="flex-wrap">
-        {optionalColumns.map((column) => (
-          <Button
-            key={column.id}
-            onClick={() => column.toggleVisibility()}
-            size="xs"
-            variant={column.getIsVisible() ? "secondary" : "outline"}
-          >
-            {typeof column.columnDef.header === "string"
-              ? column.columnDef.header
-              : column.id}
-          </Button>
-        ))}
-      </ToolbarGroup>
-    </Toolbar>
+    <Menu>
+      <MenuTrigger
+        render={<Button size="sm" type="button" variant="outline" />}
+      >
+        <HugeIcons icon={TableColumnsSplitIcon} /> Columns
+      </MenuTrigger>
+      <MenuPopup align="end">
+        <MenuGroup>
+          <MenuGroupLabel>Visible Columns</MenuGroupLabel>
+          {optionalColumns.map((column) => (
+            <MenuCheckboxItem
+              checked={column.getIsVisible()}
+              key={column.id}
+              onCheckedChange={(value) => column.toggleVisibility(!!value)}
+            >
+              {typeof column.columnDef.header === "string"
+                ? column.columnDef.header
+                : column.id}
+            </MenuCheckboxItem>
+          ))}
+        </MenuGroup>
+      </MenuPopup>
+    </Menu>
   );
 }
 
@@ -553,68 +808,99 @@ function DesktopLedgerTable({
   readonly table: ReactTable<LedgerRow>;
 }) {
   return (
-    <ScrollArea
-      className="hidden max-h-[34rem] min-w-0 md:block"
-      scrollbarGutter
+    <div className="hidden min-w-0 lg:grid">
+      <ScrollArea className="max-h-[34rem] min-w-0" scrollbarGutter>
+        <Table className="min-w-[58rem] table-fixed">
+          <TableHeader>
+            {table.getHeaderGroups().map((headerGroup) => (
+              <TableRow className="hover:bg-transparent" key={headerGroup.id}>
+                {headerGroup.headers.map((header) => (
+                  <TableHead
+                    className="sticky top-0 z-10 bg-background"
+                    key={header.id}
+                    style={{ width: `${header.column.getSize()}px` }}
+                  >
+                    {header.isPlaceholder ? null : (
+                      <ColumnHeaderButton header={header} />
+                    )}
+                  </TableHead>
+                ))}
+              </TableRow>
+            ))}
+          </TableHeader>
+          <TableBody>
+            {table.getRowModel().rows.map((row) => (
+              <TableRow
+                data-state={row.getIsSelected() ? "selected" : undefined}
+                key={row.id}
+              >
+                {row.getVisibleCells().map((cell) => (
+                  <TableCell
+                    className="min-w-0 whitespace-normal align-top"
+                    key={cell.id}
+                    style={{ width: `${cell.column.getSize()}px` }}
+                  >
+                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                  </TableCell>
+                ))}
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </ScrollArea>
+      <FrameFooter className="border-border border-t p-2">
+        <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-2">
+            <ColumnMenu table={table} />
+            <p className="text-muted-foreground text-sm">
+              {table.getSelectedRowModel().rows.length} Selected
+            </p>
+          </div>
+          <LedgerPagination className="w-fit" table={table} />
+        </div>
+      </FrameFooter>
+    </div>
+  );
+}
+
+/** Renders sortable table headers with predictable icon placement. */
+function ColumnHeaderButton({
+  header,
+}: {
+  readonly header: Header<LedgerRow, unknown>;
+}) {
+  if (!header.column.getCanSort()) {
+    return flexRender(header.column.columnDef.header, header.getContext());
+  }
+
+  const sortDirection = header.column.getIsSorted();
+
+  return (
+    <Button
+      className="h-full min-w-0 justify-between px-0 text-left"
+      onClick={header.column.getToggleSortingHandler()}
+      size="xs"
+      type="button"
+      variant="ghost"
     >
-      <Table className="min-w-[76rem] table-fixed" variant="card">
-        <TableHeader>
-          {table.getHeaderGroups().map((headerGroup) => (
-            <TableRow key={headerGroup.id}>
-              {headerGroup.headers.map((header) => (
-                <TableHead
-                  className={`${getColumnWidth(header.column.id)} whitespace-normal align-top`}
-                  key={header.id}
-                >
-                  {header.isPlaceholder ? null : (
-                    <button
-                      className="inline-flex min-w-0 items-start gap-1 text-left"
-                      onClick={header.column.getToggleSortingHandler()}
-                      type="button"
-                    >
-                      {flexRender(
-                        header.column.columnDef.header,
-                        header.getContext()
-                      )}
-                      {header.column.getIsSorted() === "asc" ? (
-                        <HugeIcons
-                          className="mt-0.5 text-muted-foreground"
-                          icon={SortingUpIcon}
-                        />
-                      ) : null}
-                      {header.column.getIsSorted() === "desc" ? (
-                        <HugeIcons
-                          className="mt-0.5 text-muted-foreground"
-                          icon={SortingDownIcon}
-                        />
-                      ) : null}
-                    </button>
-                  )}
-                </TableHead>
-              ))}
-            </TableRow>
-          ))}
-        </TableHeader>
-        <TableBody>
-          {table.getRowModel().rows.map((row) => (
-            <TableRow
-              data-state={row.getIsSelected() ? "selected" : undefined}
-              key={row.id}
-              onClick={() => row.toggleSelected()}
-            >
-              {row.getVisibleCells().map((cell) => (
-                <TableCell
-                  className={`${getColumnWidth(cell.column.id)} min-w-0 whitespace-normal align-top`}
-                  key={cell.id}
-                >
-                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                </TableCell>
-              ))}
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </ScrollArea>
+      <span className="min-w-0 truncate">
+        {flexRender(header.column.columnDef.header, header.getContext())}
+      </span>
+      {sortDirection === "asc" ? (
+        <HugeIcons
+          aria-hidden="true"
+          className="size-4 shrink-0 text-muted-foreground opacity-80"
+          icon={ChevronUp}
+        />
+      ) : null}
+      {sortDirection === "desc" ? (
+        <HugeIcons
+          aria-hidden="true"
+          className="size-4 shrink-0 text-muted-foreground opacity-80"
+          icon={ChevronDown}
+        />
+      ) : null}
+    </Button>
   );
 }
 
@@ -625,16 +911,17 @@ function MobileLedgerCards({
   readonly rows: readonly Row<LedgerRow>[];
 }) {
   return (
-    <div className="grid min-w-0 gap-2 md:hidden">
+    <div className="grid min-w-0 gap-2 lg:hidden">
       {rows.map((row) => (
-        <button
-          className="grid min-w-0 gap-2 rounded-lg border bg-background p-3 text-left"
+        <Button
+          className="grid h-auto w-full min-w-0 justify-stretch gap-2 whitespace-normal rounded-lg p-3 text-left"
           key={row.id}
           onClick={() => row.toggleSelected()}
           type="button"
+          variant={row.getIsSelected() ? "secondary" : "outline"}
         >
           <div className="flex min-w-0 items-center justify-between gap-2">
-            <Badge variant="outline">{row.original.kind}</Badge>
+            <KindBadge kind={row.original.kind} />
             <span className="text-muted-foreground text-xs">
               {row.original.meetingDate}
             </span>
@@ -648,11 +935,11 @@ function MobileLedgerCards({
             </p>
           </div>
           <div className="flex min-w-0 flex-wrap gap-2 text-muted-foreground text-xs">
-            <span>{row.original.status}</span>
+            <span>{formatStatus(row.original.status)}</span>
             <span>{row.original.ownerName ?? "Unassigned"}</span>
-            <span>{row.original.severity ?? "No severity"}</span>
+            <span>{formatSeverity(row.original.severity)}</span>
           </div>
-        </button>
+        </Button>
       ))}
     </div>
   );
@@ -660,34 +947,88 @@ function MobileLedgerCards({
 
 /** Controls TanStack pagination without adding another primary action. */
 function LedgerPagination({
+  className,
   table,
 }: {
+  readonly className?: string;
   readonly table: ReactTable<LedgerRow>;
 }) {
+  const pageOptions = Array.from({ length: table.getPageCount() }, (_, index) =>
+    getPageOption(table, index)
+  );
+  const currentPage = pageOptions[table.getState().pagination.pageIndex];
+
   return (
-    <div className="flex min-w-0 flex-wrap items-center justify-between gap-2 text-muted-foreground text-xs">
-      <span>
-        Page {table.getState().pagination.pageIndex + 1} of{" "}
-        {table.getPageCount()}
-      </span>
-      <div className="flex items-center gap-2">
-        <Button
-          disabled={!table.getCanPreviousPage()}
-          onClick={() => table.previousPage()}
-          size="xs"
-          variant="outline"
+    <div
+      className={`flex min-w-0 flex-wrap items-center justify-between gap-2 text-muted-foreground text-sm ${className ?? ""}`}
+    >
+      <div className="flex items-center gap-2 whitespace-nowrap">
+        <span>Viewing</span>
+        <Select
+          items={pageOptions}
+          itemToStringValue={(item) => item.label}
+          onValueChange={(item) => {
+            if (!item) {
+              return;
+            }
+
+            table.setPageIndex(item.value);
+          }}
+          value={currentPage ?? null}
         >
-          Previous
-        </Button>
-        <Button
-          disabled={!table.getCanNextPage()}
-          onClick={() => table.nextPage()}
-          size="xs"
-          variant="outline"
-        >
-          Next
-        </Button>
+          <SelectTrigger
+            aria-label="Select ledger result range"
+            className="w-fit min-w-24"
+            size="sm"
+          >
+            <SelectValue placeholder="Range" />
+          </SelectTrigger>
+          <SelectPopup alignItemWithTrigger={false}>
+            {pageOptions.map((option) => (
+              <SelectItem key={option.value} value={option}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectPopup>
+        </Select>
+        <span>
+          of{" "}
+          <strong className="font-medium text-foreground">
+            {table.getRowCount()}
+          </strong>{" "}
+          Results
+        </span>
       </div>
+      <Pagination className="mx-0 w-fit justify-end">
+        <PaginationContent>
+          <PaginationItem>
+            <PaginationPrevious
+              render={
+                <Button
+                  disabled={!table.getCanPreviousPage()}
+                  onClick={() => table.previousPage()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                />
+              }
+            />
+          </PaginationItem>
+          <PaginationItem>
+            <PaginationNext
+              render={
+                <Button
+                  disabled={!table.getCanNextPage()}
+                  onClick={() => table.nextPage()}
+                  size="sm"
+                  type="button"
+                  variant="outline"
+                />
+              }
+            />
+          </PaginationItem>
+        </PaginationContent>
+      </Pagination>
     </div>
   );
 }

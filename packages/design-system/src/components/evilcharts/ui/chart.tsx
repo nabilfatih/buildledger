@@ -249,12 +249,10 @@ function getColorsCount(config: ChartConfig[string]): number {
   return Math.max(...counts, 1);
 }
 
-// Generate random loading data for skeleton/loading state
-// min/max represent percentage of the range (0-100), defaults to 20-80 for realistic look
 export const getLoadingData = (points: number = 10, min: number = 0, max: number = 70) => {
   const range = max - min;
-  return Array.from({ length: points }, () => ({
-    loading: Math.floor(Math.random() * range) + min,
+  return Array.from({ length: points }, (_, index) => ({
+    loading: Math.round(((index * 37) % 100 / 100) * range) + min,
   }));
 };
 

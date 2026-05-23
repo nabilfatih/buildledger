@@ -13,22 +13,32 @@ import {
   AlertAction,
   AlertDescription,
   AlertTitle,
-  Badge,
-  Button,
+} from "@repo/design-system/components/ui/alert";
+import { Badge } from "@repo/design-system/components/ui/badge";
+import { Button } from "@repo/design-system/components/ui/button";
+import {
   Field,
   FieldDescription,
   FieldLabel,
+} from "@repo/design-system/components/ui/field";
+import {
+  Fieldset,
+  FieldsetLegend,
+} from "@repo/design-system/components/ui/fieldset";
+import {
   Frame,
   FrameDescription,
   FrameHeader,
   FramePanel,
   FrameTitle,
-  HugeIcons,
-  Input,
+} from "@repo/design-system/components/ui/frame";
+import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
+import { toastManager } from "@repo/design-system/components/ui/toast";
+import {
   Toolbar,
   ToolbarGroup,
-  toastManager,
-} from "@repo/design-system";
+} from "@repo/design-system/components/ui/toolbar";
 import type { GenericId } from "convex/values";
 import { useState } from "react";
 
@@ -162,7 +172,7 @@ export function ProjectIntelligencePanel({
 
       setReportId(result.right);
       toastManager.add({
-        title: "Report draft created",
+        title: "Report Draft Created",
         type: "success",
       });
     } catch (error) {
@@ -204,7 +214,7 @@ export function ProjectIntelligencePanel({
 
       setShareToken(result.right.token);
       toastManager.add({
-        title: "Share token created",
+        title: "Share Token Created",
         description: "Use copy to keep the token out of the layout.",
         type: "success",
       });
@@ -250,22 +260,28 @@ export function ProjectIntelligencePanel({
       <FrameHeader>
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <FrameTitle>Project intelligence</FrameTitle>
+            <FrameTitle>Project Intelligence</FrameTitle>
             <FrameDescription>Answers, reports, and sharing.</FrameDescription>
           </div>
-          <Badge variant="info">Cited</Badge>
+          <Badge variant="info">Cited Memory</Badge>
         </div>
       </FrameHeader>
       <FramePanel className="flex min-w-0 flex-col gap-4 p-4">
-        <Field>
-          <FieldLabel>Question</FieldLabel>
-          <Input
-            disabled={!selectedProjectId}
-            onChange={(event) => setQuestion(event.target.value)}
-            value={question}
-          />
-          <FieldDescription>{questionHelp}</FieldDescription>
-        </Field>
+        <Fieldset className="grid gap-4">
+          <FieldsetLegend className="sr-only">
+            Project Intelligence Prompt
+          </FieldsetLegend>
+          <Field>
+            <FieldLabel>Question</FieldLabel>
+            <Textarea
+              className="min-h-24"
+              disabled={!selectedProjectId}
+              onChange={(event) => setQuestion(event.target.value)}
+              value={question}
+            />
+            <FieldDescription>{questionHelp}</FieldDescription>
+          </Field>
+        </Fieldset>
 
         <Toolbar className="flex-wrap">
           <ToolbarGroup className="flex-wrap">
@@ -274,26 +290,29 @@ export function ProjectIntelligencePanel({
               loading={isAsking}
               onClick={handleAskProject}
               size="sm"
+              type="button"
             >
-              <HugeIcons icon={BubbleChatQuestionIcon} /> Ask project
+              <HugeIcons icon={BubbleChatQuestionIcon} /> Ask Project
             </Button>
             <Button
               disabled={!canGenerateReport}
               loading={isReporting}
               onClick={handleGenerateReport}
               size="sm"
+              type="button"
               variant="secondary"
             >
-              <HugeIcons icon={Analytics01Icon} /> Generate report
+              <HugeIcons icon={Analytics01Icon} /> Generate Report
             </Button>
             <Button
               disabled={!canShareMeeting}
               loading={isSharing}
               onClick={handleCreateShareLink}
               size="sm"
+              type="button"
               variant="outline"
             >
-              <HugeIcons icon={Link01Icon} /> Share
+              <HugeIcons icon={Link01Icon} /> Create Share Link
             </Button>
           </ToolbarGroup>
         </Toolbar>
@@ -309,14 +328,14 @@ export function ProjectIntelligencePanel({
           ) : null}
           {reportId ? (
             <ResultAlert
-              label="Report draft"
+              label="Report Draft"
               onCopy={() => handleCopy(reportId)}
               value={reportId}
             />
           ) : null}
           {shareToken ? (
             <ResultAlert
-              label="Share token"
+              label="Share Token"
               onCopy={() => handleCopy(shareToken)}
               value={shareToken}
             />

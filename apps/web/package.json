@@ -22,6 +22,7 @@
     "@repo/design-system": "workspace:*",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-devtools": "^0.10.0",
+    "@tanstack/react-form": "^1.32.0",
     "@tanstack/react-router": "^1.167.4",
     "@tanstack/react-router-devtools": "^1.166.9",
     "@tanstack/react-router-ssr-query": "^1.166.9",

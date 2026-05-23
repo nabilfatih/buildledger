@@ -4,29 +4,41 @@ import refs from "@repo/backend/confect/_generated/refs";
 import {
   Alert,
   AlertDescription,
-  Badge,
-  Button,
+} from "@repo/design-system/components/ui/alert";
+import { Badge } from "@repo/design-system/components/ui/badge";
+import { Button } from "@repo/design-system/components/ui/button";
+import {
   Empty,
   EmptyDescription,
   EmptyHeader,
   EmptyTitle,
+} from "@repo/design-system/components/ui/empty";
+import {
+  Field,
+  FieldDescription,
+  FieldLabel,
+} from "@repo/design-system/components/ui/field";
+import {
   Frame,
   FrameDescription,
   FrameHeader,
   FramePanel,
   FrameTitle,
-  HugeIcons,
-  Progress,
-  ScrollArea,
+} from "@repo/design-system/components/ui/frame";
+import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
+import { Progress } from "@repo/design-system/components/ui/progress";
+import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
+import { Skeleton } from "@repo/design-system/components/ui/skeleton";
+import {
   Tabs,
   TabsList,
   TabsPanel,
   TabsTab,
-  Textarea,
-  toastManager,
-} from "@repo/design-system";
+} from "@repo/design-system/components/ui/tabs";
+import { Textarea } from "@repo/design-system/components/ui/textarea";
+import { toastManager } from "@repo/design-system/components/ui/toast";
 import type { GenericId } from "convex/values";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { MeetingsResult, ReviewResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
@@ -59,6 +71,11 @@ export function MeetingWorkspace({
   const [isPublishing, setIsPublishing] = useState(false);
   const reviewState = review._tag === "Success" ? review.value : null;
   const meetingStatus = reviewState?.meeting.status;
+  const workflowTab = getWorkflowTab({
+    meetingStatus,
+    selectedMeetingId,
+  });
+  const [activeTab, setActiveTab] = useState(workflowTab);
   const hasReviewItems = Boolean(reviewState?.items.length);
   const primaryAction = getPrimaryAction({
     hasReviewItems,
@@ -69,6 +86,10 @@ export function MeetingWorkspace({
     selectedMeetingId,
     selectedProjectId,
   });
+
+  useEffect(() => {
+    setActiveTab(workflowTab);
+  }, [workflowTab]);
 
   /** Creates a draft meeting for the selected project. */
   async function handleCreateMeeting() {
@@ -97,6 +118,7 @@ export function MeetingWorkspace({
       }
 
       setSelectedMeetingId(result.right);
+      setActiveTab("input");
       toastManager.add({
         title: "Meeting created",
         description: "Add notes, then generate minutes.",
@@ -130,6 +152,7 @@ export function MeetingWorkspace({
 
     try {
       setIsGenerating(true);
+      setActiveTab("draft");
 
       const inputResult = await addInput({
         meetingId: selectedMeetingId,
@@ -162,6 +185,7 @@ export function MeetingWorkspace({
         description: "Review the draft before publishing.",
         type: "success",
       });
+      setActiveTab("review");
     } catch (error) {
       toastManager.add({
         title: "Minutes were not generated",
@@ -207,6 +231,7 @@ export function MeetingWorkspace({
         description: "Ledger rows and project intelligence are ready.",
         type: "success",
       });
+      setActiveTab("meetings");
     } catch (error) {
       toastManager.add({
         title: "Minutes were not published",
@@ -240,9 +265,9 @@ export function MeetingWorkspace({
       <FrameHeader className="gap-3">
         <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
-            <FrameTitle>Meeting workflow</FrameTitle>
+            <FrameTitle>Meeting Workflow</FrameTitle>
             <FrameDescription>
-              New meeting to generated minutes to published project memory.
+              Capture notes, generate minutes, review, and publish.
             </FrameDescription>
           </div>
           <Button
@@ -250,26 +275,32 @@ export function MeetingWorkspace({
             loading={primaryAction.loading}
             onClick={handlePrimaryAction}
             size="sm"
+            type="button"
           >
             <HugeIcons icon={primaryAction.icon} /> {primaryAction.label}
           </Button>
         </div>
-        <MeetingStatus status={meetingStatus} />
       </FrameHeader>
       <FramePanel className="min-w-0 p-4">
-        <Tabs defaultValue="input">
+        <Tabs onValueChange={setActiveTab} value={activeTab}>
           <TabsList className="max-w-full flex-wrap">
             <TabsTab value="input">Input</TabsTab>
             <TabsTab value="draft">Draft</TabsTab>
             <TabsTab value="review">Review</TabsTab>
-            <TabsTab value="published">Meetings</TabsTab>
+            <TabsTab value="meetings">Meetings</TabsTab>
           </TabsList>
           <TabsPanel value="input">
-            <Textarea
-              className="min-h-40 max-w-full resize-y"
-              onChange={(event) => setNotes(event.target.value)}
-              value={notes}
-            />
+            <Field>
+              <FieldLabel>Meeting Notes</FieldLabel>
+              <Textarea
+                className="min-h-40 max-w-full resize-y"
+                onChange={(event) => setNotes(event.target.value)}
+                value={notes}
+              />
+              <FieldDescription>
+                Paste notes, decisions, blockers, and action items.
+              </FieldDescription>
+            </Field>
           </TabsPanel>
           <TabsPanel value="draft">
             <AiRunPanel review={review} />
@@ -277,7 +308,7 @@ export function MeetingWorkspace({
           <TabsPanel value="review">
             <ReviewList review={review} />
           </TabsPanel>
-          <TabsPanel value="published">
+          <TabsPanel value="meetings">
             <MeetingsList
               meetings={meetings}
               selectedMeetingId={selectedMeetingId}
@@ -288,6 +319,33 @@ export function MeetingWorkspace({
       </FramePanel>
     </Frame>
   );
+}
+
+/** Selects the tab that best matches the current meeting state. */
+function getWorkflowTab({
+  meetingStatus,
+  selectedMeetingId,
+}: {
+  readonly meetingStatus: string | undefined;
+  readonly selectedMeetingId: GenericId<"meetings"> | null;
+}) {
+  if (!selectedMeetingId) {
+    return "input";
+  }
+
+  if (meetingStatus === "published") {
+    return "meetings";
+  }
+
+  if (meetingStatus === "review") {
+    return "review";
+  }
+
+  if (meetingStatus === "processing") {
+    return "draft";
+  }
+
+  return "input";
 }
 
 /** Derives the one primary action shown in the meeting workflow. */
@@ -312,7 +370,7 @@ function getPrimaryAction({
     return {
       disabled: true,
       icon: File02Icon,
-      label: "Select project",
+      label: "Select Project",
       loading: false,
       step: "none",
     } as const;
@@ -322,7 +380,7 @@ function getPrimaryAction({
     return {
       disabled: isCreatingMeeting,
       icon: File02Icon,
-      label: "New meeting",
+      label: "New Meeting",
       loading: isCreatingMeeting,
       step: "create",
     } as const;
@@ -341,33 +399,55 @@ function getPrimaryAction({
   return {
     disabled: meetingStatus === "processing" || isGenerating,
     icon: PlayIcon,
-    label: "Generate minutes",
+    label: "Generate Minutes",
     loading: isGenerating || meetingStatus === "processing",
     step: "generate",
   } as const;
 }
 
-/** Shows the current meeting status as a compact workflow hint. */
-function MeetingStatus({ status }: { readonly status: string | undefined }) {
-  const label = status ?? "No meeting selected";
+/** Formats backend status values for a consistent UI voice. */
+function titleCase(value: string) {
+  return value
+    .split(" ")
+    .filter(Boolean)
+    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
+    .join(" ");
+}
 
-  return (
-    <div className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground text-xs">
-      <Badge variant={status === "published" ? "success" : "outline"}>
-        {label}
-      </Badge>
-      <span>Input</span>
-      <span>Generate</span>
-      <span>Review</span>
-      <span>Publish</span>
-    </div>
-  );
+/** Maps generated meeting item kinds to semantic COSS badge variants. */
+function minuteItemVariant(kind: string) {
+  if (kind === "risk") {
+    return "warning";
+  }
+
+  if (kind === "decision") {
+    return "success";
+  }
+
+  if (kind === "action" || kind === "question") {
+    return "info";
+  }
+
+  return "outline";
+}
+
+/** Maps AI run event kinds to semantic COSS badge variants. */
+function aiRunEventVariant(kind: string) {
+  if (kind === "completed") {
+    return "success";
+  }
+
+  if (kind === "failed") {
+    return "error";
+  }
+
+  return "info";
 }
 
 /** Displays AI run events without keeping a completed progress bar on screen. */
 function AiRunPanel({ review }: { readonly review: ReviewResult }) {
   return QueryResult.match(review, {
-    onLoading: () => <Progress value={30} />,
+    onLoading: () => <Skeleton className="h-48" />,
     onFailure: (error) => (
       <Alert variant="warning">
         <AlertDescription>{error.message}</AlertDescription>
@@ -401,7 +481,9 @@ function AiRunPanel({ review }: { readonly review: ReviewResult }) {
                   key={event._id}
                 >
                   <div className="flex min-w-0 items-center justify-between gap-2">
-                    <Badge variant="outline">{event.kind}</Badge>
+                    <Badge variant={aiRunEventVariant(event.kind)}>
+                      {titleCase(event.kind)}
+                    </Badge>
                     <span className="text-muted-foreground text-xs">
                       Step {event.order}
                     </span>
@@ -420,7 +502,7 @@ function AiRunPanel({ review }: { readonly review: ReviewResult }) {
 /** Displays generated minute items for review without table overflow. */
 function ReviewList({ review }: { readonly review: ReviewResult }) {
   return QueryResult.match(review, {
-    onLoading: () => <Progress value={30} />,
+    onLoading: () => <Skeleton className="h-48" />,
     onFailure: (error) => (
       <Alert variant="warning">
         <AlertDescription>{error.message}</AlertDescription>
@@ -441,7 +523,9 @@ function ReviewList({ review }: { readonly review: ReviewResult }) {
           {state.items.map((item) => (
             <FramePanel className="min-w-0 p-3" key={item._id}>
               <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Badge variant="outline">{item.kind}</Badge>
+                <Badge variant={minuteItemVariant(item.kind)}>
+                  {titleCase(item.kind)}
+                </Badge>
                 <h3 className="min-w-0 break-words font-medium text-sm">
                   {item.title}
                 </h3>
@@ -469,7 +553,7 @@ function MeetingsList({
   ) => void;
 }) {
   return QueryResult.match(meetings, {
-    onLoading: () => <Progress value={30} />,
+    onLoading: () => <Skeleton className="h-48" />,
     onFailure: (error) => (
       <Alert variant="warning">
         <AlertDescription>{error.message}</AlertDescription>
@@ -488,11 +572,14 @@ function MeetingsList({
       ) : (
         <div className="grid min-w-0 gap-2">
           {items.map((meeting) => (
-            <button
-              className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background px-3 py-2 text-left text-sm hover:bg-muted"
+            <Button
+              className="grid h-auto w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] justify-stretch gap-3 whitespace-normal px-3 py-2 text-left"
               key={meeting._id}
               onClick={() => setSelectedMeetingId(meeting._id)}
               type="button"
+              variant={
+                meeting._id === selectedMeetingId ? "secondary" : "outline"
+              }
             >
               <span className="min-w-0">
                 <span className="block truncate font-medium">
@@ -507,9 +594,9 @@ function MeetingsList({
                   meeting._id === selectedMeetingId ? "success" : "outline"
                 }
               >
-                {meeting.status}
+                {titleCase(meeting.status)}
               </Badge>
-            </button>
+            </Button>
           ))}
         </div>
       ),

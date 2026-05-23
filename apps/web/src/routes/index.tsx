@@ -2,12 +2,13 @@
 
 import { useQuery } from "@confect/react";
 import refs from "@repo/backend/confect/_generated/refs";
+import { Badge } from "@repo/design-system/components/ui/badge";
 import {
-  Badge,
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
-} from "@repo/design-system";
+} from "@repo/design-system/components/ui/sidebar";
+import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import { createFileRoute } from "@tanstack/react-router";
 import type { GenericId } from "convex/values";
 import { useState } from "react";
@@ -73,11 +74,15 @@ function BuildLedgerHome() {
               <SidebarTrigger />
               <div className="min-w-0">
                 <p className="font-medium text-muted-foreground text-xs">
-                  Project memory workspace
+                  Project Memory Workspace
                 </p>
-                <h1 className="truncate font-heading text-lg">
-                  {activeProject?.name ?? "Select a project"}
-                </h1>
+                {projects._tag === "Success" ? (
+                  <h1 className="truncate font-heading text-lg">
+                    {activeProject?.name ?? "Select a Project"}
+                  </h1>
+                ) : (
+                  <Skeleton className="mt-1 h-6 w-48" />
+                )}
               </div>
             </div>
             {activeProject ? (
@@ -88,7 +93,7 @@ function BuildLedgerHome() {
           </div>
         </header>
 
-        <main className="grid min-w-0 gap-4 p-4 md:p-5 xl:grid-cols-[minmax(0,1fr)_360px]">
+        <main className="grid min-w-0 gap-4 p-4 md:p-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
           <section className="grid min-w-0 content-start gap-4">
             <ProjectLedgerTable ledger={ledger} />
             <MeetingWorkspace
@@ -100,7 +105,7 @@ function BuildLedgerHome() {
               setSelectedMeetingId={setSelectedMeetingId}
             />
           </section>
-          <aside className="min-w-0 self-start xl:sticky xl:top-20">
+          <aside className="min-w-0 self-start 2xl:sticky 2xl:top-20">
             <ProjectIntelligencePanel
               canUseProjectMemory={hasPublishedMeeting}
               key={workspaceKey}
