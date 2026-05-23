@@ -9,8 +9,8 @@ export type MeetingsResult = ReturnType<
   typeof useQuery<typeof refs.public.meetings.listByProject>
 >;
 
-export type MemoryResult = ReturnType<
-  typeof useQuery<typeof refs.public.memory.timelineByProject>
+export type LedgerResult = ReturnType<
+  typeof useQuery<typeof refs.public.ledger.listByProject>
 >;
 
 export type ReviewResult = ReturnType<

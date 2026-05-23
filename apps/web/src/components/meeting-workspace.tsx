@@ -6,7 +6,15 @@ import {
   AlertDescription,
   Badge,
   Button,
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+  Frame,
+  FrameDescription,
+  FrameHeader,
   FramePanel,
+  FrameTitle,
   HugeIcons,
   Progress,
   ScrollArea,
@@ -15,28 +23,26 @@ import {
   TabsPanel,
   TabsTab,
   Textarea,
-  Toolbar,
-  ToolbarGroup,
+  toastManager,
 } from "@repo/design-system";
 import type { GenericId } from "convex/values";
 import { useState } from "react";
 
 import type { MeetingsResult, ReviewResult } from "@/lib/confect-results";
+import { getErrorMessage } from "@/lib/errors";
 
-/** Coordinates meeting input, AI generation, review, and publication. */
+/** Coordinates one meeting through input, generation, review, and publish. */
 export function MeetingWorkspace({
   meetings,
   review,
   selectedMeetingId,
   selectedProjectId,
-  setNotice,
   setSelectedMeetingId,
 }: {
   readonly meetings: MeetingsResult;
   readonly review: ReviewResult;
   readonly selectedMeetingId: GenericId<"meetings"> | null;
   readonly selectedProjectId: GenericId<"projects"> | null;
-  readonly setNotice: (message: string | null) => void;
   readonly setSelectedMeetingId: (
     meetingId: GenericId<"meetings"> | null
   ) => void;
@@ -48,6 +54,21 @@ export function MeetingWorkspace({
   const [notes, setNotes] = useState(
     "Owner requested sequencing updates. Drywall crews are blocked by inspection timing. Site team accepted the revised crane window."
   );
+  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const reviewState = review._tag === "Success" ? review.value : null;
+  const meetingStatus = reviewState?.meeting.status;
+  const hasReviewItems = Boolean(reviewState?.items.length);
+  const primaryAction = getPrimaryAction({
+    hasReviewItems,
+    isCreatingMeeting,
+    isGenerating,
+    isPublishing,
+    meetingStatus,
+    selectedMeetingId,
+    selectedProjectId,
+  });
 
   /** Creates a draft meeting for the selected project. */
   async function handleCreateMeeting() {
@@ -55,20 +76,41 @@ export function MeetingWorkspace({
       return;
     }
 
-    const result = await createDraft({
-      projectId: selectedProjectId,
-      title: "Weekly OAC coordination",
-      meetingType: "OAC",
-      meetingDate: new Date().toISOString().slice(0, 10),
-      agenda: "Safety, schedule, blockers, risk review",
-    });
+    try {
+      setIsCreatingMeeting(true);
 
-    if (result._tag === "Left") {
-      setNotice(result.left.message);
-      return;
+      const result = await createDraft({
+        projectId: selectedProjectId,
+        title: "Weekly OAC coordination",
+        meetingType: "OAC",
+        meetingDate: new Date().toISOString().slice(0, 10),
+        agenda: "Safety, schedule, blockers, risk review",
+      });
+
+      if (result._tag === "Left") {
+        toastManager.add({
+          title: "Meeting was not created",
+          description: result.left.message,
+          type: "error",
+        });
+        return;
+      }
+
+      setSelectedMeetingId(result.right);
+      toastManager.add({
+        title: "Meeting created",
+        description: "Add notes, then generate minutes.",
+        type: "success",
+      });
+    } catch (error) {
+      toastManager.add({
+        title: "Meeting was not created",
+        description: getErrorMessage(error),
+        type: "error",
+      });
+    } finally {
+      setIsCreatingMeeting(false);
     }
-
-    setSelectedMeetingId(result.right);
   }
 
   /** Persists meeting input and starts the AI minutes action. */
@@ -77,112 +119,252 @@ export function MeetingWorkspace({
       return;
     }
 
-    setNotice(null);
-
-    const inputResult = await addInput({
-      meetingId: selectedMeetingId,
-      kind: "notes",
-      text: notes,
-    });
-
-    if (inputResult._tag === "Left") {
-      setNotice(inputResult.left.message);
+    if (notes.trim().length === 0) {
+      toastManager.add({
+        title: "Notes required",
+        description: "Add meeting notes before generating minutes.",
+        type: "warning",
+      });
       return;
     }
 
-    const result = await generateMinutes({ meetingId: selectedMeetingId });
+    try {
+      setIsGenerating(true);
 
-    if (result._tag === "Left") {
-      setNotice(result.left.message);
+      const inputResult = await addInput({
+        meetingId: selectedMeetingId,
+        kind: "notes",
+        text: notes,
+      });
+
+      if (inputResult._tag === "Left") {
+        toastManager.add({
+          title: "Notes were not saved",
+          description: inputResult.left.message,
+          type: "error",
+        });
+        return;
+      }
+
+      const result = await generateMinutes({ meetingId: selectedMeetingId });
+
+      if (result._tag === "Left") {
+        toastManager.add({
+          title: "Minutes were not generated",
+          description: result.left.message,
+          type: "error",
+        });
+        return;
+      }
+
+      toastManager.add({
+        title: "Minutes ready",
+        description: "Review the draft before publishing.",
+        type: "success",
+      });
+    } catch (error) {
+      toastManager.add({
+        title: "Minutes were not generated",
+        description: getErrorMessage(error),
+        type: "error",
+      });
+    } finally {
+      setIsGenerating(false);
     }
   }
 
-  /** Publishes reviewed minutes into project memory. */
+  /** Publishes reviewed minutes into project memory and the ledger. */
   async function handlePublish() {
     if (!selectedMeetingId) {
       return;
     }
 
-    setNotice(null);
+    if (!(meetingStatus === "review" && hasReviewItems)) {
+      toastManager.add({
+        title: "Review first",
+        description: "Generate and review minutes before publishing.",
+        type: "warning",
+      });
+      return;
+    }
 
-    const result = await publishMinutes({ meetingId: selectedMeetingId });
+    try {
+      setIsPublishing(true);
 
-    if (result._tag === "Left") {
-      setNotice(result.left.message);
+      const result = await publishMinutes({ meetingId: selectedMeetingId });
+
+      if (result._tag === "Left") {
+        toastManager.add({
+          title: "Minutes were not published",
+          description: result.left.message,
+          type: "error",
+        });
+        return;
+      }
+
+      toastManager.add({
+        title: "Minutes published",
+        description: "Ledger rows and project intelligence are ready.",
+        type: "success",
+      });
+    } catch (error) {
+      toastManager.add({
+        title: "Minutes were not published",
+        description: getErrorMessage(error),
+        type: "error",
+      });
+    } finally {
+      setIsPublishing(false);
+    }
+  }
+
+  /** Runs the currently valid next step in the meeting workflow. */
+  async function handlePrimaryAction() {
+    if (primaryAction.step === "create") {
+      await handleCreateMeeting();
+      return;
+    }
+
+    if (primaryAction.step === "generate") {
+      await handleGenerate();
+      return;
+    }
+
+    if (primaryAction.step === "publish") {
+      await handlePublish();
     }
   }
 
   return (
-    <section className="flex min-w-0 flex-col gap-4">
-      <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h2 className="truncate font-heading text-xl">Meeting workspace</h2>
-          <p className="text-muted-foreground text-sm">
-            Capture notes, generate minutes, review, publish.
-          </p>
+    <Frame className="min-w-0">
+      <FrameHeader className="gap-3">
+        <div className="flex min-w-0 flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
+            <FrameTitle>Meeting workflow</FrameTitle>
+            <FrameDescription>
+              New meeting to generated minutes to published project memory.
+            </FrameDescription>
+          </div>
+          <Button
+            disabled={primaryAction.disabled}
+            loading={primaryAction.loading}
+            onClick={handlePrimaryAction}
+            size="sm"
+          >
+            <HugeIcons icon={primaryAction.icon} /> {primaryAction.label}
+          </Button>
         </div>
-        <Toolbar className="flex-wrap">
-          <ToolbarGroup className="flex-wrap">
-            <Button
-              disabled={!selectedProjectId}
-              onClick={handleCreateMeeting}
-              size="sm"
-              variant="outline"
-            >
-              <HugeIcons icon={File02Icon} /> New meeting
-            </Button>
-            <Button
-              disabled={!selectedMeetingId}
-              onClick={handleGenerate}
-              size="sm"
-            >
-              <HugeIcons icon={PlayIcon} /> Run AI minutes
-            </Button>
-            <Button
-              disabled={!selectedMeetingId}
-              onClick={handlePublish}
-              size="sm"
-              variant="secondary"
-            >
-              <HugeIcons icon={Tick01Icon} /> Publish
-            </Button>
-          </ToolbarGroup>
-        </Toolbar>
-      </div>
-
-      <Tabs defaultValue="input">
-        <TabsList className="max-w-full flex-wrap">
-          <TabsTab value="input">Input</TabsTab>
-          <TabsTab value="draft">AI Draft</TabsTab>
-          <TabsTab value="review">Review</TabsTab>
-          <TabsTab value="published">Published</TabsTab>
-        </TabsList>
-        <TabsPanel value="input">
-          <Textarea
-            className="min-h-44 max-w-full resize-y"
-            onChange={(event) => setNotes(event.target.value)}
-            value={notes}
-          />
-        </TabsPanel>
-        <TabsPanel value="draft">
-          <AiRunPanel review={review} />
-        </TabsPanel>
-        <TabsPanel value="review">
-          <ReviewList review={review} />
-        </TabsPanel>
-        <TabsPanel value="published">
-          <MeetingsList
-            meetings={meetings}
-            selectedMeetingId={selectedMeetingId}
-            setSelectedMeetingId={setSelectedMeetingId}
-          />
-        </TabsPanel>
-      </Tabs>
-    </section>
+        <MeetingStatus status={meetingStatus} />
+      </FrameHeader>
+      <FramePanel className="min-w-0 p-4">
+        <Tabs defaultValue="input">
+          <TabsList className="max-w-full flex-wrap">
+            <TabsTab value="input">Input</TabsTab>
+            <TabsTab value="draft">Draft</TabsTab>
+            <TabsTab value="review">Review</TabsTab>
+            <TabsTab value="published">Meetings</TabsTab>
+          </TabsList>
+          <TabsPanel value="input">
+            <Textarea
+              className="min-h-40 max-w-full resize-y"
+              onChange={(event) => setNotes(event.target.value)}
+              value={notes}
+            />
+          </TabsPanel>
+          <TabsPanel value="draft">
+            <AiRunPanel review={review} />
+          </TabsPanel>
+          <TabsPanel value="review">
+            <ReviewList review={review} />
+          </TabsPanel>
+          <TabsPanel value="published">
+            <MeetingsList
+              meetings={meetings}
+              selectedMeetingId={selectedMeetingId}
+              setSelectedMeetingId={setSelectedMeetingId}
+            />
+          </TabsPanel>
+        </Tabs>
+      </FramePanel>
+    </Frame>
   );
 }
 
-/** Displays realtime AI progress and persisted AI run events. */
+/** Derives the one primary action shown in the meeting workflow. */
+function getPrimaryAction({
+  hasReviewItems,
+  isCreatingMeeting,
+  isGenerating,
+  isPublishing,
+  meetingStatus,
+  selectedMeetingId,
+  selectedProjectId,
+}: {
+  readonly hasReviewItems: boolean;
+  readonly isCreatingMeeting: boolean;
+  readonly isGenerating: boolean;
+  readonly isPublishing: boolean;
+  readonly meetingStatus: string | undefined;
+  readonly selectedMeetingId: GenericId<"meetings"> | null;
+  readonly selectedProjectId: GenericId<"projects"> | null;
+}) {
+  if (!selectedProjectId) {
+    return {
+      disabled: true,
+      icon: File02Icon,
+      label: "Select project",
+      loading: false,
+      step: "none",
+    } as const;
+  }
+
+  if (!selectedMeetingId || meetingStatus === "published") {
+    return {
+      disabled: isCreatingMeeting,
+      icon: File02Icon,
+      label: "New meeting",
+      loading: isCreatingMeeting,
+      step: "create",
+    } as const;
+  }
+
+  if (meetingStatus === "review") {
+    return {
+      disabled: !hasReviewItems || isPublishing,
+      icon: Tick01Icon,
+      label: "Publish",
+      loading: isPublishing,
+      step: "publish",
+    } as const;
+  }
+
+  return {
+    disabled: meetingStatus === "processing" || isGenerating,
+    icon: PlayIcon,
+    label: "Generate minutes",
+    loading: isGenerating || meetingStatus === "processing",
+    step: "generate",
+  } as const;
+}
+
+/** Shows the current meeting status as a compact workflow hint. */
+function MeetingStatus({ status }: { readonly status: string | undefined }) {
+  const label = status ?? "No meeting selected";
+
+  return (
+    <div className="flex min-w-0 flex-wrap items-center gap-2 text-muted-foreground text-xs">
+      <Badge variant={status === "published" ? "success" : "outline"}>
+        {label}
+      </Badge>
+      <span>Input</span>
+      <span>Generate</span>
+      <span>Review</span>
+      <span>Publish</span>
+    </div>
+  );
+}
+
+/** Displays AI run events without keeping a completed progress bar on screen. */
 function AiRunPanel({ review }: { readonly review: ReviewResult }) {
   return QueryResult.match(review, {
     onLoading: () => <Progress value={30} />,
@@ -193,10 +375,24 @@ function AiRunPanel({ review }: { readonly review: ReviewResult }) {
     ),
     onSuccess: (state) => {
       const latestRun = state.aiRuns[0];
+      const isRunning = latestRun?.status === "running";
+
+      if (state.aiRunEvents.length === 0) {
+        return (
+          <Empty className="min-h-56">
+            <EmptyHeader>
+              <EmptyTitle>No AI run yet</EmptyTitle>
+              <EmptyDescription>
+                Generate minutes after adding meeting input.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
+        );
+      }
 
       return (
         <FramePanel className="grid min-w-0 gap-3 p-4">
-          <Progress value={getAiRunProgress(latestRun?.status)} />
+          {isRunning ? <Progress value={65} /> : null}
           <ScrollArea className="max-h-72">
             <div className="grid min-w-0 gap-2 pr-1">
               {state.aiRunEvents.map((event) => (
@@ -207,7 +403,7 @@ function AiRunPanel({ review }: { readonly review: ReviewResult }) {
                   <div className="flex min-w-0 items-center justify-between gap-2">
                     <Badge variant="outline">{event.kind}</Badge>
                     <span className="text-muted-foreground text-xs">
-                      {event.order}
+                      Step {event.order}
                     </span>
                   </div>
                   <p className="break-words text-sm">{event.message}</p>
@@ -221,23 +417,6 @@ function AiRunPanel({ review }: { readonly review: ReviewResult }) {
   });
 }
 
-/** Converts run status into a compact progress value. */
-function getAiRunProgress(status: string | undefined) {
-  if (status === "succeeded") {
-    return 100;
-  }
-
-  if (status === "failed") {
-    return 100;
-  }
-
-  if (status) {
-    return 65;
-  }
-
-  return 0;
-}
-
 /** Displays generated minute items for review without table overflow. */
 function ReviewList({ review }: { readonly review: ReviewResult }) {
   return QueryResult.match(review, {
@@ -247,23 +426,33 @@ function ReviewList({ review }: { readonly review: ReviewResult }) {
         <AlertDescription>{error.message}</AlertDescription>
       </Alert>
     ),
-    onSuccess: (state) => (
-      <div className="grid min-w-0 gap-2">
-        {state.items.map((item) => (
-          <FramePanel className="min-w-0 p-3" key={item._id}>
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <Badge variant="outline">{item.kind}</Badge>
-              <h3 className="min-w-0 break-words font-medium text-sm">
-                {item.title}
-              </h3>
-            </div>
-            <p className="mt-2 break-words text-muted-foreground text-sm">
-              {item.body}
-            </p>
-          </FramePanel>
-        ))}
-      </div>
-    ),
+    onSuccess: (state) =>
+      state.items.length === 0 ? (
+        <Empty className="min-h-56">
+          <EmptyHeader>
+            <EmptyTitle>No draft yet</EmptyTitle>
+            <EmptyDescription>
+              Generate minutes to review structured items before publishing.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <div className="grid min-w-0 gap-2">
+          {state.items.map((item) => (
+            <FramePanel className="min-w-0 p-3" key={item._id}>
+              <div className="flex min-w-0 flex-wrap items-center gap-2">
+                <Badge variant="outline">{item.kind}</Badge>
+                <h3 className="min-w-0 break-words font-medium text-sm">
+                  {item.title}
+                </h3>
+              </div>
+              <p className="mt-2 break-words text-muted-foreground text-sm">
+                {item.body}
+              </p>
+            </FramePanel>
+          ))}
+        </div>
+      ),
   });
 }
 
@@ -286,33 +475,43 @@ function MeetingsList({
         <AlertDescription>{error.message}</AlertDescription>
       </Alert>
     ),
-    onSuccess: (items) => (
-      <div className="grid min-w-0 gap-2">
-        {items.map((meeting) => (
-          <button
-            className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background px-3 py-2 text-left text-sm hover:bg-muted"
-            key={meeting._id}
-            onClick={() => setSelectedMeetingId(meeting._id)}
-            type="button"
-          >
-            <span className="min-w-0">
-              <span className="block truncate font-medium">
-                {meeting.title}
-              </span>
-              <span className="block text-muted-foreground text-xs">
-                {meeting.meetingDate}
-              </span>
-            </span>
-            <Badge
-              variant={
-                meeting._id === selectedMeetingId ? "success" : "outline"
-              }
+    onSuccess: (items) =>
+      items.length === 0 ? (
+        <Empty className="min-h-56">
+          <EmptyHeader>
+            <EmptyTitle>No meetings yet</EmptyTitle>
+            <EmptyDescription>
+              Create a meeting to start building project memory.
+            </EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <div className="grid min-w-0 gap-2">
+          {items.map((meeting) => (
+            <button
+              className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-lg border bg-background px-3 py-2 text-left text-sm hover:bg-muted"
+              key={meeting._id}
+              onClick={() => setSelectedMeetingId(meeting._id)}
+              type="button"
             >
-              {meeting.status}
-            </Badge>
-          </button>
-        ))}
-      </div>
-    ),
+              <span className="min-w-0">
+                <span className="block truncate font-medium">
+                  {meeting.title}
+                </span>
+                <span className="block text-muted-foreground text-xs">
+                  {meeting.meetingDate}
+                </span>
+              </span>
+              <Badge
+                variant={
+                  meeting._id === selectedMeetingId ? "success" : "outline"
+                }
+              >
+                {meeting.status}
+              </Badge>
+            </button>
+          ))}
+        </div>
+      ),
   });
 }

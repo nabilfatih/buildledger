@@ -18,7 +18,6 @@ import {
   Input,
   Sheet,
   SheetDescription,
-  SheetFooter,
   SheetHeader,
   SheetPanel,
   SheetPopup,
@@ -185,8 +184,6 @@ export function AiSettingsSheet() {
               Save key
             </Button>
           </Form>
-        </SheetPanel>
-        <SheetFooter>
           <Button
             disabled={isSaving}
             onClick={handleClear}
@@ -195,7 +192,7 @@ export function AiSettingsSheet() {
           >
             Clear saved key
           </Button>
-        </SheetFooter>
+        </SheetPanel>
       </SheetPopup>
     </Sheet>
   );

@@ -27,21 +27,24 @@ import {
   Input,
   Toolbar,
   ToolbarGroup,
+  toastManager,
 } from "@repo/design-system";
 import type { GenericId } from "convex/values";
 import { useState } from "react";
+
+import { getErrorMessage } from "@/lib/errors";
 
 const defaultQuestion = "What changed about schedule and blockers?";
 
 /** Runs project-level intelligence actions after minutes are published. */
 export function ProjectIntelligencePanel({
+  canUseProjectMemory,
   selectedMeetingId,
   selectedProjectId,
-  setNotice,
 }: {
+  readonly canUseProjectMemory: boolean;
   readonly selectedMeetingId: GenericId<"meetings"> | null;
   readonly selectedProjectId: GenericId<"projects"> | null;
-  readonly setNotice: (message: string | null) => void;
 }) {
   const answerQuestion = useAction(refs.public.ai.answerProjectQuestion);
   const generateReport = useAction(refs.public.ai.generateProjectReport);
@@ -50,6 +53,21 @@ export function ProjectIntelligencePanel({
   const [answer, setAnswer] = useState<string | null>(null);
   const [reportId, setReportId] = useState<GenericId<"reports"> | null>(null);
   const [shareToken, setShareToken] = useState<string | null>(null);
+  const [isAsking, setIsAsking] = useState(false);
+  const [isReporting, setIsReporting] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
+  const canAskProject = Boolean(
+    selectedProjectId && canUseProjectMemory && !isAsking
+  );
+  const canGenerateReport = Boolean(
+    selectedProjectId && canUseProjectMemory && !isReporting
+  );
+  const canShareMeeting = Boolean(
+    selectedProjectId && selectedMeetingId && !isSharing
+  );
+  const questionHelp = canUseProjectMemory
+    ? "Ask cited questions from published project memory."
+    : "Publish minutes first so answers can cite project memory.";
 
   /** Asks the project memory service for a cited answer. */
   async function handleAskProject() {
@@ -57,18 +75,49 @@ export function ProjectIntelligencePanel({
       return;
     }
 
-    setNotice(null);
-    const result = await answerQuestion({
-      projectId: selectedProjectId,
-      question,
-    });
-
-    if (result._tag === "Left") {
-      setNotice(result.left.message);
+    if (!canUseProjectMemory) {
+      toastManager.add({
+        title: "Publish first",
+        description: "Publish minutes before asking project intelligence.",
+        type: "warning",
+      });
       return;
     }
 
-    setAnswer(result.right.answer);
+    try {
+      setIsAsking(true);
+      setAnswer(null);
+      setReportId(null);
+      setShareToken(null);
+
+      const result = await answerQuestion({
+        projectId: selectedProjectId,
+        question,
+      });
+
+      if (result._tag === "Left") {
+        toastManager.add({
+          title: "Answer was not generated",
+          description: result.left.message,
+          type: "error",
+        });
+        return;
+      }
+
+      setAnswer(result.right.answer);
+      toastManager.add({
+        title: "Answer generated",
+        type: "success",
+      });
+    } catch (error) {
+      toastManager.add({
+        title: "Answer was not generated",
+        description: getErrorMessage(error),
+        type: "error",
+      });
+    } finally {
+      setIsAsking(false);
+    }
   }
 
   /** Generates a weekly report draft from published project memory. */
@@ -77,23 +126,54 @@ export function ProjectIntelligencePanel({
       return;
     }
 
-    setNotice(null);
-    const now = new Date();
-    const weekAgo = new Date(now);
-    weekAgo.setDate(now.getDate() - 7);
-
-    const result = await generateReport({
-      projectId: selectedProjectId,
-      periodStart: weekAgo.toISOString().slice(0, 10),
-      periodEnd: now.toISOString().slice(0, 10),
-    });
-
-    if (result._tag === "Left") {
-      setNotice(result.left.message);
+    if (!canUseProjectMemory) {
+      toastManager.add({
+        title: "Publish first",
+        description: "Publish minutes before generating a project report.",
+        type: "warning",
+      });
       return;
     }
 
-    setReportId(result.right);
+    try {
+      setIsReporting(true);
+      setAnswer(null);
+      setReportId(null);
+      setShareToken(null);
+
+      const now = new Date();
+      const weekAgo = new Date(now);
+      weekAgo.setDate(now.getDate() - 7);
+
+      const result = await generateReport({
+        projectId: selectedProjectId,
+        periodStart: weekAgo.toISOString().slice(0, 10),
+        periodEnd: now.toISOString().slice(0, 10),
+      });
+
+      if (result._tag === "Left") {
+        toastManager.add({
+          title: "Report was not generated",
+          description: result.left.message,
+          type: "error",
+        });
+        return;
+      }
+
+      setReportId(result.right);
+      toastManager.add({
+        title: "Report draft created",
+        type: "success",
+      });
+    } catch (error) {
+      toastManager.add({
+        title: "Report was not generated",
+        description: getErrorMessage(error),
+        type: "error",
+      });
+    } finally {
+      setIsReporting(false);
+    }
   }
 
   /** Creates a read-only share token for the active meeting. */
@@ -102,32 +182,66 @@ export function ProjectIntelligencePanel({
       return;
     }
 
-    setNotice(null);
-    const result = await createShareLink({
-      projectId: selectedProjectId,
-      meetingId: selectedMeetingId,
-    });
+    try {
+      setIsSharing(true);
+      setAnswer(null);
+      setReportId(null);
+      setShareToken(null);
 
-    if (result._tag === "Left") {
-      setNotice(result.left.message);
-      return;
+      const result = await createShareLink({
+        projectId: selectedProjectId,
+        meetingId: selectedMeetingId,
+      });
+
+      if (result._tag === "Left") {
+        toastManager.add({
+          title: "Share link was not created",
+          description: result.left.message,
+          type: "error",
+        });
+        return;
+      }
+
+      setShareToken(result.right.token);
+      toastManager.add({
+        title: "Share token created",
+        description: "Use copy to keep the token out of the layout.",
+        type: "success",
+      });
+    } catch (error) {
+      toastManager.add({
+        title: "Share link was not created",
+        description: getErrorMessage(error),
+        type: "error",
+      });
+    } finally {
+      setIsSharing(false);
     }
-
-    setShareToken(result.right.token);
   }
 
   /** Copies a generated token or identifier without rendering it inline. */
   async function handleCopy(value: string) {
     if (!navigator.clipboard) {
-      setNotice("Clipboard is not available in this browser.");
+      toastManager.add({
+        title: "Clipboard unavailable",
+        description: "Clipboard is not available in this browser.",
+        type: "warning",
+      });
       return;
     }
 
     try {
       await navigator.clipboard.writeText(value);
-      setNotice("Copied.");
+      toastManager.add({
+        title: "Copied",
+        type: "success",
+      });
     } catch {
-      setNotice("Clipboard is not available in this browser.");
+      toastManager.add({
+        title: "Clipboard unavailable",
+        description: "Clipboard is not available in this browser.",
+        type: "warning",
+      });
     }
   }
 
@@ -150,32 +264,34 @@ export function ProjectIntelligencePanel({
             onChange={(event) => setQuestion(event.target.value)}
             value={question}
           />
-          <FieldDescription>
-            Publish minutes first so answers can cite project memory.
-          </FieldDescription>
+          <FieldDescription>{questionHelp}</FieldDescription>
         </Field>
 
         <Toolbar className="flex-wrap">
           <ToolbarGroup className="flex-wrap">
             <Button
-              disabled={!selectedProjectId}
+              disabled={!canAskProject}
+              loading={isAsking}
               onClick={handleAskProject}
               size="sm"
             >
               <HugeIcons icon={BubbleChatQuestionIcon} /> Ask project
             </Button>
             <Button
-              disabled={!selectedProjectId}
+              disabled={!canGenerateReport}
+              loading={isReporting}
               onClick={handleGenerateReport}
               size="sm"
+              variant="secondary"
             >
               <HugeIcons icon={Analytics01Icon} /> Generate report
             </Button>
             <Button
-              disabled={!(selectedProjectId && selectedMeetingId)}
+              disabled={!canShareMeeting}
+              loading={isSharing}
               onClick={handleCreateShareLink}
               size="sm"
-              variant="secondary"
+              variant="outline"
             >
               <HugeIcons icon={Link01Icon} /> Share
             </Button>

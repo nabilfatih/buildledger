@@ -10,6 +10,7 @@
 
 import type * as ai from "../ai.js";
 import type * as aiSettings from "../aiSettings.js";
+import type * as ledger from "../ledger.js";
 import type * as meetings from "../meetings.js";
 import type * as memory from "../memory.js";
 import type * as projects from "../projects.js";
@@ -25,6 +26,7 @@ import type {
 declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   aiSettings: typeof aiSettings;
+  ledger: typeof ledger;
   meetings: typeof meetings;
   memory: typeof memory;
   projects: typeof projects;

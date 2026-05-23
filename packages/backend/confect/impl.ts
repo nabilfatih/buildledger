@@ -2,6 +2,7 @@ import { Impl } from "@confect/server";
 import api from "@repo/backend/confect/_generated/api";
 import { ai } from "@repo/backend/confect/ai.impl";
 import { aiSettings } from "@repo/backend/confect/ai-settings.impl";
+import { ledger } from "@repo/backend/confect/ledger.impl";
 import { meetings } from "@repo/backend/confect/meetings.impl";
 import { memory } from "@repo/backend/confect/memory.impl";
 import { projects } from "@repo/backend/confect/projects.impl";
@@ -14,6 +15,7 @@ export default Impl.make(api).pipe(
   Layer.provide(aiSettings),
   Layer.provide(projects),
   Layer.provide(meetings),
+  Layer.provide(ledger),
   Layer.provide(memory),
   Layer.provide(reports),
   Layer.provide(shares),

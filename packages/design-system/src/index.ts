@@ -17,6 +17,7 @@ export * from "@repo/design-system/components/ui/progress";
 export * from "@repo/design-system/components/ui/scroll-area";
 export * from "@repo/design-system/components/ui/select";
 export * from "@repo/design-system/components/ui/sheet";
+export * from "@repo/design-system/components/ui/sidebar";
 export * from "@repo/design-system/components/ui/skeleton";
 export * from "@repo/design-system/components/ui/table";
 export * from "@repo/design-system/components/ui/tabs";

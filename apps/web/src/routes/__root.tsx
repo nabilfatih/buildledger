@@ -1,5 +1,6 @@
 /// <reference types="vite/client" />
 
+import { AnchoredToastProvider, ToastProvider } from "@repo/design-system";
 import {
   createRootRoute,
   HeadContent,
@@ -56,7 +57,11 @@ function RootDocument({ children }: { readonly children: ReactNode }) {
       </head>
       <body className="relative">
         <div className="relative isolate flex min-h-svh flex-col">
-          <ConvexClientProvider>{children}</ConvexClientProvider>
+          <ConvexClientProvider>
+            <ToastProvider>
+              <AnchoredToastProvider>{children}</AnchoredToastProvider>
+            </ToastProvider>
+          </ConvexClientProvider>
         </div>
         <Scripts />
       </body>

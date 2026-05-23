@@ -1,6 +1,7 @@
 import { Spec } from "@confect/core";
 import { ai } from "@repo/backend/confect/ai.spec";
 import { aiSettings } from "@repo/backend/confect/ai-settings.spec";
+import { ledger } from "@repo/backend/confect/ledger.spec";
 import { meetings } from "@repo/backend/confect/meetings.spec";
 import { memory } from "@repo/backend/confect/memory.spec";
 import { projects } from "@repo/backend/confect/projects.spec";
@@ -12,6 +13,7 @@ export default Spec.make()
   .add(aiSettings)
   .add(projects)
   .add(meetings)
+  .add(ledger)
   .add(memory)
   .add(reports)
   .add(shares);
