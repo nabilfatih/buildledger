@@ -38,8 +38,10 @@ import {
   ToolbarGroup,
 } from "@repo/design-system/components/ui/toolbar";
 import type { GenericId } from "convex/values";
+import { subDays } from "date-fns";
 import { useState } from "react";
 
+import { formatDateInput } from "@/lib/dates";
 import { getErrorMessage } from "@/lib/errors";
 
 const defaultQuestion = "What changed about schedule and blockers?";
@@ -158,13 +160,11 @@ export function ProjectIntelligencePanel({
       setShareLink(null);
 
       const now = new Date();
-      const weekAgo = new Date(now);
-      weekAgo.setDate(now.getDate() - 7);
 
       const result = await generateReport({
         projectId: selectedProjectId,
-        periodStart: weekAgo.toISOString().slice(0, 10),
-        periodEnd: now.toISOString().slice(0, 10),
+        periodStart: formatDateInput(subDays(now, 7)),
+        periodEnd: formatDateInput(now),
       });
 
       if (result._tag === "Left") {

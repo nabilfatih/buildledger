@@ -36,13 +36,35 @@ export const meetings = GroupSpec.make("meetings")
   )
   .addFunction(
     FunctionSpec.publicMutation({
-      name: "addInput",
+      name: "saveInput",
       args: Schema.Struct({
         meetingId: GenericId.GenericId("meetings"),
         kind: Schema.Literal("notes", "transcript"),
         text: Schema.String,
       }),
       returns: GenericId.GenericId("meetingInputs"),
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicMutation({
+      name: "updateReviewItem",
+      args: Schema.Struct({
+        itemId: GenericId.GenericId("minuteItems"),
+        kind: Schema.Literal(
+          "discussion",
+          "decision",
+          "action",
+          "risk",
+          "question"
+        ),
+        title: Schema.String,
+        body: Schema.String,
+        ownerName: Schema.optional(Schema.String),
+        dueDate: Schema.optional(Schema.String),
+        severity: Schema.optional(Schema.Literal("low", "medium", "high")),
+      }),
+      returns: Schema.Null,
       error: AppError,
     })
   )

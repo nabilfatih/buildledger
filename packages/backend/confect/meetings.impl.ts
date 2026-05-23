@@ -9,13 +9,78 @@ import {
 import {
   InvalidMeetingState,
   MeetingNotFound,
+  ReviewItemNotFound,
 } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
+import type { Meetings } from "@repo/backend/confect/tables/core";
 import type { GenericId } from "convex/values";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, type Schema } from "effect";
 
 const zeroEmbedding = Array.from({ length: 1536 }, () => 0);
 type MeetingId = GenericId<"meetings">;
+type MeetingStatus = Schema.Schema.Type<typeof Meetings.Doc>["status"];
+
+/** Keeps the latest saved meeting input for each editable input kind. */
+export function currentMeetingInputs<
+  const Input extends {
+    readonly kind: "notes" | "transcript" | "file";
+    readonly createdAt: number;
+  },
+>(inputs: readonly Input[]) {
+  const inputByKind = new Map<Input["kind"], Input>();
+
+  for (const input of inputs) {
+    if (input.kind === "file") {
+      continue;
+    }
+
+    const current = inputByKind.get(input.kind);
+
+    if (!current || input.createdAt > current.createdAt) {
+      inputByKind.set(input.kind, input);
+    }
+  }
+
+  return [...inputByKind.values()].sort(
+    (left, right) => left.createdAt - right.createdAt
+  );
+}
+
+/** Checks whether meeting notes can still be edited before generation. */
+export function canSaveMeetingInput(status: MeetingStatus) {
+  return status === "draft" || status === "failed";
+}
+
+/** Normalizes optional review text fields before storing them. */
+function optionalText(value: string | undefined) {
+  const text = value?.trim();
+  return text && text.length > 0 ? text : undefined;
+}
+
+/** Builds a minute-item patch that clears fields irrelevant to the selected kind. */
+export function reviewItemPatch(input: {
+  readonly kind: "discussion" | "decision" | "action" | "risk" | "question";
+  readonly title: string;
+  readonly body: string;
+  readonly ownerName?: string | undefined;
+  readonly dueDate?: string | undefined;
+  readonly severity?: "low" | "medium" | "high" | undefined;
+}) {
+  const title = input.title.trim();
+  const body = input.body.trim();
+
+  return {
+    kind: input.kind,
+    title,
+    body,
+    status: input.kind === "action" ? "open" : undefined,
+    ownerName:
+      input.kind === "action" ? optionalText(input.ownerName) : undefined,
+    dueDate: input.kind === "action" ? optionalText(input.dueDate) : undefined,
+    severity: input.kind === "risk" ? (input.severity ?? "medium") : undefined,
+    updatedAt: Date.now(),
+  };
+}
 
 /** Returns all saved notes and transcripts for a meeting as one prompt string. */
 const getMeetingInputText = Effect.fn("meetings.getMeetingInputText")(
@@ -26,7 +91,7 @@ const getMeetingInputText = Effect.fn("meetings.getMeetingInputText")(
       .index("by_meetingId", (q) => q.eq("meetingId", meetingId))
       .collect();
 
-    return inputs
+    return currentMeetingInputs(inputs)
       .map((input) => input.text ?? "")
       .join("\n\n")
       .trim();
@@ -81,6 +146,31 @@ const insertMinutesDraft = Effect.fn("meetings.insertMinutesDraft")(
   }
 );
 
+/** Removes stale generated review rows before a fresh generation result is stored. */
+const clearMinutesDraft = Effect.fn("meetings.clearMinutesDraft")(function* (
+  meetingId: MeetingId
+) {
+  const reader = yield* DatabaseReader;
+  const writer = yield* DatabaseWriter;
+  const sections = yield* reader
+    .table("minuteSections")
+    .index("by_meetingId", (q) => q.eq("meetingId", meetingId))
+    .collect();
+  const items = yield* reader
+    .table("minuteItems")
+    .index("by_meetingId", (q) => q.eq("meetingId", meetingId))
+    .collect();
+
+  yield* Effect.all(
+    items.map((item) => writer.table("minuteItems").delete(item._id))
+  );
+  yield* Effect.all(
+    sections.map((section) =>
+      writer.table("minuteSections").delete(section._id)
+    )
+  );
+});
+
 /** Lists recent meetings for a project the user can access. */
 const listByProject = FunctionImpl.make(
   api,
@@ -126,11 +216,11 @@ const createDraft = FunctionImpl.make(
     )
 );
 
-/** Adds notes or transcript input to a meeting draft. */
-const addInput = FunctionImpl.make(
+/** Saves the current notes or transcript input for a meeting draft. */
+const saveInput = FunctionImpl.make(
   api,
   "meetings",
-  "addInput",
+  "saveInput",
   ({ meetingId, kind, text }) =>
     asAppError(
       Effect.gen(function* () {
@@ -150,13 +240,46 @@ const addInput = FunctionImpl.make(
 
         yield* ensureProjectAccess(meeting.projectId);
 
+        if (!canSaveMeetingInput(meeting.status)) {
+          return yield* Effect.fail(
+            new InvalidMeetingState({
+              meetingId,
+              message: "Meeting input can only be edited before generation.",
+            })
+          );
+        }
+
+        const existingInputs = yield* reader
+          .table("meetingInputs")
+          .index(
+            "by_meetingId_and_kind",
+            (q) => q.eq("meetingId", meetingId).eq("kind", kind),
+            "desc"
+          )
+          .take(50);
         const writer = yield* DatabaseWriter;
-        return yield* writer.table("meetingInputs").insert({
-          meetingId,
-          kind,
-          text,
+        const [currentInput, ...staleInputs] = existingInputs;
+
+        if (!currentInput) {
+          return yield* writer.table("meetingInputs").insert({
+            meetingId,
+            kind,
+            text: text.trim(),
+            createdAt: Date.now(),
+          });
+        }
+
+        yield* writer.table("meetingInputs").patch(currentInput._id, {
+          text: text.trim(),
           createdAt: Date.now(),
         });
+        yield* Effect.all(
+          staleInputs.map((input) =>
+            writer.table("meetingInputs").delete(input._id)
+          )
+        );
+
+        return currentInput._id;
       })
     )
 );
@@ -204,6 +327,16 @@ const startGeneration = FunctionImpl.make(
             new InvalidMeetingState({
               meetingId,
               message: "Minutes generation is already running.",
+            })
+          );
+        }
+
+        if (!(meeting.status === "draft" || meeting.status === "failed")) {
+          return yield* Effect.fail(
+            new InvalidMeetingState({
+              meetingId,
+              message:
+                "Minutes can only be generated from draft meeting input.",
             })
           );
         }
@@ -258,6 +391,16 @@ const finishGeneration = FunctionImpl.make(
           );
 
         yield* ensureProjectAccess(meeting.projectId);
+        if (meeting.status !== "processing") {
+          return yield* Effect.fail(
+            new InvalidMeetingState({
+              meetingId,
+              message: "Minutes generation is not active for this meeting.",
+            })
+          );
+        }
+
+        yield* clearMinutesDraft(meetingId);
         yield* insertMinutesDraft({ meetingId, draft });
 
         yield* writer.table("meetings").patch(meetingId, {
@@ -393,6 +536,77 @@ const getReviewState = FunctionImpl.make(
     )
 );
 
+/** Updates one generated review item before minutes are published. */
+const updateReviewItem = FunctionImpl.make(
+  api,
+  "meetings",
+  "updateReviewItem",
+  ({ itemId, kind, title, body, ownerName, dueDate, severity }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const reader = yield* DatabaseReader;
+        const item = yield* reader
+          .table("minuteItems")
+          .get(itemId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new ReviewItemNotFound({
+                  itemId,
+                  message: "Review item not found.",
+                })
+            )
+          );
+        const meeting = yield* reader
+          .table("meetings")
+          .get(item.meetingId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new MeetingNotFound({
+                  meetingId: item.meetingId,
+                  message: "Meeting not found.",
+                })
+            )
+          );
+
+        yield* ensureProjectAccess(meeting.projectId);
+
+        if (meeting.status !== "review") {
+          return yield* Effect.fail(
+            new InvalidMeetingState({
+              meetingId: meeting._id,
+              message: "Review items can only be edited before publishing.",
+            })
+          );
+        }
+
+        const patch = reviewItemPatch({
+          kind,
+          title,
+          body,
+          ownerName,
+          dueDate,
+          severity,
+        });
+
+        if (patch.title.length === 0 || patch.body.length === 0) {
+          return yield* Effect.fail(
+            new InvalidMeetingState({
+              meetingId: meeting._id,
+              message: "Review items need a title and body.",
+            })
+          );
+        }
+
+        const writer = yield* DatabaseWriter;
+        yield* writer.table("minuteItems").patch(itemId, patch);
+
+        return null;
+      })
+    )
+);
+
 /** Publishes reviewed minutes into project memory and derived tables. */
 const publishMinutes = FunctionImpl.make(
   api,
@@ -513,10 +727,11 @@ const publishMinutes = FunctionImpl.make(
 export const meetings = GroupImpl.make(api, "meetings").pipe(
   Layer.provide(listByProject),
   Layer.provide(createDraft),
-  Layer.provide(addInput),
+  Layer.provide(saveInput),
   Layer.provide(startGeneration),
   Layer.provide(finishGeneration),
   Layer.provide(failGeneration),
   Layer.provide(getReviewState),
+  Layer.provide(updateReviewItem),
   Layer.provide(publishMinutes)
 );

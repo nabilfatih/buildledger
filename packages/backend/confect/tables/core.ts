@@ -117,7 +117,9 @@ export const MeetingInputs = Table.make(
     storageId: Schema.optional(GenericId.GenericId("_storage")),
     createdAt: Timestamp,
   })
-).index("by_meetingId", ["meetingId", "createdAt"]);
+)
+  .index("by_meetingId", ["meetingId", "createdAt"])
+  .index("by_meetingId_and_kind", ["meetingId", "kind", "createdAt"]);
 
 export const MinuteSections = Table.make(
   "minuteSections",

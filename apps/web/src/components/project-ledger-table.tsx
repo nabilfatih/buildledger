@@ -10,14 +10,6 @@ import {
 import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Calendar } from "@repo/design-system/components/ui/calendar";
-import {
-  CardFrame,
-  CardFrameAction,
-  CardFrameDescription,
-  CardFrameFooter,
-  CardFrameHeader,
-  CardFrameTitle,
-} from "@repo/design-system/components/ui/card";
 import { Checkbox } from "@repo/design-system/components/ui/checkbox";
 import {
   Empty,
@@ -34,6 +26,13 @@ import {
   Fieldset,
   FieldsetLegend,
 } from "@repo/design-system/components/ui/fieldset";
+import {
+  Frame,
+  FrameDescription,
+  FrameHeader,
+  FramePanel,
+  FrameTitle,
+} from "@repo/design-system/components/ui/frame";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import { Input } from "@repo/design-system/components/ui/input";
 import {
@@ -95,6 +94,11 @@ import {
 } from "@tanstack/react-table";
 import { useMemo, useState } from "react";
 import type { LedgerResult } from "@/lib/confect-results";
+import {
+  formatDateInput,
+  formatDisplayDate,
+  parseDateInput,
+} from "@/lib/dates";
 
 const kindFilters = [
   { label: "All types", value: "all" },
@@ -207,7 +211,7 @@ const columns = [
     header: "Due",
     size: 112,
     cell: (info) => (
-      <MutedValue fallback="No due date" value={info.getValue()} />
+      <DateValue fallback="No Due Date" value={info.getValue()} />
     ),
   }),
   columnHelper.accessor("severity", {
@@ -223,6 +227,7 @@ const columns = [
   columnHelper.accessor("meetingDate", {
     header: "Date",
     size: 100,
+    cell: (info) => formatDisplayDate(info.getValue()),
   }),
   columnHelper.accessor("citationCount", {
     header: "Citations",
@@ -346,30 +351,6 @@ function kindVariant(value: string) {
   return "outline";
 }
 
-/** Formats dates for backend filters without timezone drift. */
-function formatDateInput(date: Date) {
-  const year = String(date.getFullYear());
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-
-  return `${year}-${month}-${day}`;
-}
-
-/** Parses yyyy-mm-dd filters into Calendar dates. */
-function parseDateInput(value: string) {
-  if (!value) {
-    return;
-  }
-
-  const [year, month, day] = value.split("-").map(Number);
-
-  if (!(year && month && day)) {
-    return;
-  }
-
-  return new Date(year, month - 1, day);
-}
-
 /** Creates the displayed page range for the pagination select. */
 function getPageOption(table: ReactTable<LedgerRow>, index: number) {
   const pageSize = table.getState().pagination.pageSize;
@@ -387,7 +368,7 @@ function formatSelectedRows(rows: readonly LedgerRow[]) {
   return rows
     .map(
       (row) =>
-        `${formatKind(row.kind)}: ${row.title}\nSource: ${row.meetingTitle} (${row.meetingDate})\nStatus: ${formatStatus(row.status)}`
+        `${formatKind(row.kind)}: ${row.title}\nSource: ${row.meetingTitle} (${formatDisplayDate(row.meetingDate)})\nStatus: ${formatStatus(row.status)}`
     )
     .join("\n\n");
 }
@@ -432,6 +413,19 @@ function MutedValue({
       {value ?? fallback}
     </span>
   );
+}
+
+/** Displays optional ISO date values as readable dates. */
+function DateValue({
+  fallback,
+  value,
+}: {
+  readonly fallback: string;
+  readonly value: string | null | undefined;
+}) {
+  const displayDate = formatDisplayDate(value);
+
+  return <MutedValue fallback={fallback} value={displayDate || undefined} />;
 }
 
 /** Shows derived project memory as a sortable and filterable ledger. */
@@ -532,15 +526,14 @@ export function ProjectLedgerTable({
   }
 
   return (
-    <CardFrame className="min-w-0">
-      <CardFrameHeader className="gap-3">
-        <CardFrameTitle>Project Ledger</CardFrameTitle>
-        <CardFrameDescription>
+    <Frame className="min-w-0">
+      <FrameHeader>
+        <FrameTitle>Project Ledger</FrameTitle>
+        <FrameDescription>
           Search decisions, actions, risks, questions, and cited records.
-        </CardFrameDescription>
-        <CardFrameAction>
-          <Badge variant="info">{filteredRows.length} Rows</Badge>
-        </CardFrameAction>
+        </FrameDescription>
+      </FrameHeader>
+      <FramePanel className="grid min-w-0 gap-4 p-4">
         <LedgerFilters
           endDate={endDate}
           kind={kind}
@@ -559,33 +552,31 @@ export function ProjectLedgerTable({
           startDate={startDate}
           status={status}
         />
-      </CardFrameHeader>
-      {QueryResult.match(ledger, {
-        onLoading: () => <LedgerTableSkeleton />,
-        onFailure: (error) => (
-          <div className="p-4 text-muted-foreground text-sm">
-            {error.message}
-          </div>
-        ),
-        onSuccess: () =>
-          filteredRows.length === 0 ? (
-            <Empty className="min-h-72">
-              <EmptyHeader>
-                <EmptyTitle>No ledger rows yet</EmptyTitle>
-                <EmptyDescription>
-                  Create a meeting, generate minutes, publish them, then the
-                  ledger fills from the published project memory.
-                </EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <LedgerDataTable
-              onCopySelectedRows={handleCopySelectedRows}
-              table={table}
-            />
+        {QueryResult.match(ledger, {
+          onLoading: () => <LedgerTableSkeleton />,
+          onFailure: (error) => (
+            <div className="text-muted-foreground text-sm">{error.message}</div>
           ),
-      })}
-    </CardFrame>
+          onSuccess: () =>
+            filteredRows.length === 0 ? (
+              <Empty className="min-h-72">
+                <EmptyHeader>
+                  <EmptyTitle>No ledger rows yet</EmptyTitle>
+                  <EmptyDescription>
+                    Create a meeting, generate minutes, publish them, then the
+                    ledger fills from the published project memory.
+                  </EmptyDescription>
+                </EmptyHeader>
+              </Empty>
+            ) : (
+              <LedgerDataTable
+                onCopySelectedRows={handleCopySelectedRows}
+                table={table}
+              />
+            ),
+        })}
+      </FramePanel>
+    </Frame>
   );
 }
 
@@ -756,7 +747,7 @@ function DateFilter({
             />
           }
         >
-          <span>{value || "Any Date"}</span>
+          <span>{value ? formatDisplayDate(value) : "Any Date"}</span>
           <HugeIcons icon={Calendar03Icon} />
         </PopoverTrigger>
         <PopoverPopup align="start">
@@ -829,15 +820,13 @@ function LedgerTableSkeleton() {
           ))}
         </TableBody>
       </Table>
-      <CardFrameFooter className="p-2">
-        <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-4 w-20" />
-          </div>
-          <Skeleton className="h-8 w-72" />
+      <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="h-4 w-20" />
         </div>
-      </CardFrameFooter>
+        <Skeleton className="h-8 w-72" />
+      </div>
     </>
   );
 }
@@ -924,19 +913,17 @@ function LedgerDataTable({
           ))}
         </TableBody>
       </Table>
-      <CardFrameFooter className="p-2">
-        <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex min-w-0 flex-wrap items-center gap-2">
-            <ColumnMenu table={table} />
-            <SelectionActions
-              onClearSelection={() => table.resetRowSelection()}
-              onCopySelectedRows={onCopySelectedRows}
-              selectedCount={table.getSelectedRowModel().rows.length}
-            />
-          </div>
-          <LedgerPagination table={table} />
+      <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-2">
+          <ColumnMenu table={table} />
+          <SelectionActions
+            onClearSelection={() => table.resetRowSelection()}
+            onCopySelectedRows={onCopySelectedRows}
+            selectedCount={table.getSelectedRowModel().rows.length}
+          />
         </div>
-      </CardFrameFooter>
+        <LedgerPagination table={table} />
+      </div>
     </>
   );
 }

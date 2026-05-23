@@ -1,23 +1,6 @@
-import { QueryResult, useAction, useMutation } from "@confect/react";
-import { File02Icon, PlayIcon, Tick01Icon } from "@hugeicons/core-free-icons";
+import { useAction, useMutation } from "@confect/react";
 import refs from "@repo/backend/confect/_generated/refs";
-import {
-  Alert,
-  AlertDescription,
-} from "@repo/design-system/components/ui/alert";
-import { Badge } from "@repo/design-system/components/ui/badge";
 import { Button } from "@repo/design-system/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@repo/design-system/components/ui/empty";
-import {
-  Field,
-  FieldDescription,
-  FieldLabel,
-} from "@repo/design-system/components/ui/field";
 import {
   Frame,
   FrameDescription,
@@ -26,20 +9,32 @@ import {
   FrameTitle,
 } from "@repo/design-system/components/ui/frame";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
-import { Progress } from "@repo/design-system/components/ui/progress";
-import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
-import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import {
   Tabs,
   TabsList,
   TabsPanel,
   TabsTab,
 } from "@repo/design-system/components/ui/tabs";
-import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import type { GenericId } from "convex/values";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
+import { ReviewEditor } from "@/components/meeting-review-editor";
+import { InputPanel, MeetingsList } from "@/components/meeting-workflow-panels";
+import {
+  canEditInput,
+  getPrimaryAction,
+  getWorkflowTab,
+  isWorkflowTab,
+  meetingNotes,
+  optionalText,
+  type ReviewDraft,
+  type ReviewState,
+  reviewDraftChanged,
+  reviewDraftFromItem,
+  type WorkflowTab,
+} from "@/components/meeting-workspace-utils";
+import { NewMeetingSheet } from "@/components/new-meeting-sheet";
 import type { MeetingsResult, ReviewResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
 
@@ -59,81 +54,68 @@ export function MeetingWorkspace({
     meetingId: GenericId<"meetings"> | null
   ) => void;
 }) {
-  const createDraft = useMutation(refs.public.meetings.createDraft);
-  const addInput = useMutation(refs.public.meetings.addInput);
+  const saveInput = useMutation(refs.public.meetings.saveInput);
+  const updateReviewItem = useMutation(refs.public.meetings.updateReviewItem);
   const generateMinutes = useAction(refs.public.ai.generateMinutes);
   const publishMinutes = useMutation(refs.public.meetings.publishMinutes);
-  const [notes, setNotes] = useState(
-    "Owner requested sequencing updates. Drywall crews are blocked by inspection timing. Site team accepted the revised crane window."
-  );
-  const [isCreatingMeeting, setIsCreatingMeeting] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [isPublishing, setIsPublishing] = useState(false);
   const reviewState = review._tag === "Success" ? review.value : null;
   const meetingStatus = reviewState?.meeting.status;
-  const workflowTab = getWorkflowTab({
-    meetingStatus,
-    selectedMeetingId,
-  });
-  const [activeTab, setActiveTab] = useState(workflowTab);
+  const workflowTab = getWorkflowTab({ meetingStatus, selectedMeetingId });
+  const [activeTab, setActiveTab] = useState<WorkflowTab>(workflowTab);
+  const persistedNotes = useMemo(
+    () => (reviewState ? meetingNotes(reviewState.inputs) : ""),
+    [reviewState]
+  );
+  const [notes, setNotes] = useState(persistedNotes);
+  const [hydratedMeetingId, setHydratedMeetingId] =
+    useState<GenericId<"meetings"> | null>(selectedMeetingId);
+  const [reviewDrafts, setReviewDrafts] = useState<ReviewDraft[]>([]);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [isSavingReview, setIsSavingReview] = useState(false);
   const hasReviewItems = Boolean(reviewState?.items.length);
+  const isReviewDirty = reviewState
+    ? reviewDrafts.some((draft) => {
+        const item = reviewState.items.find(
+          (candidate) => candidate._id === draft.itemId
+        );
+        return item ? reviewDraftChanged(draft, item) : false;
+      })
+    : false;
   const primaryAction = getPrimaryAction({
     hasReviewItems,
-    isCreatingMeeting,
     isGenerating,
     isPublishing,
+    isReviewDirty,
+    isSavingReview,
     meetingStatus,
     selectedMeetingId,
     selectedProjectId,
   });
-
   useEffect(() => {
     setActiveTab(workflowTab);
   }, [workflowTab]);
 
-  /** Creates a draft meeting for the selected project. */
-  async function handleCreateMeeting() {
-    if (!selectedProjectId) {
+  useEffect(() => {
+    if (selectedMeetingId !== hydratedMeetingId) {
+      setNotes(persistedNotes);
+      setHydratedMeetingId(selectedMeetingId);
       return;
     }
 
-    try {
-      setIsCreatingMeeting(true);
-
-      const result = await createDraft({
-        projectId: selectedProjectId,
-        title: "Weekly OAC coordination",
-        meetingType: "OAC",
-        meetingDate: new Date().toISOString().slice(0, 10),
-        agenda: "Safety, schedule, blockers, risk review",
-      });
-
-      if (result._tag === "Left") {
-        toastManager.add({
-          title: "Meeting was not created",
-          description: result.left.message,
-          type: "error",
-        });
-        return;
-      }
-
-      setSelectedMeetingId(result.right);
-      setActiveTab("input");
-      toastManager.add({
-        title: "Meeting created",
-        description: "Add notes, then generate minutes.",
-        type: "success",
-      });
-    } catch (error) {
-      toastManager.add({
-        title: "Meeting was not created",
-        description: getErrorMessage(error),
-        type: "error",
-      });
-    } finally {
-      setIsCreatingMeeting(false);
+    if (notes.length === 0 && persistedNotes.length > 0) {
+      setNotes(persistedNotes);
     }
-  }
+  }, [hydratedMeetingId, notes.length, persistedNotes, selectedMeetingId]);
+
+  useEffect(() => {
+    if (!reviewState) {
+      setReviewDrafts([]);
+      return;
+    }
+
+    setReviewDrafts(reviewState.items.map(reviewDraftFromItem));
+  }, [reviewState]);
 
   /** Persists meeting input and starts the AI minutes action. */
   async function handleGenerate() {
@@ -152,9 +134,8 @@ export function MeetingWorkspace({
 
     try {
       setIsGenerating(true);
-      setActiveTab("draft");
 
-      const inputResult = await addInput({
+      const inputResult = await saveInput({
         meetingId: selectedMeetingId,
         kind: "notes",
         text: notes,
@@ -182,7 +163,7 @@ export function MeetingWorkspace({
 
       toastManager.add({
         title: "Minutes ready",
-        description: "Review the draft before publishing.",
+        description: "Review generated items before publishing.",
         type: "success",
       });
       setActiveTab("review");
@@ -194,6 +175,71 @@ export function MeetingWorkspace({
       });
     } finally {
       setIsGenerating(false);
+    }
+  }
+
+  /** Persists each edited review item and returns the first backend failure. */
+  async function saveChangedReviewDrafts(drafts: readonly ReviewDraft[]) {
+    for (const draft of drafts) {
+      const result = await updateReviewItem({
+        itemId: draft.itemId,
+        kind: draft.kind,
+        title: draft.title,
+        body: draft.body,
+        ownerName:
+          draft.kind === "action" ? optionalText(draft.ownerName) : undefined,
+        dueDate:
+          draft.kind === "action" ? optionalText(draft.dueDate) : undefined,
+        severity: draft.kind === "risk" ? draft.severity : undefined,
+      });
+
+      if (result._tag === "Left") {
+        return result.left.message;
+      }
+    }
+
+    return;
+  }
+
+  /** Saves dirty generated review items before publishing. */
+  async function handleSaveReview() {
+    if (!reviewState) {
+      return;
+    }
+
+    const changedDrafts = changedReviewDrafts(reviewDrafts, reviewState.items);
+
+    if (changedDrafts.length === 0) {
+      return;
+    }
+
+    try {
+      setIsSavingReview(true);
+
+      const failure = await saveChangedReviewDrafts(changedDrafts);
+
+      if (failure) {
+        toastManager.add({
+          title: "Review was not saved",
+          description: failure,
+          type: "error",
+        });
+        return;
+      }
+
+      toastManager.add({
+        title: "Review saved",
+        description: "Publish when the minutes are ready.",
+        type: "success",
+      });
+    } catch (error) {
+      toastManager.add({
+        title: "Review was not saved",
+        description: getErrorMessage(error),
+        type: "error",
+      });
+    } finally {
+      setIsSavingReview(false);
     }
   }
 
@@ -245,19 +291,46 @@ export function MeetingWorkspace({
 
   /** Runs the currently valid next step in the meeting workflow. */
   async function handlePrimaryAction() {
-    if (primaryAction.step === "create") {
-      await handleCreateMeeting();
+    if (primaryAction.step === "generate") {
+      await handleGenerate();
       return;
     }
 
-    if (primaryAction.step === "generate") {
-      await handleGenerate();
+    if (primaryAction.step === "saveReview") {
+      await handleSaveReview();
       return;
     }
 
     if (primaryAction.step === "publish") {
       await handlePublish();
     }
+  }
+
+  /** Updates one editable review item field in local form state. */
+  function updateReviewDraft(
+    itemId: GenericId<"minuteItems">,
+    patch: Partial<ReviewDraft>
+  ) {
+    setReviewDrafts((drafts) =>
+      drafts.map((draft) => {
+        if (draft.itemId !== itemId) {
+          return draft;
+        }
+
+        const next = { ...draft, ...patch };
+
+        if (patch.kind && patch.kind !== "action") {
+          next.ownerName = "";
+          next.dueDate = "";
+        }
+
+        if (patch.kind && patch.kind !== "risk") {
+          next.severity = "medium";
+        }
+
+        return next;
+      })
+    );
   }
 
   return (
@@ -267,46 +340,66 @@ export function MeetingWorkspace({
           <div className="min-w-0">
             <FrameTitle>Meeting Workflow</FrameTitle>
             <FrameDescription>
-              Capture notes, generate minutes, review, and publish.
+              Capture notes, review generated minutes, then publish memory.
             </FrameDescription>
           </div>
-          <Button
-            disabled={primaryAction.disabled}
-            loading={primaryAction.loading}
-            onClick={handlePrimaryAction}
-            size="sm"
-            type="button"
-          >
-            <HugeIcons icon={primaryAction.icon} /> {primaryAction.label}
-          </Button>
+          {primaryAction.step === "newMeeting" ? (
+            <NewMeetingSheet
+              disabled={primaryAction.disabled}
+              onCreated={(meetingId) => {
+                setSelectedMeetingId(meetingId);
+                setActiveTab("input");
+              }}
+              selectedProjectId={selectedProjectId}
+            />
+          ) : (
+            <Button
+              disabled={primaryAction.disabled}
+              loading={primaryAction.loading}
+              onClick={handlePrimaryAction}
+              size="sm"
+              type="button"
+            >
+              <HugeIcons icon={primaryAction.icon} /> {primaryAction.label}
+            </Button>
+          )}
         </div>
+        {isGenerating || meetingStatus === "processing" ? (
+          <p className="text-muted-foreground text-sm">
+            Generating structured minutes from saved meeting notes.
+          </p>
+        ) : null}
       </FrameHeader>
       <FramePanel className="min-w-0 p-4">
-        <Tabs onValueChange={setActiveTab} value={activeTab}>
+        <Tabs
+          onValueChange={(value) => {
+            if (!isWorkflowTab(value)) {
+              return;
+            }
+
+            setActiveTab(value);
+          }}
+          value={activeTab}
+        >
           <TabsList className="max-w-full flex-wrap">
             <TabsTab value="input">Input</TabsTab>
-            <TabsTab value="draft">Draft</TabsTab>
             <TabsTab value="review">Review</TabsTab>
             <TabsTab value="meetings">Meetings</TabsTab>
           </TabsList>
           <TabsPanel value="input">
-            <Field>
-              <FieldLabel>Meeting Notes</FieldLabel>
-              <Textarea
-                className="min-h-40 max-w-full resize-y"
-                onChange={(event) => setNotes(event.target.value)}
-                value={notes}
-              />
-              <FieldDescription>
-                Paste notes, decisions, blockers, and action items.
-              </FieldDescription>
-            </Field>
-          </TabsPanel>
-          <TabsPanel value="draft">
-            <AiRunPanel review={review} />
+            <InputPanel
+              canEdit={canEditInput(meetingStatus)}
+              notes={notes}
+              onNotesChange={setNotes}
+              selectedMeetingId={selectedMeetingId}
+            />
           </TabsPanel>
           <TabsPanel value="review">
-            <ReviewList review={review} />
+            <ReviewEditor
+              drafts={reviewDrafts}
+              onDraftChange={updateReviewDraft}
+              review={review}
+            />
           </TabsPanel>
           <TabsPanel value="meetings">
             <MeetingsList
@@ -321,300 +414,13 @@ export function MeetingWorkspace({
   );
 }
 
-/** Selects the tab that best matches the current meeting state. */
-function getWorkflowTab({
-  meetingStatus,
-  selectedMeetingId,
-}: {
-  readonly meetingStatus: string | undefined;
-  readonly selectedMeetingId: GenericId<"meetings"> | null;
-}) {
-  if (!selectedMeetingId) {
-    return "input";
-  }
-
-  if (meetingStatus === "published") {
-    return "meetings";
-  }
-
-  if (meetingStatus === "review") {
-    return "review";
-  }
-
-  if (meetingStatus === "processing") {
-    return "draft";
-  }
-
-  return "input";
-}
-
-/** Derives the one primary action shown in the meeting workflow. */
-function getPrimaryAction({
-  hasReviewItems,
-  isCreatingMeeting,
-  isGenerating,
-  isPublishing,
-  meetingStatus,
-  selectedMeetingId,
-  selectedProjectId,
-}: {
-  readonly hasReviewItems: boolean;
-  readonly isCreatingMeeting: boolean;
-  readonly isGenerating: boolean;
-  readonly isPublishing: boolean;
-  readonly meetingStatus: string | undefined;
-  readonly selectedMeetingId: GenericId<"meetings"> | null;
-  readonly selectedProjectId: GenericId<"projects"> | null;
-}) {
-  if (!selectedProjectId) {
-    return {
-      disabled: true,
-      icon: File02Icon,
-      label: "Select Project",
-      loading: false,
-      step: "none",
-    } as const;
-  }
-
-  if (!selectedMeetingId || meetingStatus === "published") {
-    return {
-      disabled: isCreatingMeeting,
-      icon: File02Icon,
-      label: "New Meeting",
-      loading: isCreatingMeeting,
-      step: "create",
-    } as const;
-  }
-
-  if (meetingStatus === "review") {
-    return {
-      disabled: !hasReviewItems || isPublishing,
-      icon: Tick01Icon,
-      label: "Publish",
-      loading: isPublishing,
-      step: "publish",
-    } as const;
-  }
-
-  return {
-    disabled: meetingStatus === "processing" || isGenerating,
-    icon: PlayIcon,
-    label: "Generate Minutes",
-    loading: isGenerating || meetingStatus === "processing",
-    step: "generate",
-  } as const;
-}
-
-/** Formats backend status values for a consistent UI voice. */
-function titleCase(value: string) {
-  return value
-    .split(" ")
-    .filter(Boolean)
-    .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
-    .join(" ");
-}
-
-/** Maps generated meeting item kinds to semantic COSS badge variants. */
-function minuteItemVariant(kind: string) {
-  if (kind === "risk") {
-    return "warning";
-  }
-
-  if (kind === "decision") {
-    return "success";
-  }
-
-  if (kind === "action" || kind === "question") {
-    return "info";
-  }
-
-  return "outline";
-}
-
-/** Maps AI run event kinds to semantic COSS badge variants. */
-function aiRunEventVariant(kind: string) {
-  if (kind === "completed") {
-    return "success";
-  }
-
-  if (kind === "failed") {
-    return "error";
-  }
-
-  return "info";
-}
-
-/** Displays AI run events without keeping a completed progress bar on screen. */
-function AiRunPanel({ review }: { readonly review: ReviewResult }) {
-  return QueryResult.match(review, {
-    onLoading: () => <WorkflowPanelSkeleton />,
-    onFailure: (error) => (
-      <Alert variant="warning">
-        <AlertDescription>{error.message}</AlertDescription>
-      </Alert>
-    ),
-    onSuccess: (state) => {
-      const latestRun = state.aiRuns[0];
-      const isRunning = latestRun?.status === "running";
-
-      if (state.aiRunEvents.length === 0) {
-        return (
-          <Empty className="min-h-56">
-            <EmptyHeader>
-              <EmptyTitle>No AI run yet</EmptyTitle>
-              <EmptyDescription>
-                Generate minutes after adding meeting input.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        );
-      }
-
-      return (
-        <FramePanel className="grid min-w-0 gap-3 p-4">
-          {isRunning ? <Progress value={65} /> : null}
-          <ScrollArea className="max-h-72">
-            <div className="grid min-w-0 gap-2 pr-1">
-              {state.aiRunEvents.map((event) => (
-                <div
-                  className="grid min-w-0 gap-1 rounded-lg border bg-background px-3 py-2"
-                  key={event._id}
-                >
-                  <div className="flex min-w-0 items-center justify-between gap-2">
-                    <Badge variant={aiRunEventVariant(event.kind)}>
-                      {titleCase(event.kind)}
-                    </Badge>
-                    <span className="text-muted-foreground text-xs">
-                      Step {event.order}
-                    </span>
-                  </div>
-                  <p className="break-words text-sm">{event.message}</p>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-        </FramePanel>
-      );
-    },
+/** Returns only edited review drafts for the current review state. */
+function changedReviewDrafts(
+  drafts: readonly ReviewDraft[],
+  items: ReviewState["items"]
+) {
+  return drafts.filter((draft) => {
+    const item = items.find((candidate) => candidate._id === draft.itemId);
+    return item ? reviewDraftChanged(draft, item) : false;
   });
-}
-
-/** Displays generated minute items for review without table overflow. */
-function ReviewList({ review }: { readonly review: ReviewResult }) {
-  return QueryResult.match(review, {
-    onLoading: () => <WorkflowPanelSkeleton />,
-    onFailure: (error) => (
-      <Alert variant="warning">
-        <AlertDescription>{error.message}</AlertDescription>
-      </Alert>
-    ),
-    onSuccess: (state) =>
-      state.items.length === 0 ? (
-        <Empty className="min-h-56">
-          <EmptyHeader>
-            <EmptyTitle>No draft yet</EmptyTitle>
-            <EmptyDescription>
-              Generate minutes to review structured items before publishing.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <div className="grid min-w-0 gap-2">
-          {state.items.map((item) => (
-            <FramePanel className="min-w-0 p-3" key={item._id}>
-              <div className="flex min-w-0 flex-wrap items-center gap-2">
-                <Badge variant={minuteItemVariant(item.kind)}>
-                  {titleCase(item.kind)}
-                </Badge>
-                <h3 className="min-w-0 break-words font-medium text-sm">
-                  {item.title}
-                </h3>
-              </div>
-              <p className="mt-2 break-words text-muted-foreground text-sm">
-                {item.body}
-              </p>
-            </FramePanel>
-          ))}
-        </div>
-      ),
-  });
-}
-
-/** Lists meetings and lets the user select the active workspace meeting. */
-function MeetingsList({
-  meetings,
-  selectedMeetingId,
-  setSelectedMeetingId,
-}: {
-  readonly meetings: MeetingsResult;
-  readonly selectedMeetingId: GenericId<"meetings"> | null;
-  readonly setSelectedMeetingId: (
-    meetingId: GenericId<"meetings"> | null
-  ) => void;
-}) {
-  return QueryResult.match(meetings, {
-    onLoading: () => <WorkflowPanelSkeleton />,
-    onFailure: (error) => (
-      <Alert variant="warning">
-        <AlertDescription>{error.message}</AlertDescription>
-      </Alert>
-    ),
-    onSuccess: (items) =>
-      items.length === 0 ? (
-        <Empty className="min-h-56">
-          <EmptyHeader>
-            <EmptyTitle>No meetings yet</EmptyTitle>
-            <EmptyDescription>
-              Create a meeting to start building project memory.
-            </EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <div className="grid min-w-0 gap-2">
-          {items.map((meeting) => (
-            <Button
-              className="grid h-auto w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start justify-stretch gap-3 whitespace-normal px-3 py-3 text-left sm:h-auto"
-              key={meeting._id}
-              onClick={() => setSelectedMeetingId(meeting._id)}
-              type="button"
-              variant={
-                meeting._id === selectedMeetingId ? "secondary" : "outline"
-              }
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-medium">
-                  {meeting.title}
-                </span>
-                <span className="block text-muted-foreground text-xs">
-                  {meeting.meetingDate}
-                </span>
-              </span>
-              <Badge
-                className="self-start"
-                variant={
-                  meeting._id === selectedMeetingId ? "success" : "outline"
-                }
-              >
-                {titleCase(meeting.status)}
-              </Badge>
-            </Button>
-          ))}
-        </div>
-      ),
-  });
-}
-
-/** Mirrors the loaded workflow panel height while query data resolves. */
-function WorkflowPanelSkeleton() {
-  return (
-    <FramePanel className="grid min-h-56 content-start gap-3 p-4">
-      <div className="flex min-w-0 items-center justify-between gap-3">
-        <Skeleton className="h-6 w-24" />
-        <Skeleton className="h-4 w-12" />
-      </div>
-      <Skeleton className="h-10 w-full" />
-      <Skeleton className="h-10 w-11/12" />
-      <Skeleton className="h-10 w-4/5" />
-    </FramePanel>
-  );
 }

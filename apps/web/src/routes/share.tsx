@@ -31,6 +31,8 @@ import {
 import { createFileRoute } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { formatDisplayDate, formatDisplayDateRange } from "@/lib/dates";
+
 export const Route = createFileRoute("/share")({
   validateSearch: (search) => ({
     token: typeof search.token === "string" ? search.token : "",
@@ -147,7 +149,8 @@ function SharedMeeting({
           <div className="min-w-0">
             <FrameTitle>{value.meeting.title}</FrameTitle>
             <FrameDescription>
-              {value.projectName} · {value.meeting.meetingDate}
+              {value.projectName} ·{" "}
+              {formatDisplayDate(value.meeting.meetingDate)}
             </FrameDescription>
           </div>
           <Badge variant="outline">{value.projectCode}</Badge>
@@ -218,8 +221,11 @@ function SharedReport({
           <div className="min-w-0">
             <FrameTitle>{value.report.title}</FrameTitle>
             <FrameDescription>
-              {value.projectName} · {value.report.periodStart} to{" "}
-              {value.report.periodEnd}
+              {value.projectName} ·{" "}
+              {formatDisplayDateRange(
+                value.report.periodStart,
+                value.report.periodEnd
+              )}
             </FrameDescription>
           </div>
           <Badge variant="outline">{value.projectCode}</Badge>

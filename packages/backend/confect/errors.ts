@@ -21,6 +21,14 @@ export class MeetingNotFound extends Schema.TaggedError<MeetingNotFound>()(
   }
 ) {}
 
+export class ReviewItemNotFound extends Schema.TaggedError<ReviewItemNotFound>()(
+  "ReviewItemNotFound",
+  {
+    itemId: GenericId.GenericId("minuteItems"),
+    message: Schema.String,
+  }
+) {}
+
 export class InvalidMeetingState extends Schema.TaggedError<InvalidMeetingState>()(
   "InvalidMeetingState",
   {
@@ -64,6 +72,7 @@ export const AppError = Schema.Union(
   Forbidden,
   ProjectNotFound,
   MeetingNotFound,
+  ReviewItemNotFound,
   InvalidMeetingState,
   ShareLinkExpired,
   ShareTargetNotFound,
@@ -105,6 +114,7 @@ export function normalizeAppError(error: unknown): AppError {
     error instanceof Forbidden ||
     error instanceof ProjectNotFound ||
     error instanceof MeetingNotFound ||
+    error instanceof ReviewItemNotFound ||
     error instanceof InvalidMeetingState ||
     error instanceof ShareLinkExpired ||
     error instanceof ShareTargetNotFound ||

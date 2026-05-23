@@ -338,10 +338,7 @@ function NewProjectSheet({
   const createProject = useMutation(refs.public.projects.create);
   const [isOpen, setIsOpen] = useState(false);
   const form = useForm({
-    defaultValues: {
-      code: "HT-02",
-      name: "Harbor Tower Phase 2",
-    },
+    defaultValues: defaultProjectFormValues(),
     onSubmit: async ({ value }) => {
       try {
         if (!canCreateProject) {
@@ -374,6 +371,7 @@ function NewProjectSheet({
 
         onCreated(result.right);
         setIsOpen(false);
+        form.reset(defaultProjectFormValues());
         toastManager.add({
           title: "Project created",
           description: "Create a meeting next.",
@@ -403,8 +401,17 @@ function NewProjectSheet({
     await form.handleSubmit();
   }
 
+  /** Keeps each new project form session empty and production-facing. */
+  function handleOpenChange(nextOpen: boolean) {
+    if (nextOpen) {
+      form.reset(defaultProjectFormValues());
+    }
+
+    setIsOpen(nextOpen);
+  }
+
   return (
-    <Sheet onOpenChange={setIsOpen} open={isOpen}>
+    <Sheet onOpenChange={handleOpenChange} open={isOpen}>
       <SheetTrigger
         render={
           <Button className="w-full justify-start" size="sm" type="button" />
@@ -516,4 +523,12 @@ function NewProjectSheet({
       </SheetPopup>
     </Sheet>
   );
+}
+
+/** Returns empty default values for the project creation form. */
+function defaultProjectFormValues() {
+  return {
+    code: "",
+    name: "",
+  };
 }

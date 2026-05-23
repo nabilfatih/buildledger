@@ -4,6 +4,7 @@ import {
   ChevronRight,
   ChevronsUpDown,
 } from "@hugeicons/core-free-icons";
+import { format } from "date-fns";
 import { DayPicker } from "react-day-picker";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import { cn } from "@repo/design-system/lib/utils";
@@ -125,8 +126,7 @@ export function Calendar({
     components: mergedComponents,
     "data-slot": "calendar",
     formatters: {
-      formatMonthDropdown: (date: Date) =>
-        date.toLocaleString("default", { month: "short" }),
+      formatMonthDropdown: (date: Date) => format(date, "MMM"),
     } as React.ComponentProps<typeof DayPicker>["formatters"],
     mode,
     showOutsideDays,

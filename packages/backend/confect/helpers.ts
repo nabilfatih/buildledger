@@ -10,27 +10,30 @@ import {
 import type schema from "@repo/backend/confect/schema";
 import type { GenericId } from "convex/values";
 import type { Effect as EffectType } from "effect";
-import { Config, Effect } from "effect";
+import { Effect } from "effect";
 
 type ProjectId = GenericId<"projects">;
 
-const devAuthConfig = Config.string("BUILDLEDGER_DEV_AUTH").pipe(
-  Config.withDefault("disabled")
-);
-const nodeEnvConfig = Config.string("NODE_ENV").pipe(
-  Config.withDefault("development")
-);
 const devUserToken = "buildledger:local-dev-user";
+
+/** Reads Convex environment values without blocking short-lived mutations. */
+function readEnvValue(key: string, fallback: string) {
+  if (typeof process === "undefined") {
+    return fallback;
+  }
+
+  return process.env[key] ?? fallback;
+}
 
 /** Returns the local Browser test identity when development auth is enabled. */
 const getDevUserToken = Effect.fn("auth.getDevUserToken")(function* () {
-  const mode = yield* devAuthConfig;
+  const mode = readEnvValue("BUILDLEDGER_DEV_AUTH", "disabled");
 
   if (mode !== "enabled") {
     return null;
   }
 
-  const nodeEnv = yield* nodeEnvConfig;
+  const nodeEnv = readEnvValue("NODE_ENV", "development");
 
   if (nodeEnv === "production") {
     return yield* Effect.fail(

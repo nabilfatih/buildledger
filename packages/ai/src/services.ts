@@ -13,17 +13,19 @@ import {
 } from "@repo/ai/schemas";
 import { chat } from "@tanstack/ai";
 import { createOpenRouterText } from "@tanstack/ai-openrouter";
-import { Config, Effect, Schema } from "effect";
+import { Effect, Schema } from "effect";
 
-const aiProviderConfig = Config.string("BUILDLEDGER_AI_PROVIDER").pipe(
-  Config.withDefault("demo")
-);
-const openRouterKeyConfig = Config.string("OPENROUTER_API_KEY").pipe(
-  Config.withDefault("")
-);
-const aiModelConfig = Config.string("BUILDLEDGER_AI_MODEL").pipe(
-  Config.withDefault(defaultOpenRouterModel)
-);
+declare const process:
+  | {
+      readonly env: Record<string, string | undefined>;
+    }
+  | undefined;
+
+const envDefaults = {
+  aiModel: defaultOpenRouterModel,
+  aiProvider: "demo",
+  openRouterKey: "",
+} as const;
 const sentenceBoundaryRegex = /[.!?]\s/;
 const openingJsonFenceRegex = /^```(?:json)?\s*/i;
 const closingJsonFenceRegex = /\s*```$/i;
@@ -65,6 +67,15 @@ function normalizeAiProvider(value: string) {
   }
 
   return "demo";
+}
+
+/** Reads Convex-compatible environment values without blocking mutations. */
+function readEnvValue(key: string, fallback: string) {
+  if (typeof process === "undefined") {
+    return fallback;
+  }
+
+  return process.env[key] ?? fallback;
 }
 
 /** Reads a supported OpenRouter model literal or falls back to the default. */
@@ -118,9 +129,15 @@ export function resolveAiRuntimeSettings(input: {
 export const readEnvAiRuntimeSettings = Effect.fn(
   "ai.readEnvAiRuntimeSettings"
 )(function* (userSettings?: AiRuntimeSettings | null | undefined) {
-  const envProvider = yield* aiProviderConfig;
-  const envApiKey = yield* openRouterKeyConfig;
-  const envModel = yield* aiModelConfig;
+  const envProvider = readEnvValue(
+    "BUILDLEDGER_AI_PROVIDER",
+    envDefaults.aiProvider
+  );
+  const envApiKey = readEnvValue(
+    "OPENROUTER_API_KEY",
+    envDefaults.openRouterKey
+  );
+  const envModel = readEnvValue("BUILDLEDGER_AI_MODEL", envDefaults.aiModel);
 
   return yield* resolveAiRuntimeSettings({
     userSettings,
