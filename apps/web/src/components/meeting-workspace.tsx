@@ -573,7 +573,7 @@ function MeetingsList({
         <div className="grid min-w-0 gap-2">
           {items.map((meeting) => (
             <Button
-              className="grid h-auto w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] justify-stretch gap-3 whitespace-normal px-3 py-2 text-left"
+              className="grid h-auto w-full min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start justify-stretch gap-3 whitespace-normal px-3 py-3 text-left sm:h-auto"
               key={meeting._id}
               onClick={() => setSelectedMeetingId(meeting._id)}
               type="button"
@@ -590,6 +590,7 @@ function MeetingsList({
                 </span>
               </span>
               <Badge
+                className="self-start"
                 variant={
                   meeting._id === selectedMeetingId ? "success" : "outline"
                 }

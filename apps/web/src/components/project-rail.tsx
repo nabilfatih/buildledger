@@ -1,7 +1,11 @@
 "use client";
 
 import { QueryResult, useMutation } from "@confect/react";
-import { Add01Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import {
+  Add01Icon,
+  Building06Icon,
+  Search01Icon,
+} from "@hugeicons/core-free-icons";
 import refs from "@repo/backend/confect/_generated/refs";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -38,7 +42,6 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuBadge,
@@ -46,7 +49,6 @@ import {
   SidebarMenuItem,
   SidebarMenuSkeleton,
   SidebarRail,
-  SidebarSeparator,
 } from "@repo/design-system/components/ui/sidebar";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
@@ -103,12 +105,12 @@ export function ProjectRail({
     search.trim().length > 0 ? filteredProjects : filteredProjects.slice(0, 8);
 
   return (
-    <Sidebar collapsible="offcanvas" variant="sidebar">
+    <Sidebar collapsible="offcanvas" variant="inset">
       <SidebarHeader>
-        <div className="grid min-w-0 gap-1 px-2 py-1">
-          <p className="font-medium text-muted-foreground text-xs">
-            Open-Source Construction Intelligence
-          </p>
+        <div className="flex min-w-0 items-center gap-2 px-2 py-1">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-lg border bg-background shadow-sm/5">
+            <HugeIcons className="size-4" icon={Building06Icon} />
+          </span>
           <h1 className="truncate font-heading text-lg">BuildLedger</h1>
         </div>
         <NewProjectSheet
@@ -116,10 +118,8 @@ export function ProjectRail({
           onCreated={setSelectedProjectId}
         />
       </SidebarHeader>
-      <SidebarSeparator />
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Projects</SidebarGroupLabel>
           <SidebarGroupContent className="grid gap-2">
             <InputGroup>
               <InputGroupInput

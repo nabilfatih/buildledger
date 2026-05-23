@@ -63,7 +63,6 @@ import {
   PopoverPopup,
   PopoverTrigger,
 } from "@repo/design-system/components/ui/popover";
-import { ScrollArea } from "@repo/design-system/components/ui/scroll-area";
 import {
   Select,
   SelectItem,
@@ -544,7 +543,7 @@ export function ProjectLedgerTable({
               <div className="grid min-w-0">
                 <DesktopLedgerTable table={table} />
                 <MobileLedgerCards rows={table.getRowModel().rows} />
-                <div className="border-border border-t p-2 lg:hidden">
+                <div className="border-border border-t p-2 xl:hidden">
                   <LedgerPagination table={table} />
                 </div>
               </div>
@@ -749,14 +748,14 @@ function LedgerTableSkeleton() {
         <Skeleton className="h-16" />
         <Skeleton className="h-16" />
       </div>
-      <div className="hidden min-w-0 border-border border-y lg:grid">
+      <div className="hidden min-w-0 border-border border-y xl:grid">
         <div className="grid gap-2 p-3">
           {desktopSkeletonRows.map((row) => (
             <Skeleton className="h-12" key={row} />
           ))}
         </div>
       </div>
-      <div className="grid gap-2 lg:hidden">
+      <div className="grid gap-2 xl:hidden">
         {mobileSkeletonRows.map((row) => (
           <Skeleton className="h-24" key={row} />
         ))}
@@ -808,46 +807,43 @@ function DesktopLedgerTable({
   readonly table: ReactTable<LedgerRow>;
 }) {
   return (
-    <div className="hidden min-w-0 lg:grid">
-      <ScrollArea className="max-h-[34rem] min-w-0" scrollbarGutter>
-        <Table className="min-w-[58rem] table-fixed">
-          <TableHeader>
-            {table.getHeaderGroups().map((headerGroup) => (
-              <TableRow className="hover:bg-transparent" key={headerGroup.id}>
-                {headerGroup.headers.map((header) => (
-                  <TableHead
-                    className="sticky top-0 z-10 bg-background"
-                    key={header.id}
-                    style={{ width: `${header.column.getSize()}px` }}
-                  >
-                    {header.isPlaceholder ? null : (
-                      <ColumnHeaderButton header={header} />
-                    )}
-                  </TableHead>
-                ))}
-              </TableRow>
-            ))}
-          </TableHeader>
-          <TableBody>
-            {table.getRowModel().rows.map((row) => (
-              <TableRow
-                data-state={row.getIsSelected() ? "selected" : undefined}
-                key={row.id}
-              >
-                {row.getVisibleCells().map((cell) => (
-                  <TableCell
-                    className="min-w-0 whitespace-normal align-top"
-                    key={cell.id}
-                    style={{ width: `${cell.column.getSize()}px` }}
-                  >
-                    {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </ScrollArea>
+    <div className="hidden min-w-0 xl:grid">
+      <Table className="min-w-[58rem] table-fixed" variant="card">
+        <TableHeader>
+          {table.getHeaderGroups().map((headerGroup) => (
+            <TableRow className="hover:bg-transparent" key={headerGroup.id}>
+              {headerGroup.headers.map((header) => (
+                <TableHead
+                  key={header.id}
+                  style={{ width: `${header.column.getSize()}px` }}
+                >
+                  {header.isPlaceholder ? null : (
+                    <ColumnHeaderButton header={header} />
+                  )}
+                </TableHead>
+              ))}
+            </TableRow>
+          ))}
+        </TableHeader>
+        <TableBody>
+          {table.getRowModel().rows.map((row) => (
+            <TableRow
+              data-state={row.getIsSelected() ? "selected" : undefined}
+              key={row.id}
+            >
+              {row.getVisibleCells().map((cell) => (
+                <TableCell
+                  className="min-w-0 whitespace-normal align-top"
+                  key={cell.id}
+                  style={{ width: `${cell.column.getSize()}px` }}
+                >
+                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
       <FrameFooter className="border-border border-t p-2">
         <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2">
@@ -911,10 +907,10 @@ function MobileLedgerCards({
   readonly rows: readonly Row<LedgerRow>[];
 }) {
   return (
-    <div className="grid min-w-0 gap-2 lg:hidden">
+    <div className="grid min-w-0 gap-2 xl:hidden">
       {rows.map((row) => (
         <Button
-          className="grid h-auto w-full min-w-0 justify-stretch gap-2 whitespace-normal rounded-lg p-3 text-left"
+          className="grid h-auto w-full min-w-0 justify-stretch gap-2 whitespace-normal rounded-lg p-3 text-left sm:h-auto"
           key={row.id}
           onClick={() => row.toggleSelected()}
           type="button"
