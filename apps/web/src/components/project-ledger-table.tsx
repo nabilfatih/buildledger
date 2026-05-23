@@ -220,25 +220,25 @@ function matchesLedgerFilters(row: LedgerRow, filters: LedgerFilterState) {
 function getColumnWidth(columnId: string) {
   switch (columnId) {
     case "kind":
-      return "w-[12%]";
+      return "w-24";
     case "title":
-      return "w-[38%]";
+      return "w-80";
     case "meetingTitle":
-      return "w-[26%]";
+      return "w-44";
     case "ownerName":
-      return "w-[14%]";
+      return "w-32";
     case "dueDate":
-      return "w-[12%]";
+      return "w-28";
     case "severity":
-      return "w-[12%]";
+      return "w-28";
     case "status":
-      return "w-[12%]";
+      return "w-28";
     case "meetingDate":
-      return "w-[12%]";
+      return "w-28";
     case "citationCount":
-      return "w-[10%]";
+      return "w-24";
     default:
-      return "w-[12%]";
+      return "w-28";
   }
 }
 
@@ -553,8 +553,11 @@ function DesktopLedgerTable({
   readonly table: ReactTable<LedgerRow>;
 }) {
   return (
-    <ScrollArea className="hidden max-h-[34rem] min-w-0 md:block">
-      <Table className="w-full table-fixed">
+    <ScrollArea
+      className="hidden max-h-[34rem] min-w-0 md:block"
+      scrollbarGutter
+    >
+      <Table className="min-w-[76rem] table-fixed" variant="card">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow key={headerGroup.id}>
