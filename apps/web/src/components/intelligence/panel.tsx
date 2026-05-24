@@ -80,15 +80,6 @@ export function ProjectIntelligencePanel({
     setShareLink(null);
   }
 
-  const canAskProject = Boolean(
-    selectedProjectId && canUseProjectMemory && !isAsking
-  );
-  const canGenerateReport = Boolean(
-    selectedProjectId && canUseProjectMemory && !isReporting
-  );
-  const canShareMeeting = Boolean(
-    selectedProjectId && selectedMeetingId && !isSharing
-  );
   const questionHelp = canUseProjectMemory
     ? "Ask cited questions from published project memory."
     : "Publish minutes first so answers can cite project memory.";
@@ -100,6 +91,11 @@ export function ProjectIntelligencePanel({
   /** Asks the project memory service for a cited answer. */
   function handleAskProject() {
     if (!selectedProjectId) {
+      toastManager.add({
+        title: "Select a project first",
+        description: "Create or select a project before asking intelligence.",
+        type: "warning",
+      });
       return;
     }
 
@@ -156,6 +152,11 @@ export function ProjectIntelligencePanel({
   /** Generates a weekly report draft from published project memory. */
   function handleGenerateReport() {
     if (!selectedProjectId) {
+      toastManager.add({
+        title: "Select a project first",
+        description: "Create or select a project before generating a report.",
+        type: "warning",
+      });
       return;
     }
 
@@ -213,7 +214,21 @@ export function ProjectIntelligencePanel({
 
   /** Creates a read-only share token for the active meeting. */
   function handleCreateShareLink() {
-    if (!(selectedProjectId && selectedMeetingId)) {
+    if (!selectedProjectId) {
+      toastManager.add({
+        title: "Select a project first",
+        description: "Create or select a project before sharing.",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (!selectedMeetingId) {
+      toastManager.add({
+        title: "Select a meeting first",
+        description: "Create or select a meeting before sharing.",
+        type: "warning",
+      });
       return;
     }
 
@@ -317,7 +332,6 @@ export function ProjectIntelligencePanel({
             <FieldLabel>Question</FieldLabel>
             <Textarea
               className="min-h-24"
-              disabled={!selectedProjectId}
               onChange={(event) => setQuestion(event.target.value)}
               value={question}
             />
@@ -328,7 +342,6 @@ export function ProjectIntelligencePanel({
         <Toolbar className="flex-wrap">
           <ToolbarGroup className="flex-wrap">
             <Button
-              disabled={!canAskProject}
               loading={isAsking}
               onClick={handleAskProject}
               size="sm"
@@ -337,7 +350,6 @@ export function ProjectIntelligencePanel({
               <HugeIcons icon={BubbleChatQuestionIcon} /> Ask Project
             </Button>
             <Button
-              disabled={!canGenerateReport}
               loading={isReporting}
               onClick={handleGenerateReport}
               size="sm"
@@ -347,7 +359,6 @@ export function ProjectIntelligencePanel({
               <HugeIcons icon={Analytics01Icon} /> Generate Report
             </Button>
             <Button
-              disabled={!canShareMeeting}
               loading={isSharing}
               onClick={handleCreateShareLink}
               size="sm"
