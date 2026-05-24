@@ -1,11 +1,13 @@
 import {
   demoAiRuntimeSettings,
+  resolveAiRuntimeSettings,
+  toPublicAiSettings,
+} from "@repo/ai/runtime";
+import {
   MemoryChunkingService,
   MinutesExtractionService,
   ProjectQuestionAnsweringService,
   ReportGenerationService,
-  resolveAiRuntimeSettings,
-  toPublicAiSettings,
 } from "@repo/ai/services";
 import { expectDefined } from "@repo/testing";
 import { Effect, Layer } from "effect";

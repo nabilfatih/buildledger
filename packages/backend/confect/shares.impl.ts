@@ -1,3 +1,4 @@
+import { GenericId } from "@confect/core";
 import { FunctionImpl, GroupImpl } from "@confect/server";
 import api from "@repo/backend/confect/_generated/api";
 import {
@@ -11,8 +12,14 @@ import {
   ShareTargetNotFound,
 } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Schema } from "effect";
 import { nanoid } from "nanoid";
+
+const maxSharedMeetingInputs = 10;
+const maxSharedMinuteSections = 20;
+const maxSharedMinuteItems = 100;
+const MeetingResourceId = GenericId.GenericId("meetings");
+const ReportResourceId = GenericId.GenericId("reports");
 
 /** Encodes bytes as lowercase hex for stable token lookup. */
 function bytesToHex(bytes: Uint8Array) {
@@ -77,6 +84,38 @@ const getShareLinkByToken = Effect.fn("shares.getShareLinkByToken")(function* (
 
   return shareLinkOption.value;
 });
+
+/** Validates a stored meeting resource id before direct document lookup. */
+const decodeMeetingResourceId = Effect.fn("shares.decodeMeetingResourceId")(
+  function* (resourceId: string) {
+    return yield* Schema.decodeUnknown(MeetingResourceId)(resourceId).pipe(
+      Effect.mapError(
+        () =>
+          new ShareTargetNotFound({
+            message: "Share target was not found.",
+            resourceId,
+            resourceType: "meeting",
+          })
+      )
+    );
+  }
+);
+
+/** Validates a stored report resource id before direct document lookup. */
+const decodeReportResourceId = Effect.fn("shares.decodeReportResourceId")(
+  function* (resourceId: string) {
+    return yield* Schema.decodeUnknown(ReportResourceId)(resourceId).pipe(
+      Effect.mapError(
+        () =>
+          new ShareTargetNotFound({
+            message: "Share target was not found.",
+            resourceId,
+            resourceType: "report",
+          })
+      )
+    );
+  }
+);
 
 /** Creates a revocable read-only share link for a project resource. */
 const createReadOnlyLink = FunctionImpl.make(
@@ -184,18 +223,27 @@ const resolvePublicResource = FunctionImpl.make(
           .get(shareLink.projectId);
 
         if (shareLink.resourceType === "meeting") {
-          const meetings = yield* reader
-            .table("meetings")
-            .index("by_projectId", (q) => q.eq("projectId", project._id))
-            .take(100);
-          const meeting = meetings.find(
-            (candidate) => candidate._id === shareLink.resourceId
+          const meetingId = yield* decodeMeetingResourceId(
+            shareLink.resourceId
           );
+          const meeting = yield* reader
+            .table("meetings")
+            .get(meetingId)
+            .pipe(
+              Effect.mapError(
+                () =>
+                  new ShareTargetNotFound({
+                    message: "Share target was not found.",
+                    resourceId: shareLink.resourceId,
+                    resourceType: "meeting",
+                  })
+              )
+            );
 
-          if (!meeting) {
+          if (meeting.projectId !== project._id) {
             return yield* Effect.fail(
               new ShareTargetNotFound({
-                message: "Share target was not found.",
+                message: "Share target does not belong to this project.",
                 resourceId: shareLink.resourceId,
                 resourceType: "meeting",
               })
@@ -205,15 +253,15 @@ const resolvePublicResource = FunctionImpl.make(
           const inputs = yield* reader
             .table("meetingInputs")
             .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
-            .collect();
+            .take(maxSharedMeetingInputs);
           const sections = yield* reader
             .table("minuteSections")
             .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
-            .collect();
+            .take(maxSharedMinuteSections);
           const items = yield* reader
             .table("minuteItems")
             .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
-            .collect();
+            .take(maxSharedMinuteItems);
 
           return {
             resourceType: "meeting",
@@ -226,18 +274,25 @@ const resolvePublicResource = FunctionImpl.make(
           };
         }
 
-        const reports = yield* reader
+        const reportId = yield* decodeReportResourceId(shareLink.resourceId);
+        const report = yield* reader
           .table("reports")
-          .index("by_projectId", (q) => q.eq("projectId", project._id))
-          .take(50);
-        const report = reports.find(
-          (candidate) => candidate._id === shareLink.resourceId
-        );
+          .get(reportId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new ShareTargetNotFound({
+                  message: "Share target was not found.",
+                  resourceId: shareLink.resourceId,
+                  resourceType: "report",
+                })
+            )
+          );
 
-        if (!report) {
+        if (report.projectId !== project._id) {
           return yield* Effect.fail(
             new ShareTargetNotFound({
-              message: "Share target was not found.",
+              message: "Share target does not belong to this project.",
               resourceId: shareLink.resourceId,
               resourceType: "report",
             })

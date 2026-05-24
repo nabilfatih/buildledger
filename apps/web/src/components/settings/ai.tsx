@@ -42,7 +42,7 @@ import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import { Effect, Either } from "effect";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 
 import { getErrorMessage } from "@/lib/errors";
 
@@ -145,13 +145,6 @@ export function AiSettingsSheet() {
     setIsOpen(nextOpen);
   }
 
-  /** Submits the TanStack-managed provider settings form. */
-  function handleSave(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    return form.handleSubmit();
-  }
-
   /** Clears the encrypted user key and falls back to managed settings. */
   function handleClear() {
     setIsClearing(true);
@@ -232,7 +225,14 @@ export function AiSettingsSheet() {
             ),
           })}
 
-          <Form className="flex flex-col gap-4" onSubmit={handleSave}>
+          <Form
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              return form.handleSubmit();
+            }}
+          >
             <Fieldset className="grid gap-4">
               <FieldsetLegend className="sr-only">
                 OpenRouter Provider Settings

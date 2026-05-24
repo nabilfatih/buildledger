@@ -19,9 +19,9 @@ import { toastManager } from "@repo/design-system/components/ui/toast";
 import type { GenericId } from "convex/values";
 import { Effect, Either } from "effect";
 import { useMemo, useState } from "react";
-
-import { ReviewEditor } from "@/components/meeting-review-editor";
-import { InputPanel, MeetingsList } from "@/components/meeting-workflow-panels";
+import { NewMeetingSheet } from "@/components/meeting/create";
+import { InputPanel, MeetingsList } from "@/components/meeting/panels";
+import { ReviewEditor } from "@/components/meeting/review";
 import {
   canEditInput,
   getPrimaryAction,
@@ -34,8 +34,7 @@ import {
   reviewDraftChanged,
   reviewDraftFromItem,
   type WorkflowTab,
-} from "@/components/meeting-workspace-utils";
-import { NewMeetingSheet } from "@/components/new-meeting-sheet";
+} from "@/components/meeting/utils";
 import type { MeetingsResult, ReviewResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
 

@@ -1,9 +1,6 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
+import { readEnvAiRuntimeSettings, toPublicAiSettings } from "@repo/ai/runtime";
 import type { AiRuntimeSettings } from "@repo/ai/schemas";
-import {
-  readEnvAiRuntimeSettings,
-  toPublicAiSettings,
-} from "@repo/ai/services";
 import api from "@repo/backend/confect/_generated/api";
 import refs from "@repo/backend/confect/_generated/refs";
 import {

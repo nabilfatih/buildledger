@@ -2,21 +2,22 @@ import { FunctionImpl, GroupImpl } from "@confect/server";
 import api from "@repo/backend/confect/_generated/api";
 import { DatabaseReader } from "@repo/backend/confect/_generated/services";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Schema } from "effect";
 
 const maxPublishedMeetings = 25;
 const maxDerivedRows = 100;
+const maxMeetingItems = 100;
+const CitationPayload = Schema.parseJson(Schema.Array(Schema.Unknown));
 
 /** Counts citations from the persisted minute-item citation payload. */
 export function countCitations(citationsJson: string) {
   const citations = Effect.runSync(
-    Effect.try({
-      try: () => JSON.parse(citationsJson),
-      catch: () => null,
-    }).pipe(Effect.catchAll(() => Effect.succeed(null)))
+    Schema.decodeUnknown(CitationPayload)(citationsJson).pipe(
+      Effect.catchAll(() => Effect.succeed([]))
+    )
   );
 
-  return Array.isArray(citations) ? citations.length : 0;
+  return citations.length;
 }
 
 /** Sorts newest ledger rows first and keeps the response bounded. */
@@ -54,7 +55,7 @@ const listByProject = FunctionImpl.make(
             reader
               .table("minuteItems")
               .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
-              .collect()
+              .take(maxMeetingItems)
           )
         );
         const actions = yield* reader

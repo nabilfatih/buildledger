@@ -14,9 +14,8 @@ import {
 } from "@repo/design-system/components/ui/field";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import type { GenericId } from "convex/values";
-
-import { titleCase } from "@/components/meeting-workspace-utils";
-import { WorkflowPanelSkeleton } from "@/components/workflow-panel-skeleton";
+import { WorkflowPanelSkeleton } from "@/components/meeting/skeleton";
+import { titleCase } from "@/components/meeting/utils";
 import type { MeetingsResult } from "@/lib/confect-results";
 import { formatDisplayDate } from "@/lib/dates";
 

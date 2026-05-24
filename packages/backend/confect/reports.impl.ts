@@ -1,9 +1,7 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
+import { demoAiRuntimeSettings } from "@repo/ai/runtime";
 import type { MemoryChunk, ProjectReport } from "@repo/ai/schemas";
-import {
-  demoAiRuntimeSettings,
-  ReportGenerationService,
-} from "@repo/ai/services";
+import { ReportGenerationService } from "@repo/ai/services";
 import api from "@repo/backend/confect/_generated/api";
 import {
   DatabaseReader,

@@ -1,7 +1,12 @@
 import { useMutation } from "@confect/react";
-import { Add01Icon, File02Icon } from "@hugeicons/core-free-icons";
+import {
+  Add01Icon,
+  Calendar03Icon,
+  File02Icon,
+} from "@hugeicons/core-free-icons";
 import refs from "@repo/backend/confect/_generated/refs";
 import { Button } from "@repo/design-system/components/ui/button";
+import { Calendar } from "@repo/design-system/components/ui/calendar";
 import {
   Field,
   FieldError,
@@ -14,6 +19,11 @@ import {
 import { Form } from "@repo/design-system/components/ui/form";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import { Input } from "@repo/design-system/components/ui/input";
+import {
+  Popover,
+  PopoverPopup,
+  PopoverTrigger,
+} from "@repo/design-system/components/ui/popover";
 import {
   Select,
   SelectItem,
@@ -35,14 +45,19 @@ import { toastManager } from "@repo/design-system/components/ui/toast";
 import { useForm } from "@tanstack/react-form";
 import type { GenericId } from "convex/values";
 import { Effect, Either } from "effect";
-import { type FormEvent, useState } from "react";
+import { useState } from "react";
 
 import {
   meetingTypeItems,
   meetingValidationMessages,
   optionalText,
   todayDate,
-} from "@/components/meeting-workspace-utils";
+} from "@/components/meeting/utils";
+import {
+  formatDateInput,
+  formatDisplayDate,
+  parseDateInput,
+} from "@/lib/dates";
 import { getErrorMessage } from "@/lib/errors";
 
 /** Collects meeting metadata before creating a new draft meeting. */
@@ -57,6 +72,7 @@ export function NewMeetingSheet({
 }) {
   const createDraft = useMutation(refs.public.meetings.createDraft);
   const [isOpen, setIsOpen] = useState(false);
+  const [isDateOpen, setIsDateOpen] = useState(false);
   const form = useForm({
     defaultValues: {
       agenda: "",
@@ -123,16 +139,10 @@ export function NewMeetingSheet({
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
       form.reset(defaultMeetingFormValues());
+      setIsDateOpen(false);
     }
 
     setIsOpen(nextOpen);
-  }
-
-  /** Submits the TanStack-managed meeting form. */
-  function handleCreate(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    event.stopPropagation();
-    return form.handleSubmit();
   }
 
   return (
@@ -155,7 +165,14 @@ export function NewMeetingSheet({
           </SheetDescription>
         </SheetHeader>
         <SheetPanel>
-          <Form className="flex flex-col gap-4" onSubmit={handleCreate}>
+          <Form
+            className="flex flex-col gap-4"
+            onSubmit={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              return form.handleSubmit();
+            }}
+          >
             <Fieldset className="grid gap-4">
               <FieldsetLegend className="sr-only">
                 Meeting Details
@@ -210,16 +227,37 @@ export function NewMeetingSheet({
                   return (
                     <Field invalid={!field.state.meta.isValid}>
                       <FieldLabel>Date</FieldLabel>
-                      <Input
-                        aria-invalid={!field.state.meta.isValid}
-                        name={field.name}
-                        onBlur={field.handleBlur}
-                        onChange={(event) =>
-                          field.handleChange(event.target.value)
-                        }
-                        type="date"
-                        value={field.state.value}
-                      />
+                      <Popover onOpenChange={setIsDateOpen} open={isDateOpen}>
+                        <PopoverTrigger
+                          render={
+                            <Button
+                              aria-invalid={!field.state.meta.isValid}
+                              className="w-full justify-between"
+                              name={field.name}
+                              onBlur={field.handleBlur}
+                              type="button"
+                              variant="outline"
+                            />
+                          }
+                        >
+                          <span>{formatDisplayDate(field.state.value)}</span>
+                          <HugeIcons icon={Calendar03Icon} />
+                        </PopoverTrigger>
+                        <PopoverPopup align="start">
+                          <Calendar
+                            mode="single"
+                            onSelect={(date) => {
+                              if (!date) {
+                                return;
+                              }
+
+                              field.handleChange(formatDateInput(date));
+                              setIsDateOpen(false);
+                            }}
+                            selected={parseDateInput(field.state.value)}
+                          />
+                        </PopoverPopup>
+                      </Popover>
                       {error ? (
                         <FieldError match={true}>{error}</FieldError>
                       ) : null}

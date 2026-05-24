@@ -12,11 +12,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { usePaginatedQuery } from "convex/react";
 import type { GenericId } from "convex/values";
 import { useState } from "react";
-
-import { MeetingWorkspace } from "@/components/meeting-workspace";
-import { ProjectIntelligencePanel } from "@/components/project-intelligence-panel";
-import { ProjectLedgerTable } from "@/components/project-ledger-table";
-import { ProjectRail } from "@/components/project-rail";
+import { ProjectIntelligencePanel } from "@/components/intelligence/panel";
+import { ProjectLedgerTable } from "@/components/ledger/table";
+import { MeetingWorkspace } from "@/components/meeting/workspace";
+import { ProjectRail } from "@/components/rail/rail";
 
 const projectPageSize = 8;
 

@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   canSaveMeetingInput,
+  countDraftItems,
   currentMeetingInputs,
+  draftFitsReviewBudget,
   reviewItemPatch,
-} from "./meetings.impl";
+} from "./meetings/helpers";
 
 describe("meeting helpers", () => {
   it("keeps only the latest input for each editable kind", () => {
@@ -68,5 +70,28 @@ describe("meeting helpers", () => {
       dueDate: undefined,
       severity: "medium",
     });
+  });
+
+  it("keeps generated drafts inside the review transaction budget", () => {
+    const draft = {
+      summary: "Coordination notes",
+      sections: [
+        {
+          title: "Site work",
+          body: "Inspection timing is the key blocker.",
+          items: [
+            {
+              kind: "action",
+              title: "Resolve inspection blocker",
+              body: "Coordinate inspection timing.",
+              citations: [],
+            },
+          ],
+        },
+      ],
+    } as const;
+
+    expect(countDraftItems(draft)).toBe(1);
+    expect(draftFitsReviewBudget(draft)).toBe(true);
   });
 });

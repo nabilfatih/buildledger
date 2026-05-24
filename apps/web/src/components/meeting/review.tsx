@@ -1,4 +1,7 @@
 import { QueryResult } from "@confect/react";
+import { Calendar03Icon } from "@hugeicons/core-free-icons";
+import { Button } from "@repo/design-system/components/ui/button";
+import { Calendar } from "@repo/design-system/components/ui/calendar";
 import {
   Empty,
   EmptyDescription,
@@ -11,7 +14,14 @@ import {
   FieldsetLegend,
 } from "@repo/design-system/components/ui/fieldset";
 import { Form } from "@repo/design-system/components/ui/form";
+import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import { Input } from "@repo/design-system/components/ui/input";
+import {
+  Popover,
+  PopoverClose,
+  PopoverPopup,
+  PopoverTrigger,
+} from "@repo/design-system/components/ui/popover";
 import {
   Select,
   SelectItem,
@@ -21,14 +31,19 @@ import {
 } from "@repo/design-system/components/ui/select";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import type { GenericId } from "convex/values";
-
+import { useState } from "react";
+import { WorkflowPanelSkeleton } from "@/components/meeting/skeleton";
 import {
   type ReviewDraft,
   reviewKindItems,
   severityItems,
-} from "@/components/meeting-workspace-utils";
-import { WorkflowPanelSkeleton } from "@/components/workflow-panel-skeleton";
+} from "@/components/meeting/utils";
 import type { ReviewResult } from "@/lib/confect-results";
+import {
+  formatDateInput,
+  formatDisplayDate,
+  parseDateInput,
+} from "@/lib/dates";
 
 /** Displays generated minute items as editable review fields. */
 export function ReviewEditor({
@@ -97,6 +112,7 @@ function ReviewItemEditor({
   const selectedSeverity =
     severityItems.find((item) => item.value === draft.severity) ??
     severityItems[1];
+  const [isDueDateOpen, setIsDueDateOpen] = useState(false);
 
   return (
     <Fieldset className="grid gap-3 border-border border-t pt-5 first:border-t-0 first:pt-0">
@@ -161,13 +177,54 @@ function ReviewItemEditor({
           </Field>
           <Field>
             <FieldLabel>Due Date</FieldLabel>
-            <Input
-              onChange={(event) =>
-                onDraftChange(draft.itemId, { dueDate: event.target.value })
-              }
-              type="date"
-              value={draft.dueDate}
-            />
+            <Popover onOpenChange={setIsDueDateOpen} open={isDueDateOpen}>
+              <PopoverTrigger
+                render={
+                  <Button
+                    className="w-full justify-between"
+                    type="button"
+                    variant="outline"
+                  />
+                }
+              >
+                <span>
+                  {draft.dueDate
+                    ? formatDisplayDate(draft.dueDate)
+                    : "No Due Date"}
+                </span>
+                <HugeIcons icon={Calendar03Icon} />
+              </PopoverTrigger>
+              <PopoverPopup align="start">
+                <Calendar
+                  mode="single"
+                  onSelect={(date) => {
+                    if (!date) {
+                      return;
+                    }
+
+                    onDraftChange(draft.itemId, {
+                      dueDate: formatDateInput(date),
+                    });
+                    setIsDueDateOpen(false);
+                  }}
+                  selected={parseDateInput(draft.dueDate)}
+                />
+                <PopoverClose
+                  render={
+                    <Button
+                      onClick={() =>
+                        onDraftChange(draft.itemId, { dueDate: "" })
+                      }
+                      size="sm"
+                      type="button"
+                      variant="outline"
+                    />
+                  }
+                >
+                  Clear Due Date
+                </PopoverClose>
+              </PopoverPopup>
+            </Popover>
           </Field>
         </div>
       ) : null}

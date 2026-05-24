@@ -39,8 +39,7 @@ const listForCurrentUser = FunctionImpl.make(
         const projects = yield* Effect.all(
           memberships.page.map((membership) =>
             reader.table("projects").get(membership.projectId)
-          ),
-          { concurrency: "unbounded" }
+          )
         );
 
         return {

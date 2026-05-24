@@ -4,6 +4,7 @@ import {
   DatabaseReader,
   DatabaseWriter,
 } from "@repo/backend/confect/_generated/services";
+import { ActionItemNotFound } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
 
@@ -65,7 +66,18 @@ const updateActionStatus = FunctionImpl.make(
       Effect.gen(function* () {
         const reader = yield* DatabaseReader;
         const writer = yield* DatabaseWriter;
-        const actionItem = yield* reader.table("actionItems").get(actionItemId);
+        const actionItem = yield* reader
+          .table("actionItems")
+          .get(actionItemId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new ActionItemNotFound({
+                  actionItemId,
+                  message: "Action item not found.",
+                })
+            )
+          );
 
         yield* ensureProjectAccess(actionItem.projectId);
 

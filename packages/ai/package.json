@@ -5,6 +5,7 @@
   "license": "AGPL-3.0-only",
   "type": "module",
   "exports": {
+    "./runtime": "./src/runtime.ts",
     "./schemas": "./src/schemas.ts",
     "./services": "./src/services.ts"
   },
