@@ -14,7 +14,11 @@ import { flexRender, type Header } from "@tanstack/react-table";
 import { ColumnMenu } from "@/components/ledger/menu";
 import { LedgerPagination } from "@/components/ledger/pagination";
 import { SelectionActions } from "@/components/ledger/selection";
-import type { LedgerRow, LedgerTable } from "@/components/ledger/types";
+import {
+  type LedgerRow,
+  type LedgerTable,
+  ledgerPageSize,
+} from "@/components/ledger/types";
 
 /** Renders the ledger table across all devices with contained table scrolling. */
 export function LedgerDataTable({
@@ -24,6 +28,13 @@ export function LedgerDataTable({
   readonly onCopySelectedRows: () => void;
   readonly table: LedgerTable;
 }) {
+  const rows = table.getRowModel().rows;
+  const visibleColumns = table.getVisibleLeafColumns();
+  const fillerRows = Array.from(
+    { length: Math.max(ledgerPageSize - Math.max(rows.length, 1), 0) },
+    (_, index) => `ledger-filler-${index + 1}`
+  );
+
   return (
     <>
       <Table className="min-w-[58rem] table-fixed" variant="card">
@@ -44,8 +55,19 @@ export function LedgerDataTable({
           ))}
         </TableHeader>
         <TableBody>
-          {table.getRowModel().rows.map((row) => (
+          {rows.length === 0 ? (
+            <TableRow className="h-16">
+              <TableCell
+                className="text-muted-foreground"
+                colSpan={visibleColumns.length}
+              >
+                No ledger rows match the current filters.
+              </TableCell>
+            </TableRow>
+          ) : null}
+          {rows.map((row) => (
             <TableRow
+              className="h-16"
               data-state={row.getIsSelected() ? "selected" : undefined}
               key={row.id}
             >
@@ -56,6 +78,18 @@ export function LedgerDataTable({
                   style={{ width: `${cell.column.getSize()}px` }}
                 >
                   {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                </TableCell>
+              ))}
+            </TableRow>
+          ))}
+          {fillerRows.map((row) => (
+            <TableRow aria-hidden="true" className="h-16" key={row}>
+              {visibleColumns.map((column) => (
+                <TableCell
+                  key={column.id}
+                  style={{ width: `${column.getSize()}px` }}
+                >
+                  &nbsp;
                 </TableCell>
               ))}
             </TableRow>

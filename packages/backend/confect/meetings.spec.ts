@@ -69,7 +69,7 @@ export const meetings = GroupSpec.make("meetings")
     })
   )
   .addFunction(
-    FunctionSpec.publicMutation({
+    FunctionSpec.internalMutation({
       name: "startGeneration",
       args: Schema.Struct({ meetingId: GenericId.GenericId("meetings") }),
       returns: GenericId.GenericId("aiRuns"),
@@ -77,7 +77,7 @@ export const meetings = GroupSpec.make("meetings")
     })
   )
   .addFunction(
-    FunctionSpec.publicMutation({
+    FunctionSpec.internalMutation({
       name: "finishGeneration",
       args: Schema.Struct({
         meetingId: GenericId.GenericId("meetings"),
@@ -89,7 +89,7 @@ export const meetings = GroupSpec.make("meetings")
     })
   )
   .addFunction(
-    FunctionSpec.publicMutation({
+    FunctionSpec.internalMutation({
       name: "failGeneration",
       args: Schema.Struct({
         meetingId: GenericId.GenericId("meetings"),

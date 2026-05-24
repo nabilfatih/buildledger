@@ -14,19 +14,7 @@ export const reports = GroupSpec.make("reports")
     })
   )
   .addFunction(
-    FunctionSpec.publicMutation({
-      name: "createWeeklyDraft",
-      args: Schema.Struct({
-        projectId: GenericId.GenericId("projects"),
-        periodStart: Schema.String,
-        periodEnd: Schema.String,
-      }),
-      returns: GenericId.GenericId("reports"),
-      error: AppError,
-    })
-  )
-  .addFunction(
-    FunctionSpec.publicQuery({
+    FunctionSpec.internalQuery({
       name: "getWeeklyDraftInput",
       args: Schema.Struct({
         projectId: GenericId.GenericId("projects"),
@@ -42,7 +30,7 @@ export const reports = GroupSpec.make("reports")
     })
   )
   .addFunction(
-    FunctionSpec.publicMutation({
+    FunctionSpec.internalMutation({
       name: "saveWeeklyDraft",
       args: Schema.Struct({
         projectId: GenericId.GenericId("projects"),

@@ -1,4 +1,8 @@
-import { Calendar03Icon, Search01Icon } from "@hugeicons/core-free-icons";
+import {
+  Calendar03Icon,
+  Cancel01Icon,
+  Search01Icon,
+} from "@hugeicons/core-free-icons";
 import { Button } from "@repo/design-system/components/ui/button";
 import { Calendar } from "@repo/design-system/components/ui/calendar";
 import {
@@ -86,8 +90,9 @@ export function LedgerFilters({
         <InputGroup>
           <InputGroupInput
             onChange={(event) => setSearch(event.target.value)}
+            onInput={(event) => setSearch(event.currentTarget.value)}
             placeholder="Description or source"
-            type="search"
+            type="text"
             value={search}
           />
           <InputGroupAddon>
@@ -95,6 +100,19 @@ export function LedgerFilters({
               <HugeIcons className="mx-0 size-4" icon={Search01Icon} />
             </InputGroupText>
           </InputGroupAddon>
+          {search ? (
+            <InputGroupAddon align="inline-end">
+              <Button
+                aria-label="Clear ledger search"
+                onClick={() => setSearch("")}
+                size="icon-xs"
+                type="button"
+                variant="ghost"
+              >
+                <HugeIcons icon={Cancel01Icon} />
+              </Button>
+            </InputGroupAddon>
+          ) : null}
         </InputGroup>
       </Field>
       <FilterSelect

@@ -33,7 +33,6 @@ import {
   type ReviewState,
   reviewDraftChanged,
   reviewDraftFromItem,
-  type WorkflowTab,
 } from "@/components/meeting/utils";
 import type { MeetingsResult, ReviewResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
@@ -50,12 +49,7 @@ interface MeetingWorkspaceProps {
 
 /** Coordinates one meeting through input, generation, review, and publish. */
 export function MeetingWorkspace(props: MeetingWorkspaceProps) {
-  return (
-    <MeetingWorkspaceSession
-      key={props.selectedMeetingId ?? "no-selected-meeting"}
-      {...props}
-    />
-  );
+  return <MeetingWorkspaceSession {...props} />;
 }
 
 /** Keeps local editing state scoped to the selected meeting. */
@@ -73,7 +67,11 @@ function MeetingWorkspaceSession({
   const reviewState = review._tag === "Success" ? review.value : null;
   const meetingStatus = reviewState?.meeting.status;
   const workflowTab = getWorkflowTab({ meetingStatus, selectedMeetingId });
-  const [activeTab, setActiveTab] = useState<WorkflowTab>(workflowTab);
+  const workflowKey = `${selectedProjectId ?? "project:none"}:${selectedMeetingId ?? "meeting:none"}:${meetingStatus ?? "status:none"}`;
+  const [activeTabState, setActiveTabState] = useState(() => ({
+    key: workflowKey,
+    value: workflowTab,
+  }));
   const persistedNotes = useMemo(
     () => (reviewState ? meetingNotes(reviewState.inputs) : ""),
     [reviewState]
@@ -93,6 +91,13 @@ function MeetingWorkspaceSession({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSavingReview, setIsSavingReview] = useState(false);
+  if (activeTabState.key !== workflowKey) {
+    setActiveTabState({
+      key: workflowKey,
+      value: workflowTab,
+    });
+  }
+
   if (notesState.meetingId !== selectedMeetingId) {
     setNotesState({ meetingId: selectedMeetingId, value: persistedNotes });
   } else if (notesState.value.length === 0 && persistedNotes.length > 0) {
@@ -108,6 +113,8 @@ function MeetingWorkspaceSession({
 
   const notes =
     notesState.meetingId === selectedMeetingId ? notesState.value : "";
+  const activeTab =
+    activeTabState.key === workflowKey ? activeTabState.value : workflowTab;
   const reviewDrafts =
     reviewDraftState.version === reviewVersion ? reviewDraftState.drafts : [];
   const hasReviewItems = Boolean(reviewState?.items.length);
@@ -199,7 +206,10 @@ function MeetingWorkspaceSession({
             description: "Review generated items before publishing.",
             type: "success",
           });
-          setActiveTab("review");
+          setActiveTabState({
+            key: workflowKey,
+            value: "review",
+          });
         });
       }).pipe(
         Effect.catchAll((failure) =>
@@ -280,7 +290,10 @@ function MeetingWorkspaceSession({
                 description: "Ledger rows and project intelligence are ready.",
                 type: "success",
               });
-              setActiveTab("meetings");
+              setActiveTabState({
+                key: workflowKey,
+                value: "meetings",
+              });
             }),
         });
       }).pipe(
@@ -385,26 +398,31 @@ function MeetingWorkspaceSession({
               Capture notes, review generated minutes, then publish memory.
             </FrameDescription>
           </div>
-          {primaryAction.step === "newMeeting" ? (
-            <NewMeetingSheet
-              disabled={primaryAction.disabled}
-              onCreated={(meetingId) => {
-                setSelectedMeetingId(meetingId);
-                setActiveTab("input");
-              }}
-              selectedProjectId={selectedProjectId}
-            />
-          ) : (
-            <Button
-              disabled={primaryAction.disabled}
-              loading={primaryAction.loading}
-              onClick={handlePrimaryAction}
-              size="sm"
-              type="button"
-            >
-              <HugeIcons icon={primaryAction.icon} /> {primaryAction.label}
-            </Button>
-          )}
+          <div className="flex min-h-9 min-w-44 justify-end">
+            {primaryAction.step === "newMeeting" ? (
+              <NewMeetingSheet
+                disabled={primaryAction.disabled}
+                onCreated={(meetingId) => {
+                  setSelectedMeetingId(meetingId);
+                  setActiveTabState({
+                    key: workflowKey,
+                    value: "input",
+                  });
+                }}
+                selectedProjectId={selectedProjectId}
+              />
+            ) : (
+              <Button
+                disabled={primaryAction.disabled}
+                loading={primaryAction.loading}
+                onClick={handlePrimaryAction}
+                size="sm"
+                type="button"
+              >
+                <HugeIcons icon={primaryAction.icon} /> {primaryAction.label}
+              </Button>
+            )}
+          </div>
         </div>
         {isGenerating || meetingStatus === "processing" ? (
           <p className="text-muted-foreground text-sm">
@@ -419,7 +437,10 @@ function MeetingWorkspaceSession({
               return;
             }
 
-            setActiveTab(value);
+            setActiveTabState({
+              key: workflowKey,
+              value,
+            });
           }}
           value={activeTab}
         >

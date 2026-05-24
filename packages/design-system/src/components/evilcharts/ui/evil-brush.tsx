@@ -1,7 +1,8 @@
 import { motion, useMotionValue, useMotionValueEvent, useSpring, useTransform } from "motion/react";
 import { ResponsiveContainer, AreaChart, Area, LineChart, Line, BarChart, Bar } from "recharts";
 import { ChartStyle, getColorsCount, type ChartConfig } from "@repo/design-system/components/evilcharts/ui/chart";
-import { useCallback, useEffect, type ComponentProps } from "react";
+import { useIsomorphicEffect } from "@mantine/hooks";
+import { useCallback, type ComponentProps } from "react";
 import type { MotionValue } from "motion/react";
 import { cn } from "@repo/design-system/lib/utils";
 import * as React from "react";
@@ -209,7 +210,7 @@ function EvilBrush({
   // mouse movements don't produce index changes (e.g., at boundaries)
   const lastCommittedRef = React.useRef<EvilBrushRange>(internalRange);
 
-  useEffect(() => {
+  useIsomorphicEffect(() => {
     if (!isControlled) {
       setInternalRange((prev) => {
         const adjusted = {
@@ -291,7 +292,7 @@ function EvilBrush({
   const range = internalRange;
 
   // Sync internalRange with controlled props when not dragging
-  useEffect(() => {
+  useIsomorphicEffect(() => {
     if (isControlled && !isDragging) {
       const syncedRange = { startIndex: controlledStart, endIndex: controlledEnd };
       setInternalRange(syncedRange);
@@ -657,7 +658,7 @@ function useEvilBrush<TData extends Record<string, unknown>>({
   // deferred value.  React can skip intermediate slices during fast drags.
   const deferredRange = React.useDeferredValue(range);
 
-  useEffect(() => {
+  useIsomorphicEffect(() => {
     setRange({
       startIndex: 0,
       endIndex: Math.max(0, data.length - 1),

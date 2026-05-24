@@ -1,11 +1,5 @@
 import { QueryResult } from "@confect/react";
 import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@repo/design-system/components/ui/empty";
-import {
   Frame,
   FrameDescription,
   FrameHeader,
@@ -178,23 +172,12 @@ export function ProjectLedgerTable({
           onFailure: (error) => (
             <div className="text-muted-foreground text-sm">{error.message}</div>
           ),
-          onSuccess: () =>
-            filteredRows.length === 0 ? (
-              <Empty className="min-h-72">
-                <EmptyHeader>
-                  <EmptyTitle>No ledger rows yet</EmptyTitle>
-                  <EmptyDescription>
-                    Create a meeting, generate minutes, publish them, then the
-                    ledger fills from the published project memory.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              <LedgerDataTable
-                onCopySelectedRows={handleCopySelectedRows}
-                table={table}
-              />
-            ),
+          onSuccess: () => (
+            <LedgerDataTable
+              onCopySelectedRows={handleCopySelectedRows}
+              table={table}
+            />
+          ),
         })}
       </FramePanel>
     </Frame>

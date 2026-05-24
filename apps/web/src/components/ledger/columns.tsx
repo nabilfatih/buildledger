@@ -46,11 +46,11 @@ export const ledgerColumns = [
     size: 300,
     cell: (info) => (
       <div className="grid min-w-0 gap-1">
-        <span className="break-words font-medium leading-snug">
+        <span className="block min-w-0 truncate font-medium leading-snug">
           {info.getValue()}
         </span>
         {info.row.original.body ? (
-          <span className="line-clamp-2 break-words text-muted-foreground text-xs leading-snug">
+          <span className="block min-w-0 truncate text-muted-foreground text-xs leading-snug">
             {info.row.original.body}
           </span>
         ) : null}

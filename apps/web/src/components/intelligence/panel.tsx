@@ -64,13 +64,22 @@ export function ProjectIntelligencePanel({
     refs.public.reports.listByProject,
     selectedProjectId ? { projectId: selectedProjectId } : "skip"
   );
+  const resultKey = `${selectedProjectId ?? "project:none"}:${selectedMeetingId ?? "meeting:none"}`;
   const [question, setQuestion] = useState(defaultQuestion);
   const [answer, setAnswer] = useState<string | null>(null);
   const [reportId, setReportId] = useState<GenericId<"reports"> | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
+  const [resultKeyState, setResultKeyState] = useState(resultKey);
   const [isAsking, setIsAsking] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  if (resultKeyState !== resultKey) {
+    setResultKeyState(resultKey);
+    setAnswer(null);
+    setReportId(null);
+    setShareLink(null);
+  }
+
   const canAskProject = Boolean(
     selectedProjectId && canUseProjectMemory && !isAsking
   );

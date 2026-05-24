@@ -200,14 +200,6 @@ const createReadOnlyLink = FunctionImpl.make(
     )
 );
 
-/** Resolves a public token without requiring a signed-in user. */
-const resolvePublicToken = FunctionImpl.make(
-  api,
-  "shares",
-  "resolvePublicToken",
-  ({ token }) => asAppError(getShareLinkByToken(token))
-);
-
 /** Resolves a public share link into a safe read-only resource payload. */
 const resolvePublicResource = FunctionImpl.make(
   api,
@@ -311,6 +303,5 @@ const resolvePublicResource = FunctionImpl.make(
 
 export const shares = GroupImpl.make(api, "shares").pipe(
   Layer.provide(createReadOnlyLink),
-  Layer.provide(resolvePublicToken),
   Layer.provide(resolvePublicResource)
 );

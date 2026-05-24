@@ -1,7 +1,5 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
-import { demoAiRuntimeSettings } from "@repo/ai/runtime";
 import type { MemoryChunk, ProjectReport } from "@repo/ai/schemas";
-import { ReportGenerationService } from "@repo/ai/services";
 import api from "@repo/backend/confect/_generated/api";
 import {
   DatabaseReader,
@@ -88,38 +86,6 @@ const listByProject = FunctionImpl.make(
     )
 );
 
-/** Creates a weekly report draft from memory chunks inside the selected range. */
-const createWeeklyDraft = FunctionImpl.make(
-  api,
-  "reports",
-  "createWeeklyDraft",
-  ({ projectId, periodStart, periodEnd }) =>
-    asAppError(
-      Effect.gen(function* () {
-        const project = yield* ensureProjectAccess(projectId);
-        const chunks = yield* getReportChunks({
-          projectId,
-          periodStart,
-          periodEnd,
-        });
-
-        const report = yield* ReportGenerationService.generate({
-          projectName: project.name,
-          periodLabel: `${periodStart} to ${periodEnd}`,
-          chunks,
-          settings: demoAiRuntimeSettings,
-        }).pipe(Effect.provide(ReportGenerationService.Default));
-
-        return yield* insertReport({
-          projectId,
-          periodStart,
-          periodEnd,
-          report,
-        });
-      })
-    )
-);
-
 /** Returns the exact report-generation input for the action boundary. */
 const getWeeklyDraftInput = FunctionImpl.make(
   api,
@@ -166,7 +132,6 @@ const saveWeeklyDraft = FunctionImpl.make(
 
 export const reports = GroupImpl.make(api, "reports").pipe(
   Layer.provide(listByProject),
-  Layer.provide(createWeeklyDraft),
   Layer.provide(getWeeklyDraftInput),
   Layer.provide(saveWeeklyDraft)
 );

@@ -3,7 +3,11 @@ import {
   Moon02Icon,
   Sun03Icon,
 } from "@hugeicons/core-free-icons";
-import { useColorScheme, useLocalStorage } from "@mantine/hooks";
+import {
+  useColorScheme,
+  useIsomorphicEffect,
+  useLocalStorage,
+} from "@mantine/hooks";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import {
   Menu,
@@ -18,7 +22,6 @@ import {
   SidebarMenuButton,
   useSidebar,
 } from "@repo/design-system/components/ui/sidebar";
-import { useEffect } from "react";
 
 import {
   applyThemePreference,
@@ -55,7 +58,7 @@ export function ThemeMenu() {
   const systemTheme = useColorScheme("light");
   const activeThemePreference = parseThemePreference(themePreference);
 
-  useEffect(() => {
+  useIsomorphicEffect(() => {
     applyThemePreference(
       resolveThemePreference(activeThemePreference, systemTheme)
     );

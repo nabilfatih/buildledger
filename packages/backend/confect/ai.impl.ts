@@ -36,7 +36,7 @@ const generateMinutes = FunctionImpl.make(
         const runQuery = yield* QueryRunner;
         const runAction = yield* ActionRunner;
         const aiRunId = yield* runMutation(
-          refs.public.meetings.startGeneration,
+          refs.internal.meetings.startGeneration,
           {
             meetingId,
           }
@@ -59,7 +59,7 @@ const generateMinutes = FunctionImpl.make(
             settings,
           }).pipe(Effect.provide(MinutesExtractionService.Default));
 
-          yield* runMutation(refs.public.meetings.finishGeneration, {
+          yield* runMutation(refs.internal.meetings.finishGeneration, {
             meetingId,
             aiRunId,
             draft,
@@ -69,7 +69,7 @@ const generateMinutes = FunctionImpl.make(
         yield* Either.match(result, {
           onLeft: (error) =>
             Effect.gen(function* () {
-              yield* runMutation(refs.public.meetings.failGeneration, {
+              yield* runMutation(refs.internal.meetings.failGeneration, {
                 meetingId,
                 aiRunId,
                 message: failureMessage(error),
@@ -136,11 +136,14 @@ const generateProjectReport = FunctionImpl.make(
           refs.internal.aiSettings.resolveRuntime,
           {}
         );
-        const input = yield* runQuery(refs.public.reports.getWeeklyDraftInput, {
-          periodEnd,
-          periodStart,
-          projectId,
-        });
+        const input = yield* runQuery(
+          refs.internal.reports.getWeeklyDraftInput,
+          {
+            periodEnd,
+            periodStart,
+            projectId,
+          }
+        );
         const report = yield* ReportGenerationService.generate({
           projectName: input.projectName,
           periodLabel: input.periodLabel,
@@ -148,7 +151,7 @@ const generateProjectReport = FunctionImpl.make(
           settings,
         }).pipe(Effect.provide(ReportGenerationService.Default));
 
-        return yield* runMutation(refs.public.reports.saveWeeklyDraft, {
+        return yield* runMutation(refs.internal.reports.saveWeeklyDraft, {
           periodEnd,
           periodStart,
           projectId,

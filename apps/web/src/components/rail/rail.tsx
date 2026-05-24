@@ -1,5 +1,14 @@
-import { Building06Icon, Search01Icon } from "@hugeicons/core-free-icons";
-import { useIntersection, usePrevious } from "@mantine/hooks";
+import {
+  Building06Icon,
+  Cancel01Icon,
+  Search01Icon,
+} from "@hugeicons/core-free-icons";
+import {
+  useIntersection,
+  useIsomorphicEffect,
+  usePrevious,
+} from "@mantine/hooks";
+import { Button } from "@repo/design-system/components/ui/button";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import {
   InputGroup,
@@ -21,7 +30,7 @@ import {
   SidebarMenuSkeleton,
 } from "@repo/design-system/components/ui/sidebar";
 import type { GenericId } from "convex/values";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 
 import { NewProjectSheet } from "@/components/rail/create";
 import { ThemeMenu } from "@/components/rail/theme";
@@ -77,7 +86,7 @@ export function ProjectRail({
     !isLoadingInitialProjects &&
     status === "Exhausted";
 
-  useEffect(() => {
+  useIsomorphicEffect(() => {
     if (!(isLoadMoreVisible && canLoadMoreProjects)) {
       return;
     }
@@ -127,8 +136,9 @@ export function ProjectRail({
             <InputGroup>
               <InputGroupInput
                 onChange={(event) => setSearch(event.target.value)}
+                onInput={(event) => setSearch(event.currentTarget.value)}
                 placeholder="Search projects"
-                type="search"
+                type="text"
                 value={search}
               />
               <InputGroupAddon>
@@ -136,6 +146,19 @@ export function ProjectRail({
                   <HugeIcons className="mx-0 size-4" icon={Search01Icon} />
                 </InputGroupText>
               </InputGroupAddon>
+              {search ? (
+                <InputGroupAddon align="inline-end">
+                  <Button
+                    aria-label="Clear project search"
+                    onClick={() => setSearch("")}
+                    size="icon-xs"
+                    type="button"
+                    variant="ghost"
+                  >
+                    <HugeIcons icon={Cancel01Icon} />
+                  </Button>
+                </InputGroupAddon>
+              ) : null}
             </InputGroup>
             <SidebarMenu>
               {isLoadingInitialProjects

@@ -57,7 +57,6 @@ function BuildLedgerHome() {
     refs.public.meetings.getReviewState,
     activeMeetingId ? { meetingId: activeMeetingId } : "skip"
   );
-  const workspaceKey = `${activeProjectId ?? "project:none"}:${activeMeetingId ?? "meeting:none"}`;
 
   /** Selects a project and clears the meeting selected from the previous one. */
   function handleSelectProject(projectId: GenericId<"projects"> | null) {
@@ -100,7 +99,6 @@ function BuildLedgerHome() {
             <section className="grid min-w-0 content-start gap-4">
               <ProjectLedgerTable ledger={ledger} />
               <MeetingWorkspace
-                key={workspaceKey}
                 meetings={meetings}
                 review={review}
                 selectedMeetingId={activeMeetingId}
@@ -111,7 +109,6 @@ function BuildLedgerHome() {
             <aside className="min-w-0 self-start 2xl:sticky 2xl:top-4">
               <ProjectIntelligencePanel
                 canUseProjectMemory={hasPublishedMeeting}
-                key={workspaceKey}
                 selectedMeetingId={activeMeetingId}
                 selectedProjectId={activeProjectId}
               />

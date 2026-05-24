@@ -51,14 +51,6 @@ export const shares = GroupSpec.make("shares")
     })
   )
   .addFunction(
-    FunctionSpec.publicMutation({
-      name: "resolvePublicToken",
-      args: Schema.Struct({ token: Schema.String }),
-      returns: ShareLinks.Doc,
-      error: AppError,
-    })
-  )
-  .addFunction(
     FunctionSpec.publicQuery({
       name: "resolvePublicResource",
       args: Schema.Struct({ token: Schema.String }),
