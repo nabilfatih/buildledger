@@ -48,11 +48,11 @@ import { Effect, Either } from "effect";
 import { useState } from "react";
 
 import {
-  meetingTypeItems,
-  meetingValidationMessages,
   optionalText,
+  protocolTypeItems,
+  protocolValidationMessages,
   todayDate,
-} from "@/components/meeting/utils";
+} from "@/components/protocol/utils";
 import {
   formatDateInput,
   formatDisplayDate,
@@ -60,25 +60,28 @@ import {
 } from "@/lib/dates";
 import { getErrorMessage } from "@/lib/errors";
 
-/** Collects meeting metadata before creating a new draft meeting. */
-export function NewMeetingSheet({
+/** Collects protocol metadata before creating a new draft protocol. */
+export function NewProtocolSheet({
   disabled,
   onCreated,
   selectedProjectId,
 }: {
   readonly disabled: boolean;
-  readonly onCreated: (meetingId: GenericId<"meetings">) => void;
+  readonly onCreated: (protocolId: GenericId<"protocols">) => void;
   readonly selectedProjectId: GenericId<"projects"> | null;
 }) {
-  const createDraft = useMutation(refs.public.meetings.createDraft);
+  const createDraft = useMutation(refs.public.protocols.createDraft);
   const [isOpen, setIsOpen] = useState(false);
   const [isDateOpen, setIsDateOpen] = useState(false);
   const form = useForm({
     defaultValues: {
       agenda: "",
       date: todayDate(),
+      distributionList: "",
+      location: "",
+      number: "",
       title: "",
-      type: meetingTypeItems[0].value,
+      type: protocolTypeItems[0].value,
     },
     onSubmit: ({ value }) => {
       if (!selectedProjectId) {
@@ -92,32 +95,35 @@ export function NewMeetingSheet({
               createDraft({
                 projectId: selectedProjectId,
                 title: value.title.trim(),
-                meetingType: value.type,
-                meetingDate: value.date,
+                protocolNumber: value.number.trim(),
+                protocolType: value.type,
+                protocolDate: value.date,
                 agenda: optionalText(value.agenda),
+                distributionList: optionalText(value.distributionList),
+                location: optionalText(value.location),
               }),
             catch: getErrorMessage,
           });
-
-          yield* Either.match(result, {
+          const protocolId = yield* Either.match(result, {
             onLeft: (error) => Effect.fail(error.message),
-            onRight: (meetingId) =>
-              Effect.sync(() => {
-                onCreated(meetingId);
-                setIsOpen(false);
-                form.reset(defaultMeetingFormValues());
-                toastManager.add({
-                  title: "Meeting created",
-                  description: "Add notes, then generate minutes.",
-                  type: "success",
-                });
-              }),
+            onRight: Effect.succeed,
+          });
+
+          yield* Effect.sync(() => {
+            onCreated(protocolId);
+            setIsOpen(false);
+            form.reset(defaultProtocolFormValues());
+            toastManager.add({
+              title: "Protocol created",
+              description: "Add sources, then generate the protocol.",
+              type: "success",
+            });
           });
         }).pipe(
           Effect.catchAll((description) =>
             Effect.sync(() =>
               toastManager.add({
-                title: "Meeting was not created",
+                title: "Protocol was not created",
                 description,
                 type: "error",
               })
@@ -128,8 +134,8 @@ export function NewMeetingSheet({
     },
     onSubmitInvalid: () => {
       toastManager.add({
-        title: "Meeting details required",
-        description: "Add a title, date, and meeting type.",
+        title: "Protocol details required",
+        description: "Add a title, number, date, and protocol type.",
         type: "warning",
       });
     },
@@ -138,7 +144,7 @@ export function NewMeetingSheet({
   /** Keeps the sheet form fresh whenever users open it. */
   function handleOpenChange(nextOpen: boolean) {
     if (nextOpen) {
-      form.reset(defaultMeetingFormValues());
+      form.reset(defaultProtocolFormValues());
       setIsDateOpen(false);
     }
 
@@ -151,7 +157,7 @@ export function NewMeetingSheet({
         render={<Button disabled={disabled} size="sm" type="button" />}
       >
         <HugeIcons icon={File02Icon} />
-        <span>New Meeting</span>
+        <span>New Protocol</span>
       </SheetTrigger>
       <SheetPopup
         portalProps={{ keepMounted: true }}
@@ -159,9 +165,9 @@ export function NewMeetingSheet({
         variant="inset"
       >
         <SheetHeader>
-          <SheetTitle>New Meeting</SheetTitle>
+          <SheetTitle>New Protocol</SheetTitle>
           <SheetDescription>
-            Create a meeting record before adding notes.
+            Create a protocol record before adding sources.
           </SheetDescription>
         </SheetHeader>
         <SheetPanel>
@@ -175,13 +181,13 @@ export function NewMeetingSheet({
           >
             <Fieldset className="grid gap-4">
               <FieldsetLegend className="sr-only">
-                Meeting Details
+                Protocol Details
               </FieldsetLegend>
               <form.Field
                 name="title"
                 validators={{
                   onSubmit: ({ value }) =>
-                    value.trim() ? undefined : meetingValidationMessages.title,
+                    value.trim() ? undefined : protocolValidationMessages.title,
                 }}
               >
                 {(field) => {
@@ -189,11 +195,11 @@ export function NewMeetingSheet({
                     field.state.meta.errors[0] ??
                     (field.state.meta.isValid
                       ? ""
-                      : meetingValidationMessages.title);
+                      : protocolValidationMessages.title);
 
                   return (
                     <Field invalid={!field.state.meta.isValid}>
-                      <FieldLabel>Meeting Title</FieldLabel>
+                      <FieldLabel>Protocol Title</FieldLabel>
                       <Input
                         aria-invalid={!field.state.meta.isValid}
                         name={field.name}
@@ -211,10 +217,12 @@ export function NewMeetingSheet({
                 }}
               </form.Field>
               <form.Field
-                name="date"
+                name="number"
                 validators={{
                   onSubmit: ({ value }) =>
-                    value.trim() ? undefined : meetingValidationMessages.date,
+                    value.trim()
+                      ? undefined
+                      : protocolValidationMessages.number,
                 }}
               >
                 {(field) => {
@@ -222,7 +230,41 @@ export function NewMeetingSheet({
                     field.state.meta.errors[0] ??
                     (field.state.meta.isValid
                       ? ""
-                      : meetingValidationMessages.date);
+                      : protocolValidationMessages.number);
+
+                  return (
+                    <Field invalid={!field.state.meta.isValid}>
+                      <FieldLabel>Protocol Number</FieldLabel>
+                      <Input
+                        aria-invalid={!field.state.meta.isValid}
+                        name={field.name}
+                        onBlur={field.handleBlur}
+                        onChange={(event) =>
+                          field.handleChange(event.target.value)
+                        }
+                        placeholder="BP-001"
+                        value={field.state.value}
+                      />
+                      {error ? (
+                        <FieldError match={true}>{error}</FieldError>
+                      ) : null}
+                    </Field>
+                  );
+                }}
+              </form.Field>
+              <form.Field
+                name="date"
+                validators={{
+                  onSubmit: ({ value }) =>
+                    value.trim() ? undefined : protocolValidationMessages.date,
+                }}
+              >
+                {(field) => {
+                  const error =
+                    field.state.meta.errors[0] ??
+                    (field.state.meta.isValid
+                      ? ""
+                      : protocolValidationMessages.date);
 
                   return (
                     <Field invalid={!field.state.meta.isValid}>
@@ -269,25 +311,25 @@ export function NewMeetingSheet({
                 name="type"
                 validators={{
                   onSubmit: ({ value }) =>
-                    value.trim() ? undefined : meetingValidationMessages.type,
+                    value.trim() ? undefined : protocolValidationMessages.type,
                 }}
               >
                 {(field) => {
                   const selected =
-                    meetingTypeItems.find(
+                    protocolTypeItems.find(
                       (item) => item.value === field.state.value
-                    ) ?? meetingTypeItems[0];
+                    ) ?? protocolTypeItems[0];
                   const error =
                     field.state.meta.errors[0] ??
                     (field.state.meta.isValid
                       ? ""
-                      : meetingValidationMessages.type);
+                      : protocolValidationMessages.type);
 
                   return (
                     <Field invalid={!field.state.meta.isValid}>
                       <FieldLabel>Type</FieldLabel>
                       <Select
-                        items={meetingTypeItems}
+                        items={protocolTypeItems}
                         itemToStringValue={(item) => item.value}
                         onValueChange={(item) => {
                           if (!item) {
@@ -299,10 +341,10 @@ export function NewMeetingSheet({
                         value={selected}
                       >
                         <SelectTrigger aria-invalid={!field.state.meta.isValid}>
-                          <SelectValue placeholder="Meeting type" />
+                          <SelectValue placeholder="Protocol type" />
                         </SelectTrigger>
                         <SelectPopup alignItemWithTrigger={false}>
-                          {meetingTypeItems.map((item) => (
+                          {protocolTypeItems.map((item) => (
                             <SelectItem key={item.value} value={item}>
                               {item.label}
                             </SelectItem>
@@ -315,6 +357,22 @@ export function NewMeetingSheet({
                     </Field>
                   );
                 }}
+              </form.Field>
+              <form.Field name="location">
+                {(field) => (
+                  <Field>
+                    <FieldLabel>Location</FieldLabel>
+                    <Input
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Site office, level 12"
+                      value={field.state.value}
+                    />
+                  </Field>
+                )}
               </form.Field>
               <form.Field name="agenda">
                 {(field) => (
@@ -332,11 +390,27 @@ export function NewMeetingSheet({
                   </Field>
                 )}
               </form.Field>
+              <form.Field name="distributionList">
+                {(field) => (
+                  <Field>
+                    <FieldLabel>Distribution List</FieldLabel>
+                    <Textarea
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Owner, GC, architect, structural engineer"
+                      value={field.state.value}
+                    />
+                  </Field>
+                )}
+              </form.Field>
             </Fieldset>
             <form.Subscribe selector={(state) => state.isSubmitting}>
               {(isSubmitting) => (
                 <Button loading={isSubmitting} type="submit">
-                  <HugeIcons icon={Add01Icon} /> Create Meeting
+                  <HugeIcons icon={Add01Icon} /> Create Protocol
                 </Button>
               )}
             </form.Subscribe>
@@ -347,12 +421,15 @@ export function NewMeetingSheet({
   );
 }
 
-/** Returns fresh default values for the new meeting form. */
-function defaultMeetingFormValues() {
+/** Returns fresh default values for the new protocol form. */
+function defaultProtocolFormValues() {
   return {
     agenda: "",
     date: todayDate(),
+    distributionList: "",
+    location: "",
+    number: "",
     title: "",
-    type: meetingTypeItems[0].value,
+    type: protocolTypeItems[0].value,
   };
 }

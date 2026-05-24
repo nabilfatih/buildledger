@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite dev --host 127.0.0.1 --port 3000 --strictPort",
-    "build": "NODE_OPTIONS=\"${NODE_OPTIONS:-} --disable-warning=DEP0205\" vite build",
+    "build": "vite build",
     "start": "node .output/server/index.mjs",
     "preview": "vite preview",
     "test": "vitest run",

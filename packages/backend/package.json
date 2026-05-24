@@ -11,7 +11,7 @@
     "./convex/_generated/api": "./convex/_generated/api.js"
   },
   "scripts": {
-    "dev": "confect dev & printf 'n\\n' | BUILDLEDGER_DEV_AUTH=enabled convex dev --local --tail-logs always",
+    "dev": "confect dev & printf 'n\\n' | convex dev --local --tail-logs always",
     "codegen": "confect codegen",
     "convex:dev": "convex dev --tail-logs",
     "typecheck": "tsc --noEmit --emitDeclarationOnly false",

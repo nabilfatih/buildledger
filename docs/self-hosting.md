@@ -15,7 +15,7 @@ pnpm dev:web
 pnpm dev:backend
 ```
 
-The backend dev script runs local Convex with `BUILDLEDGER_DEV_AUTH=enabled` so contributors can create projects, meetings, reports, and share links immediately. Production deployments should use a real auth provider and leave `BUILDLEDGER_DEV_AUTH` unset.
+The backend dev script runs local Convex with BuildLedger's self-hosted workspace identity so contributors can create projects, protocols, reports, and share links immediately. Set `BUILDLEDGER_AUTH_REQUIRED=enabled` only after configuring a real Convex-compatible auth provider, such as Better Auth for Convex using the TanStack Start guide at https://labs.convex.dev/better-auth/framework-guides/tanstack-start.
 
 ## Docker
 
@@ -58,7 +58,7 @@ Convex's custom hosting flow sets `VITE_CONVEX_URL` during build. Docker deploym
 
 ## Production Shape
 
-- Convex is the source of truth for organizations, projects, meetings, AI runs, reports, shares, and memory.
+- Convex is the source of truth for organizations, projects, protocols, project records, logbook events, AI runs, reports, shares, and memory.
 - TanStack Start serves the UI.
 - AI provider code belongs behind Effect services in `packages/ai`; OpenRouter is the default BYOK path and demo remains the no-key fallback.
 - Generated Convex target files live under `packages/backend/convex`; edit Confect source under `packages/backend/confect`.

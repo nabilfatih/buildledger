@@ -57,15 +57,36 @@ export const ledgerColumns = [
       </div>
     ),
   }),
-  columnHelper.accessor("meetingTitle", {
-    header: "Source",
+  columnHelper.accessor("sourceProtocolTitle", {
+    header: "Source Protocol",
     size: 156,
     cell: (info) => (
       <span className="block min-w-0 truncate">{info.getValue()}</span>
     ),
   }),
-  columnHelper.accessor("ownerName", {
-    header: "Owner",
+  columnHelper.accessor("bauteil", {
+    header: "Bauteil",
+    size: 120,
+    cell: (info) => (
+      <MutedValue fallback="Unassigned" value={info.getValue()} />
+    ),
+  }),
+  columnHelper.accessor("objectName", {
+    header: "Objekt",
+    size: 120,
+    cell: (info) => (
+      <MutedValue fallback="Unassigned" value={info.getValue()} />
+    ),
+  }),
+  columnHelper.accessor("discipline", {
+    header: "Discipline",
+    size: 112,
+    cell: (info) => (
+      <MutedValue fallback="Unassigned" value={info.getValue()} />
+    ),
+  }),
+  columnHelper.accessor("responsibleParty", {
+    header: "Responsible",
     size: 132,
     cell: (info) => (
       <MutedValue fallback="Unassigned" value={info.getValue()} />
@@ -88,7 +109,7 @@ export const ledgerColumns = [
     size: 96,
     cell: (info) => <StatusBadge status={info.getValue()} />,
   }),
-  columnHelper.accessor("meetingDate", {
+  columnHelper.accessor("sourceProtocolDate", {
     header: "Date",
     size: 100,
     cell: (info) => formatDisplayDate(info.getValue()),

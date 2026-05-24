@@ -134,19 +134,19 @@ export function LedgerFilters({
         value={severity}
       />
       <Field className="min-w-0">
-        <FieldLabel>Owner</FieldLabel>
+        <FieldLabel>Responsible</FieldLabel>
         <Input
           onChange={(event) => setOwner(event.target.value)}
-          placeholder="Owner"
+          placeholder="Responsible party"
           type="text"
           value={owner}
         />
       </Field>
       <Field className="min-w-0">
-        <FieldLabel>Source Meeting</FieldLabel>
+        <FieldLabel>Source Protocol</FieldLabel>
         <Input
           onChange={(event) => setSource(event.target.value)}
-          placeholder="Meeting title"
+          placeholder="Protocol title"
           type="text"
           value={source}
         />
@@ -239,7 +239,7 @@ function DateFilter({
         </PopoverPopup>
       </Popover>
       <FieldDescription className="sr-only">
-        Filters ledger rows by meeting date.
+        Filters ledger rows by protocol date.
       </FieldDescription>
     </Field>
   );

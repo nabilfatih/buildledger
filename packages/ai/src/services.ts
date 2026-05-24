@@ -1,18 +1,20 @@
 import {
-  decodeMinutesDraft,
   decodeProjectAnswer,
+  decodeProjectInvestigation,
   decodeProjectReport,
+  decodeProtocolDraft,
   readEnvAiRuntimeSettings,
   runOpenRouterJson,
 } from "@repo/ai/runtime";
 import {
   AiGenerationFailed,
   type AiRuntimeSettings,
-  EmptyMeetingInput,
+  EmptyProtocolSource,
   type MemoryChunk,
-  type MinutesDraft as MinutesDraftValue,
   type ProjectAnswer,
+  type ProjectInvestigation,
   type ProjectReport,
+  type ProtocolDraft,
 } from "@repo/ai/schemas";
 import { Effect } from "effect";
 
@@ -24,7 +26,7 @@ function firstSentence(text: string) {
   return sentence?.trim() || text.trim();
 }
 
-/** Creates a source citation that points back to the meeting input chunk. */
+/** Creates a source citation that points back to the protocol source chunk. */
 function makeCitation(text: string) {
   return {
     chunkId: "input-1",
@@ -42,8 +44,8 @@ function formatMemoryChunks(chunks: readonly MemoryChunk[]) {
     .join("\n");
 }
 
-/** Generates deterministic minutes when no user or environment key exists. */
-function makeDemoMinutesDraft(input: {
+/** Generates deterministic protocol records when no user or environment key exists. */
+function makeDemoProtocolDraft(input: {
   readonly title: string;
   readonly text: string;
 }) {
@@ -53,44 +55,60 @@ function makeDemoMinutesDraft(input: {
     summary: firstSentence(text),
     sections: [
       {
-        title: "Meeting Summary",
+        title: "Protocol Summary",
         body: text,
         items: [
           {
             kind: "discussion",
             title: input.title,
             body: firstSentence(text),
+            bauteil: "General",
+            objectName: "Project",
+            discipline: "Coordination",
+            status: "recorded",
             citations: [makeCitation(text)],
           },
           {
             kind: "decision",
             title: "Sequencing update accepted",
             body: "The site team accepted the revised crane window and sequencing update.",
+            bauteil: "Envelope",
+            objectName: "Crane window",
+            discipline: "Site logistics",
+            status: "recorded",
             citations: [makeCitation(text)],
           },
           {
-            kind: "action",
+            kind: "task",
             title: "Resolve inspection blocker",
             body: "Coordinate inspection timing so drywall crews can proceed.",
-            ownerName: "Site team",
+            bauteil: "Interior",
+            objectName: "Drywall",
+            discipline: "Drywall",
+            responsibleParty: "Site team",
             dueDate: new Date().toISOString().slice(0, 10),
+            status: "open",
             citations: [makeCitation(text)],
           },
           {
             kind: "risk",
             title: "Drywall sequence delay",
             body: "Drywall crews remain blocked if inspection timing slips.",
+            bauteil: "Interior",
+            objectName: "Drywall",
+            discipline: "Drywall",
             severity: "high",
+            status: "open",
             citations: [makeCitation(text)],
           },
         ],
       },
     ],
-  } satisfies MinutesDraftValue;
+  } satisfies ProtocolDraft;
 }
 
-/** Splits published meeting text into citation-preserving memory chunks. */
-const chunkMeetingMemory = Effect.fn("MemoryChunkingService.chunk")(
+/** Splits published protocol text into citation-preserving memory chunks. */
+const chunkProtocolMemory = Effect.fn("MemoryChunkingService.chunk")(
   function* (input: {
     readonly sourceTitle: string;
     readonly chronologyDate: string;
@@ -100,7 +118,7 @@ const chunkMeetingMemory = Effect.fn("MemoryChunkingService.chunk")(
 
     if (text.length === 0) {
       return yield* Effect.fail(
-        new EmptyMeetingInput({
+        new EmptyProtocolSource({
           message: "Cannot create memory chunks from empty text.",
         })
       );
@@ -197,9 +215,10 @@ const generateProjectReport = Effect.fn("ReportGenerationService.generate")(
     const report: ProjectReport = {
       title: `${input.projectName} weekly report`,
       summary: `Report for ${input.periodLabel}: ${firstSentence(chunk.text)}.`,
-      actionSummary: "Review open action items from published minutes.",
-      riskSummary: "Review risk items created during meeting publication.",
-      decisionSummary: "Review decisions created during meeting publication.",
+      actionSummary: "Review open task records from published protocols.",
+      riskSummary: "Review risk records created during protocol publication.",
+      decisionSummary:
+        "Review decision records created during protocol publication.",
       citations: [
         {
           chunkId: chunk.chunkId,
@@ -212,41 +231,96 @@ const generateProjectReport = Effect.fn("ReportGenerationService.generate")(
   }
 );
 
-export class MinutesExtractionService extends Effect.Service<MinutesExtractionService>()(
-  "MinutesExtractionService",
+/** Investigates project memory for likely root causes and recommended actions. */
+const runProjectInvestigation = Effect.fn("ProjectInvestigationService.run")(
+  function* (input: {
+    readonly question: string;
+    readonly chunks: readonly MemoryChunk[];
+    readonly settings?: AiRuntimeSettings;
+  }) {
+    const [chunk] = input.chunks;
+
+    if (!chunk) {
+      return yield* Effect.fail(
+        new AiGenerationFailed({
+          message: "Cannot investigate without project memory.",
+        })
+      );
+    }
+
+    const settings = yield* readEnvAiRuntimeSettings(input.settings);
+
+    if (settings.provider === "openrouter") {
+      const payload = yield* runOpenRouterJson({
+        settings,
+        system:
+          "You are an AI detective for construction projects. Return only JSON matching { detectedRisk: string, likelyCause: string, impactedObjects: string[], impactedDisciplines: string[], relatedRecords: string[], recommendedActions: string[], citations: [{ chunkId: string, quote: string }] }.",
+        user: `Investigation question: ${input.question}\n\nMemory:\n${formatMemoryChunks(input.chunks)}`,
+      });
+
+      return yield* decodeProjectInvestigation(payload);
+    }
+
+    const investigation: ProjectInvestigation = {
+      detectedRisk: "Schedule risk from unresolved coordination blockers",
+      likelyCause: firstSentence(chunk.text),
+      impactedObjects: ["Drywall", "Crane window"],
+      impactedDisciplines: ["Site logistics", "Drywall"],
+      relatedRecords: [chunk.chunkId],
+      recommendedActions: [
+        "Confirm inspection timing",
+        "Assign an owner for the blocking task",
+        "Publish the revised sequence to external stakeholders",
+      ],
+      citations: [
+        {
+          chunkId: chunk.chunkId,
+          quote: firstSentence(chunk.text).slice(0, 180),
+        },
+      ],
+    };
+
+    return investigation;
+  }
+);
+
+export class ProtocolExtractionService extends Effect.Service<ProtocolExtractionService>()(
+  "ProtocolExtractionService",
   {
     accessors: true,
     effect: Effect.succeed({
-      extract: Effect.fn("MinutesExtractionService.extract")(function* (input: {
-        readonly title: string;
-        readonly text: string;
-        readonly settings?: AiRuntimeSettings;
-      }) {
-        const text = input.text.trim();
+      extract: Effect.fn("ProtocolExtractionService.extract")(
+        function* (input: {
+          readonly title: string;
+          readonly text: string;
+          readonly settings?: AiRuntimeSettings;
+        }) {
+          const text = input.text.trim();
 
-        if (text.length === 0) {
-          return yield* Effect.fail(
-            new EmptyMeetingInput({
-              message: "Meeting input must include notes or a transcript.",
-            })
-          );
+          if (text.length === 0) {
+            return yield* Effect.fail(
+              new EmptyProtocolSource({
+                message: "Protocol source must include notes or a transcript.",
+              })
+            );
+          }
+
+          const settings = yield* readEnvAiRuntimeSettings(input.settings);
+
+          if (settings.provider === "openrouter") {
+            const payload = yield* runOpenRouterJson({
+              settings,
+              system:
+                "You convert construction protocol notes and transcripts into structured Bauprotokoll records. Return only JSON that matches { summary: string, sections: [{ title: string, body: string, items: [{ kind: 'agenda' | 'discussion' | 'change' | 'task' | 'information' | 'concern' | 'obstruction' | 'decision' | 'risk' | 'question', title: string, body: string, bauteil?: string, objectName?: string, discipline?: string, responsibleParty?: string, dueDate?: string, severity?: 'low' | 'medium' | 'high', status?: 'open' | 'in_progress' | 'blocked' | 'resolved' | 'recorded', citations: [{ chunkId: string, quote: string }] }] }] }. Use chunkId 'input-1' for citations.",
+              user: `Protocol title: ${input.title}\n\nSources:\n${text}`,
+            });
+
+            return yield* decodeProtocolDraft(payload);
+          }
+
+          return makeDemoProtocolDraft({ title: input.title, text });
         }
-
-        const settings = yield* readEnvAiRuntimeSettings(input.settings);
-
-        if (settings.provider === "openrouter") {
-          const payload = yield* runOpenRouterJson({
-            settings,
-            system:
-              "You convert construction meeting notes into structured minutes. Return only JSON that matches { summary: string, sections: [{ title: string, body: string, items: [{ kind: 'discussion' | 'decision' | 'action' | 'risk' | 'question', title: string, body: string, ownerName?: string, dueDate?: string, severity?: 'low' | 'medium' | 'high', citations: [{ chunkId: string, quote: string }] }] }] }. Use chunkId 'input-1' for citations.",
-            user: `Meeting title: ${input.title}\n\nNotes:\n${text}`,
-          });
-
-          return yield* decodeMinutesDraft(payload);
-        }
-
-        return makeDemoMinutesDraft({ title: input.title, text });
-      }),
+      ),
     }),
   }
 ) {}
@@ -255,7 +329,7 @@ export class MemoryChunkingService extends Effect.Service<MemoryChunkingService>
   "MemoryChunkingService",
   {
     accessors: true,
-    effect: Effect.succeed({ chunk: chunkMeetingMemory }),
+    effect: Effect.succeed({ chunk: chunkProtocolMemory }),
   }
 ) {}
 
@@ -272,5 +346,13 @@ export class ReportGenerationService extends Effect.Service<ReportGenerationServ
   {
     accessors: true,
     effect: Effect.succeed({ generate: generateProjectReport }),
+  }
+) {}
+
+export class ProjectInvestigationService extends Effect.Service<ProjectInvestigationService>()(
+  "ProjectInvestigationService",
+  {
+    accessors: true,
+    effect: Effect.succeed({ run: runProjectInvestigation }),
   }
 ) {}

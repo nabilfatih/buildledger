@@ -72,24 +72,24 @@ export function NewProjectSheet({
                 name: projectName,
                 code: projectCode,
                 description:
-                  "Project workspace for construction meeting memory.",
+                  "Project workspace for construction protocol memory.",
               }),
             catch: getErrorMessage,
           });
-
-          yield* Either.match(result, {
+          const projectId = yield* Either.match(result, {
             onLeft: (error) => Effect.fail(error.message),
-            onRight: (projectId) =>
-              Effect.sync(() => {
-                onCreated(projectId);
-                setIsOpen(false);
-                form.reset(defaultProjectFormValues());
-                toastManager.add({
-                  title: "Project created",
-                  description: "Create a meeting next.",
-                  type: "success",
-                });
-              }),
+            onRight: Effect.succeed,
+          });
+
+          yield* Effect.sync(() => {
+            onCreated(projectId);
+            setIsOpen(false);
+            form.reset(defaultProjectFormValues());
+            toastManager.add({
+              title: "Project created",
+              description: "Create a protocol next.",
+              type: "success",
+            });
           });
         }).pipe(
           Effect.catchAll((description) =>
@@ -135,7 +135,7 @@ export function NewProjectSheet({
         <SheetHeader>
           <SheetTitle>New Project</SheetTitle>
           <SheetDescription>
-            Create one focused project workspace for meeting memory.
+            Create one focused project workspace for protocol memory.
           </SheetDescription>
         </SheetHeader>
         <SheetPanel>

@@ -5,14 +5,6 @@ import { Schema } from "effect";
 export const ai = GroupSpec.make("ai")
   .addFunction(
     FunctionSpec.publicAction({
-      name: "generateMinutes",
-      args: Schema.Struct({ meetingId: GenericId.GenericId("meetings") }),
-      returns: GenericId.GenericId("aiRuns"),
-      error: AppError,
-    })
-  )
-  .addFunction(
-    FunctionSpec.publicAction({
       name: "answerProjectQuestion",
       args: Schema.Struct({
         projectId: GenericId.GenericId("projects"),

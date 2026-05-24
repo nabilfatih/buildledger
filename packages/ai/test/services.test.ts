@@ -5,8 +5,8 @@ import {
 } from "@repo/ai/runtime";
 import {
   MemoryChunkingService,
-  MinutesExtractionService,
   ProjectQuestionAnsweringService,
+  ProtocolExtractionService,
   ReportGenerationService,
 } from "@repo/ai/services";
 import { expectDefined } from "@repo/testing";
@@ -14,16 +14,16 @@ import { Effect, Layer } from "effect";
 import { describe, expect, it } from "vitest";
 
 const liveServices = Layer.mergeAll(
-  MinutesExtractionService.Default,
+  ProtocolExtractionService.Default,
   MemoryChunkingService.Default,
   ProjectQuestionAnsweringService.Default,
   ReportGenerationService.Default
 );
 
 describe("AI services", () => {
-  it("creates a cited minutes draft from meeting text", async () => {
+  it("creates a cited protocol draft from source text", async () => {
     const result = await Effect.runPromise(
-      MinutesExtractionService.extract({
+      ProtocolExtractionService.extract({
         title: "Weekly site coordination",
         text: "Concrete pour is delayed by two days. The site manager will update the schedule.",
         settings: demoAiRuntimeSettings,
@@ -37,10 +37,10 @@ describe("AI services", () => {
     expect(citation.chunkId).toBe("input-1");
   });
 
-  it("rejects empty meeting input", async () => {
+  it("rejects empty protocol source input", async () => {
     const result = await Effect.runPromiseExit(
-      MinutesExtractionService.extract({
-        title: "Empty meeting",
+      ProtocolExtractionService.extract({
+        title: "Empty protocol",
         text: " ",
         settings: demoAiRuntimeSettings,
       }).pipe(Effect.provide(liveServices))

@@ -14,7 +14,7 @@ import type { GenericId } from "convex/values";
 import { useState } from "react";
 import { ProjectIntelligencePanel } from "@/components/intelligence/panel";
 import { ProjectLedgerTable } from "@/components/ledger/table";
-import { MeetingWorkspace } from "@/components/meeting/workspace";
+import { ProtocolWorkspace } from "@/components/protocol/workspace";
 import { ProjectRail } from "@/components/rail/rail";
 
 const projectPageSize = 8;
@@ -27,8 +27,8 @@ export const Route = createFileRoute("/")({
 function BuildLedgerHome() {
   const [selectedProjectId, setSelectedProjectId] =
     useState<GenericId<"projects"> | null>(null);
-  const [selectedMeetingId, setSelectedMeetingId] =
-    useState<GenericId<"meetings"> | null>(null);
+  const [selectedProtocolId, setSelectedProtocolId] =
+    useState<GenericId<"protocols"> | null>(null);
 
   const projects = usePaginatedQuery(
     api.projects.listForCurrentUser,
@@ -40,28 +40,33 @@ function BuildLedgerHome() {
   const activeProject = projectItems.find(
     (project) => project._id === activeProjectId
   );
-  const meetings = useQuery(
-    refs.public.meetings.listByProject,
+  const protocols = useQuery(
+    refs.public.protocols.listByProject,
     activeProjectId ? { projectId: activeProjectId } : "skip"
   );
-  const ledger = useQuery(
-    refs.public.ledger.listByProject,
-    activeProjectId ? { projectId: activeProjectId } : "skip"
+  const records = useQuery(
+    refs.public.records.listByProject,
+    activeProjectId
+      ? {
+          paginationOpts: { cursor: null, numItems: 100 },
+          projectId: activeProjectId,
+        }
+      : "skip"
   );
-  const meetingItems = meetings._tag === "Success" ? meetings.value : [];
-  const activeMeetingId = selectedMeetingId ?? meetingItems[0]?._id ?? null;
-  const hasPublishedMeeting = meetingItems.some(
-    (meeting) => meeting.status === "published"
+  const protocolItems = protocols._tag === "Success" ? protocols.value : [];
+  const activeProtocolId = selectedProtocolId ?? protocolItems[0]?._id ?? null;
+  const hasPublishedProtocol = protocolItems.some(
+    (protocol) => protocol.status === "published"
   );
   const review = useQuery(
-    refs.public.meetings.getReviewState,
-    activeMeetingId ? { meetingId: activeMeetingId } : "skip"
+    refs.public.protocols.getReviewState,
+    activeProtocolId ? { protocolId: activeProtocolId } : "skip"
   );
 
-  /** Selects a project and clears the meeting selected from the previous one. */
+  /** Selects a project and clears the protocol selected from the previous one. */
   function handleSelectProject(projectId: GenericId<"projects"> | null) {
     setSelectedProjectId(projectId);
-    setSelectedMeetingId(null);
+    setSelectedProtocolId(null);
   }
 
   return (
@@ -97,20 +102,20 @@ function BuildLedgerHome() {
         <div className="min-h-0 flex-1 overflow-auto">
           <div className="grid min-w-0 gap-4 p-4 md:p-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
             <section className="grid min-w-0 content-start gap-4">
-              <ProjectLedgerTable ledger={ledger} />
-              <MeetingWorkspace
-                meetings={meetings}
+              <ProjectLedgerTable records={records} />
+              <ProtocolWorkspace
+                protocols={protocols}
                 review={review}
-                selectedMeetingId={activeMeetingId}
                 selectedProjectId={activeProjectId}
-                setSelectedMeetingId={setSelectedMeetingId}
+                selectedProtocolId={activeProtocolId}
+                setSelectedProtocolId={setSelectedProtocolId}
               />
             </section>
             <aside className="min-w-0 self-start 2xl:sticky 2xl:top-4">
               <ProjectIntelligencePanel
-                canUseProjectMemory={hasPublishedMeeting}
-                selectedMeetingId={activeMeetingId}
+                canUseProjectMemory={hasPublishedProtocol}
                 selectedProjectId={activeProjectId}
+                selectedProtocolId={activeProtocolId}
               />
             </aside>
           </div>

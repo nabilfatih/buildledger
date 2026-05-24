@@ -1,6 +1,10 @@
 export const kindFilters = [
   { label: "All types", value: "all" },
-  { label: "Action", value: "action" },
+  { label: "Task", value: "task" },
+  { label: "Change", value: "change" },
+  { label: "Information", value: "information" },
+  { label: "Concern", value: "concern" },
+  { label: "Obstruction", value: "obstruction" },
   { label: "Decision", value: "decision" },
   { label: "Risk", value: "risk" },
   { label: "Discussion", value: "discussion" },
@@ -17,7 +21,8 @@ export const severityFilters = [
 export const statusFilters = [
   { label: "All statuses", value: "all" },
   { label: "Open", value: "open" },
+  { label: "In Progress", value: "in_progress" },
   { label: "Blocked", value: "blocked" },
-  { label: "Done", value: "done" },
+  { label: "Resolved", value: "resolved" },
   { label: "Recorded", value: "recorded" },
 ] as const;

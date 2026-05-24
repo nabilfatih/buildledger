@@ -13,10 +13,10 @@ export class ProjectNotFound extends Schema.TaggedError<ProjectNotFound>()(
   }
 ) {}
 
-export class MeetingNotFound extends Schema.TaggedError<MeetingNotFound>()(
-  "MeetingNotFound",
+export class ProtocolNotFound extends Schema.TaggedError<ProtocolNotFound>()(
+  "ProtocolNotFound",
   {
-    meetingId: GenericId.GenericId("meetings"),
+    protocolId: GenericId.GenericId("protocols"),
     message: Schema.String,
   }
 ) {}
@@ -24,23 +24,23 @@ export class MeetingNotFound extends Schema.TaggedError<MeetingNotFound>()(
 export class ReviewItemNotFound extends Schema.TaggedError<ReviewItemNotFound>()(
   "ReviewItemNotFound",
   {
-    itemId: GenericId.GenericId("minuteItems"),
+    itemId: GenericId.GenericId("protocolItems"),
     message: Schema.String,
   }
 ) {}
 
-export class ActionItemNotFound extends Schema.TaggedError<ActionItemNotFound>()(
-  "ActionItemNotFound",
+export class ProjectRecordNotFound extends Schema.TaggedError<ProjectRecordNotFound>()(
+  "ProjectRecordNotFound",
   {
-    actionItemId: GenericId.GenericId("actionItems"),
+    recordId: GenericId.GenericId("projectRecords"),
     message: Schema.String,
   }
 ) {}
 
-export class InvalidMeetingState extends Schema.TaggedError<InvalidMeetingState>()(
-  "InvalidMeetingState",
+export class InvalidProtocolState extends Schema.TaggedError<InvalidProtocolState>()(
+  "InvalidProtocolState",
   {
-    meetingId: GenericId.GenericId("meetings"),
+    protocolId: GenericId.GenericId("protocols"),
     message: Schema.String,
   }
 ) {}
@@ -57,7 +57,7 @@ export class ShareTargetNotFound extends Schema.TaggedError<ShareTargetNotFound>
   {
     message: Schema.String,
     resourceId: Schema.String,
-    resourceType: Schema.Literal("meeting", "report"),
+    resourceType: Schema.Literal("protocol", "report", "ledger", "logbook"),
   }
 ) {}
 
@@ -79,10 +79,10 @@ export class InternalFailure extends Schema.TaggedError<InternalFailure>()(
 export const AppError = Schema.Union(
   Forbidden,
   ProjectNotFound,
-  MeetingNotFound,
+  ProtocolNotFound,
   ReviewItemNotFound,
-  ActionItemNotFound,
-  InvalidMeetingState,
+  ProjectRecordNotFound,
+  InvalidProtocolState,
   ShareLinkExpired,
   ShareTargetNotFound,
   InvalidShareTarget,
@@ -122,10 +122,10 @@ export function normalizeAppError(error: unknown): AppError {
   if (
     error instanceof Forbidden ||
     error instanceof ProjectNotFound ||
-    error instanceof MeetingNotFound ||
+    error instanceof ProtocolNotFound ||
     error instanceof ReviewItemNotFound ||
-    error instanceof ActionItemNotFound ||
-    error instanceof InvalidMeetingState ||
+    error instanceof ProjectRecordNotFound ||
+    error instanceof InvalidProtocolState ||
     error instanceof ShareLinkExpired ||
     error instanceof ShareTargetNotFound ||
     error instanceof InvalidShareTarget ||

@@ -32,20 +32,21 @@ import {
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import type { GenericId } from "convex/values";
 import { useState } from "react";
-import { WorkflowPanelSkeleton } from "@/components/meeting/skeleton";
+import { WorkflowPanelSkeleton } from "@/components/protocol/skeleton";
 import {
   type ReviewDraft,
   reviewKindItems,
   severityItems,
-} from "@/components/meeting/utils";
-import type { ReviewResult } from "@/lib/confect-results";
+  statusItems,
+} from "@/components/protocol/utils";
+import type { ProtocolReviewResult } from "@/lib/confect-results";
 import {
   formatDateInput,
   formatDisplayDate,
   parseDateInput,
 } from "@/lib/dates";
 
-/** Displays generated minute items as editable review fields. */
+/** Displays generated protocol items as editable review fields. */
 export function ReviewEditor({
   drafts,
   onDraftChange,
@@ -53,10 +54,10 @@ export function ReviewEditor({
 }: {
   readonly drafts: readonly ReviewDraft[];
   readonly onDraftChange: (
-    itemId: GenericId<"minuteItems">,
+    itemId: GenericId<"protocolItems">,
     patch: Partial<ReviewDraft>
   ) => void;
-  readonly review: ReviewResult;
+  readonly review: ProtocolReviewResult;
 }) {
   return QueryResult.match(review, {
     onLoading: () => <WorkflowPanelSkeleton />,
@@ -72,9 +73,9 @@ export function ReviewEditor({
       state.items.length === 0 ? (
         <Empty className="min-h-56">
           <EmptyHeader>
-            <EmptyTitle>No generated minutes yet</EmptyTitle>
+            <EmptyTitle>No generated records yet</EmptyTitle>
             <EmptyDescription>
-              Generate minutes from the Input tab to create review items.
+              Generate a protocol from the Input tab to create review records.
             </EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -93,7 +94,7 @@ export function ReviewEditor({
   });
 }
 
-/** Edits one generated minutes item with COSS form primitives. */
+/** Edits one generated protocol record with COSS form primitives. */
 function ReviewItemEditor({
   draft,
   index,
@@ -102,7 +103,7 @@ function ReviewItemEditor({
   readonly draft: ReviewDraft;
   readonly index: number;
   readonly onDraftChange: (
-    itemId: GenericId<"minuteItems">,
+    itemId: GenericId<"protocolItems">,
     patch: Partial<ReviewDraft>
   ) => void;
 }) {
@@ -112,12 +113,14 @@ function ReviewItemEditor({
   const selectedSeverity =
     severityItems.find((item) => item.value === draft.severity) ??
     severityItems[1];
+  const selectedStatus =
+    statusItems.find((item) => item.value === draft.status) ?? statusItems[0];
   const [isDueDateOpen, setIsDueDateOpen] = useState(false);
 
   return (
     <Fieldset className="grid gap-3 border-border border-t pt-5 first:border-t-0 first:pt-0">
       <FieldsetLegend>Item {index + 1}</FieldsetLegend>
-      <div className="grid gap-3 md:grid-cols-[12rem_minmax(0,1fr)]">
+      <div className="grid gap-3 md:grid-cols-[12rem_minmax(0,1fr)_12rem]">
         <Field>
           <FieldLabel>Kind</FieldLabel>
           <Select
@@ -153,6 +156,32 @@ function ReviewItemEditor({
             value={draft.title}
           />
         </Field>
+        <Field>
+          <FieldLabel>Status</FieldLabel>
+          <Select
+            items={statusItems}
+            itemToStringValue={(item) => item.value}
+            onValueChange={(item) => {
+              if (!item) {
+                return;
+              }
+
+              onDraftChange(draft.itemId, { status: item.value });
+            }}
+            value={selectedStatus}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Status" />
+            </SelectTrigger>
+            <SelectPopup alignItemWithTrigger={false}>
+              {statusItems.map((item) => (
+                <SelectItem key={item.value} value={item}>
+                  {item.label}
+                </SelectItem>
+              ))}
+            </SelectPopup>
+          </Select>
+        </Field>
       </div>
       <Field>
         <FieldLabel>Body</FieldLabel>
@@ -163,16 +192,50 @@ function ReviewItemEditor({
           value={draft.body}
         />
       </Field>
-      {draft.kind === "action" ? (
+      <div className="grid gap-3 md:grid-cols-3">
+        <Field>
+          <FieldLabel>Bauteil</FieldLabel>
+          <Input
+            onChange={(event) =>
+              onDraftChange(draft.itemId, { bauteil: event.target.value })
+            }
+            placeholder="TG South"
+            value={draft.bauteil}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Objekt</FieldLabel>
+          <Input
+            onChange={(event) =>
+              onDraftChange(draft.itemId, { objectName: event.target.value })
+            }
+            placeholder="Charging station"
+            value={draft.objectName}
+          />
+        </Field>
+        <Field>
+          <FieldLabel>Discipline</FieldLabel>
+          <Input
+            onChange={(event) =>
+              onDraftChange(draft.itemId, { discipline: event.target.value })
+            }
+            placeholder="ELT"
+            value={draft.discipline}
+          />
+        </Field>
+      </div>
+      {draft.kind === "task" ? (
         <div className="grid gap-3 md:grid-cols-2">
           <Field>
-            <FieldLabel>Owner</FieldLabel>
+            <FieldLabel>Responsible Party</FieldLabel>
             <Input
               onChange={(event) =>
-                onDraftChange(draft.itemId, { ownerName: event.target.value })
+                onDraftChange(draft.itemId, {
+                  responsibleParty: event.target.value,
+                })
               }
-              placeholder="Owner"
-              value={draft.ownerName}
+              placeholder="Site manager"
+              value={draft.responsibleParty}
             />
           </Field>
           <Field>

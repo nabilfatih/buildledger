@@ -29,13 +29,13 @@ import {
 } from "@/components/ledger/format";
 import { LedgerTableSkeleton } from "@/components/ledger/skeleton";
 import { ledgerPageSize } from "@/components/ledger/types";
-import type { LedgerResult } from "@/lib/confect-results";
+import type { RecordsResult } from "@/lib/confect-results";
 
 /** Shows derived project memory as a sortable and filterable ledger. */
 export function ProjectLedgerTable({
-  ledger,
+  records,
 }: {
-  readonly ledger: LedgerResult;
+  readonly records: RecordsResult;
 }) {
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("all");
@@ -50,16 +50,16 @@ export function ProjectLedgerTable({
     pageSize: ledgerPageSize,
   });
   const [sorting, setSorting] = useState<SortingState>([
-    { id: "meetingDate", desc: true },
+    { id: "sourceProtocolDate", desc: true },
   ]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
     citationCount: false,
     dueDate: false,
-    ownerName: false,
+    responsibleParty: false,
     severity: false,
   });
-  const rows = ledger._tag === "Success" ? ledger.value : [];
+  const rows = records._tag === "Success" ? records.value.page : [];
   const filters = useMemo(
     () => ({
       endDate,
@@ -84,7 +84,7 @@ export function ProjectLedgerTable({
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
-    getRowId: (row) => row.id,
+    getRowId: (row) => row._id,
     getSortedRowModel: getSortedRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onPaginationChange: setPagination,
@@ -145,7 +145,7 @@ export function ProjectLedgerTable({
       <FrameHeader>
         <FrameTitle>Project Ledger</FrameTitle>
         <FrameDescription>
-          Search decisions, actions, risks, questions, and cited records.
+          Search tasks, decisions, risks, questions, and cited records.
         </FrameDescription>
       </FrameHeader>
       <FramePanel className="grid min-w-0 gap-4 p-4">
@@ -167,7 +167,7 @@ export function ProjectLedgerTable({
           startDate={startDate}
           status={status}
         />
-        {QueryResult.match(ledger, {
+        {QueryResult.match(records, {
           onLoading: () => <LedgerTableSkeleton />,
           onFailure: (error) => (
             <div className="text-muted-foreground text-sm">{error.message}</div>

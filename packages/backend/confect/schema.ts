@@ -1,24 +1,26 @@
 import { DatabaseSchema } from "@confect/server";
 
 import {
-  ActionItems,
   AiProviderSettings,
   AiRunEvents,
   AiRuns,
-  Decisions,
-  MeetingAttendees,
-  MeetingInputs,
-  Meetings,
+  Investigations,
+  LogbookEvents,
   MemoryChunks,
-  MinuteItems,
-  MinuteSections,
   OrganizationMembers,
   Organizations,
   ProjectMembers,
+  ProjectParticipants,
+  ProjectRecords,
   Projects,
+  ProjectTaxonomy,
+  ProtocolItems,
+  ProtocolSections,
+  ProtocolSources,
+  Protocols,
   Reports,
-  Risks,
   ShareLinks,
+  SourceDocuments,
 } from "@repo/backend/confect/tables/core";
 
 export default DatabaseSchema.make()
@@ -27,14 +29,16 @@ export default DatabaseSchema.make()
   .addTable(Projects)
   .addTable(ProjectMembers)
   .addTable(AiProviderSettings)
-  .addTable(Meetings)
-  .addTable(MeetingAttendees)
-  .addTable(MeetingInputs)
-  .addTable(MinuteSections)
-  .addTable(MinuteItems)
-  .addTable(ActionItems)
-  .addTable(Decisions)
-  .addTable(Risks)
+  .addTable(Protocols)
+  .addTable(ProtocolSources)
+  .addTable(ProtocolSections)
+  .addTable(ProtocolItems)
+  .addTable(ProjectRecords)
+  .addTable(ProjectTaxonomy)
+  .addTable(ProjectParticipants)
+  .addTable(LogbookEvents)
+  .addTable(SourceDocuments)
+  .addTable(Investigations)
   .addTable(MemoryChunks)
   .addTable(AiRuns)
   .addTable(AiRunEvents)

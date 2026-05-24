@@ -1,6 +1,6 @@
 import type { Table } from "@tanstack/react-table";
 
-import type { LedgerResult } from "@/lib/confect-results";
+import type { RecordsResult } from "@/lib/confect-results";
 
 export const ledgerPageSize = 8;
 
@@ -11,7 +11,7 @@ type QueryValue<Result> = Result extends {
   ? Value
   : never;
 
-export type LedgerRow = QueryValue<LedgerResult>[number];
+export type LedgerRow = QueryValue<RecordsResult>["page"][number];
 
 export interface LedgerFilterState {
   readonly endDate: string;

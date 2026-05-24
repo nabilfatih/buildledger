@@ -20,13 +20,13 @@ function includesFilter(value: string, query: string) {
   return query.length === 0 || value.toLowerCase().includes(query);
 }
 
-/** Checks date filters against the meeting chronology date. */
+/** Checks date filters against the protocol chronology date. */
 function matchesDateRange(row: LedgerRow, filters: LedgerFilterState) {
-  if (filters.startDate && row.meetingDate < filters.startDate) {
+  if (filters.startDate && row.sourceProtocolDate < filters.startDate) {
     return false;
   }
 
-  if (filters.endDate && row.meetingDate > filters.endDate) {
+  if (filters.endDate && row.sourceProtocolDate > filters.endDate) {
     return false;
   }
 
@@ -38,7 +38,7 @@ export function matchesLedgerFilters(
   row: LedgerRow,
   filters: LedgerFilterState
 ) {
-  const searchText = `${row.title} ${row.body ?? ""} ${row.meetingTitle}`;
+  const searchText = `${row.recordNumber} ${row.title} ${row.body ?? ""} ${row.sourceProtocolTitle} ${row.bauteil ?? ""} ${row.objectName ?? ""} ${row.discipline ?? ""}`;
 
   if (!includesFilter(searchText, filterQuery(filters.search))) {
     return false;
@@ -57,12 +57,15 @@ export function matchesLedgerFilters(
   }
 
   if (
-    !includesFilter(row.ownerName ?? "unassigned", filterQuery(filters.owner))
+    !includesFilter(
+      row.responsibleParty ?? "unassigned",
+      filterQuery(filters.owner)
+    )
   ) {
     return false;
   }
 
-  if (!includesFilter(row.meetingTitle, filterQuery(filters.source))) {
+  if (!includesFilter(row.sourceProtocolTitle, filterQuery(filters.source))) {
     return false;
   }
 
@@ -116,7 +119,7 @@ export function kindVariant(value: string) {
     return "success";
   }
 
-  if (value === "action" || value === "question") {
+  if (value === "task" || value === "question") {
     return "info";
   }
 
@@ -140,7 +143,7 @@ export function formatSelectedRows(rows: readonly LedgerRow[]) {
   return rows
     .map(
       (row) =>
-        `${formatKind(row.kind)}: ${row.title}\nSource: ${row.meetingTitle} (${formatDisplayDate(row.meetingDate)})\nStatus: ${formatStatus(row.status)}`
+        `${formatKind(row.kind)}: ${row.title}\nSource: ${row.sourceProtocolTitle} (${formatDisplayDate(row.sourceProtocolDate)})\nStatus: ${formatStatus(row.status)}`
     )
     .join("\n\n");
 }

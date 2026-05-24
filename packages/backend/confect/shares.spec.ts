@@ -1,10 +1,11 @@
 import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
 import { AppError } from "@repo/backend/confect/errors";
 import {
-  MeetingInputs,
-  Meetings,
-  MinuteItems,
-  MinuteSections,
+  LogbookEvents,
+  ProjectRecords,
+  ProtocolItems,
+  ProtocolSections,
+  Protocols,
   Reports,
   ShareLinks,
 } from "@repo/backend/confect/tables/core";
@@ -12,18 +13,19 @@ import { Schema } from "effect";
 
 export const CreateReadOnlyLinkArgs = Schema.Struct({
   projectId: GenericId.GenericId("projects"),
-  meetingId: Schema.optional(GenericId.GenericId("meetings")),
+  protocolId: Schema.optional(GenericId.GenericId("protocols")),
   reportId: Schema.optional(GenericId.GenericId("reports")),
+  ledgerView: Schema.optional(Schema.Boolean),
+  logbookView: Schema.optional(Schema.Boolean),
 });
 
-export const SharedMeetingResource = Schema.Struct({
-  resourceType: Schema.Literal("meeting"),
+export const SharedProtocolResource = Schema.Struct({
+  resourceType: Schema.Literal("protocol"),
   projectName: Schema.String,
   projectCode: Schema.String,
-  meeting: Meetings.Doc,
-  inputs: Schema.Array(MeetingInputs.Doc),
-  sections: Schema.Array(MinuteSections.Doc),
-  items: Schema.Array(MinuteItems.Doc),
+  protocol: Protocols.Doc,
+  sections: Schema.Array(ProtocolSections.Doc),
+  items: Schema.Array(ProtocolItems.Doc),
 });
 
 export const SharedReportResource = Schema.Struct({
@@ -33,9 +35,25 @@ export const SharedReportResource = Schema.Struct({
   report: Reports.Doc,
 });
 
+export const SharedLedgerResource = Schema.Struct({
+  resourceType: Schema.Literal("ledger"),
+  projectName: Schema.String,
+  projectCode: Schema.String,
+  records: Schema.Array(ProjectRecords.Doc),
+});
+
+export const SharedLogbookResource = Schema.Struct({
+  resourceType: Schema.Literal("logbook"),
+  projectName: Schema.String,
+  projectCode: Schema.String,
+  events: Schema.Array(LogbookEvents.Doc),
+});
+
 export const SharedResource = Schema.Union(
-  SharedMeetingResource,
-  SharedReportResource
+  SharedProtocolResource,
+  SharedReportResource,
+  SharedLedgerResource,
+  SharedLogbookResource
 );
 
 export const shares = GroupSpec.make("shares")

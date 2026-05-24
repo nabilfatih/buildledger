@@ -36,7 +36,9 @@ const getReportChunks = Effect.fn("reports.getReportChunks")(function* (input: {
     text: chunk.text,
     chronologyDate: chunk.chronologyDate,
     sourceTitle:
-      chunk.sourceType === "meeting" ? "Published meeting" : "Published report",
+      chunk.sourceType === "protocol"
+        ? "Published protocol"
+        : "Published report",
   }));
 });
 

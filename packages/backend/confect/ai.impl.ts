@@ -1,6 +1,5 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
 import {
-  MinutesExtractionService,
   ProjectQuestionAnsweringService,
   ReportGenerationService,
 } from "@repo/ai/services";
@@ -12,78 +11,7 @@ import {
   QueryRunner,
 } from "@repo/backend/confect/_generated/services";
 import { asAppError } from "@repo/backend/confect/helpers";
-import { Effect, Either, Layer } from "effect";
-
-/** Picks a stable message from unknown action failures. */
-function failureMessage(error: unknown) {
-  if (typeof error === "object" && error !== null && "message" in error) {
-    const message = error.message;
-    return typeof message === "string" ? message : "AI generation failed.";
-  }
-
-  return "AI generation failed.";
-}
-
-/** Runs the minutes generation flow from the action boundary. */
-const generateMinutes = FunctionImpl.make(
-  api,
-  "ai",
-  "generateMinutes",
-  ({ meetingId }) =>
-    asAppError(
-      Effect.gen(function* () {
-        const runMutation = yield* MutationRunner;
-        const runQuery = yield* QueryRunner;
-        const runAction = yield* ActionRunner;
-        const aiRunId = yield* runMutation(
-          refs.internal.meetings.startGeneration,
-          {
-            meetingId,
-          }
-        );
-        const result = yield* Effect.gen(function* () {
-          const review = yield* runQuery(refs.public.meetings.getReviewState, {
-            meetingId,
-          });
-          const text = review.inputs
-            .map((input) => input.text ?? "")
-            .join("\n\n")
-            .trim();
-          const settings = yield* runAction(
-            refs.internal.aiSettings.resolveRuntime,
-            {}
-          );
-          const draft = yield* MinutesExtractionService.extract({
-            title: review.meeting.title,
-            text,
-            settings,
-          }).pipe(Effect.provide(MinutesExtractionService.Default));
-
-          yield* runMutation(refs.internal.meetings.finishGeneration, {
-            meetingId,
-            aiRunId,
-            draft,
-          });
-        }).pipe(Effect.either);
-
-        yield* Either.match(result, {
-          onLeft: (error) =>
-            Effect.gen(function* () {
-              yield* runMutation(refs.internal.meetings.failGeneration, {
-                meetingId,
-                aiRunId,
-                message: failureMessage(error),
-              });
-
-              return yield* Effect.fail(error);
-            }),
-          onRight: () => Effect.void,
-        });
-
-        return aiRunId;
-      })
-    )
-);
+import { Effect, Layer } from "effect";
 
 /** Answers a project question from persisted project memory chunks. */
 const answerProjectQuestion = FunctionImpl.make(
@@ -162,7 +90,6 @@ const generateProjectReport = FunctionImpl.make(
 );
 
 export const ai = GroupImpl.make(api, "ai").pipe(
-  Layer.provide(generateMinutes),
   Layer.provide(answerProjectQuestion),
   Layer.provide(generateProjectReport)
 );

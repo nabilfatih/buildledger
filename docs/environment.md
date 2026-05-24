@@ -8,15 +8,17 @@ BuildLedger keeps application data in Convex. Normal product reads and writes sh
 CONVEX_DEPLOYMENT=
 VITE_CONVEX_URL=
 BUILDLEDGER_PUBLIC_CONVEX_URL=
-BUILDLEDGER_DEV_AUTH=
 BUILDLEDGER_SECRET_KEY=
+BUILDLEDGER_AUTH_REQUIRED=
 ```
 
 `VITE_CONVEX_URL` is still accepted for Convex CLI deploy workflows. `BUILDLEDGER_PUBLIC_CONVEX_URL` is the runtime public URL used by the TanStack Start web container. For local development, Convex usually prints this URL after `pnpm --filter @repo/backend dev`.
 
 The default local URL is `http://127.0.0.1:3210`.
 
-`BUILDLEDGER_DEV_AUTH=enabled` is only for the local Convex dev server. It gives contributors a shared local demo identity so they can exercise the full product flow without configuring a hosted auth provider first. Do not set it for production deployments.
+BuildLedger defaults to a self-hosted workspace identity so local and single-tenant deployments can exercise the complete protocol flow before an auth provider is configured.
+
+Set `BUILDLEDGER_AUTH_REQUIRED=enabled` only after wiring a real Convex-compatible auth provider, such as Better Auth for Convex. The official TanStack Start path is documented at https://labs.convex.dev/better-auth/framework-guides/tanstack-start. When this flag is enabled, unauthenticated users cannot access project data.
 
 ## AI
 

@@ -2,9 +2,10 @@ import {
   AiGenerationFailed,
   type AiRuntimeSettings,
   defaultOpenRouterModel,
-  MinutesDraft,
   ProjectAnswer,
+  ProjectInvestigation,
   ProjectReport,
+  ProtocolDraft,
 } from "@repo/ai/schemas";
 import { chat } from "@tanstack/ai";
 import { createOpenRouterText } from "@tanstack/ai-openrouter";
@@ -203,20 +204,20 @@ export const runOpenRouterJson = Effect.fn("ai.runOpenRouterJson")(
   }
 );
 
-/** Decodes a model payload into the stable minutes draft contract. */
-export const decodeMinutesDraft = Effect.fn("ai.decodeMinutesDraft")(function* (
-  payload: unknown
-) {
-  return yield* Schema.decodeUnknown(MinutesDraft)(payload).pipe(
-    Effect.mapError(
-      (error) =>
-        new AiGenerationFailed({
-          message: "OpenRouter returned an invalid minutes draft.",
-          cause: String(error),
-        })
-    )
-  );
-});
+/** Decodes a model payload into the stable protocol draft contract. */
+export const decodeProtocolDraft = Effect.fn("ai.decodeProtocolDraft")(
+  function* (payload: unknown) {
+    return yield* Schema.decodeUnknown(ProtocolDraft)(payload).pipe(
+      Effect.mapError(
+        (error) =>
+          new AiGenerationFailed({
+            message: "OpenRouter returned an invalid protocol draft.",
+            cause: String(error),
+          })
+      )
+    );
+  }
+);
 
 /** Decodes a model payload into the stable project answer contract. */
 export const decodeProjectAnswer = Effect.fn("ai.decodeProjectAnswer")(
@@ -247,3 +248,18 @@ export const decodeProjectReport = Effect.fn("ai.decodeProjectReport")(
     );
   }
 );
+
+/** Decodes a model payload into the stable project investigation contract. */
+export const decodeProjectInvestigation = Effect.fn(
+  "ai.decodeProjectInvestigation"
+)(function* (payload: unknown) {
+  return yield* Schema.decodeUnknown(ProjectInvestigation)(payload).pipe(
+    Effect.mapError(
+      (error) =>
+        new AiGenerationFailed({
+          message: "OpenRouter returned an invalid project investigation.",
+          cause: String(error),
+        })
+    )
+  );
+});

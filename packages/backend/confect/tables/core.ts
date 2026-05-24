@@ -74,14 +74,17 @@ export const AiProviderSettings = Table.make(
   })
 ).index("by_userToken", ["userToken", "updatedAt"]);
 
-export const Meetings = Table.make(
-  "meetings",
+export const Protocols = Table.make(
+  "protocols",
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
     title: Schema.String,
-    meetingType: Schema.String,
-    meetingDate: Schema.String,
+    protocolNumber: Schema.String,
+    protocolType: Schema.String,
+    protocolDate: Schema.String,
+    location: OptionalString,
     agenda: OptionalString,
+    distributionList: OptionalString,
     status: Schema.Literal(
       "draft",
       "processing",
@@ -96,117 +99,235 @@ export const Meetings = Table.make(
   .index("by_projectId", ["projectId", "createdAt"])
   .index("by_projectId_and_status", ["projectId", "status", "createdAt"]);
 
-export const MeetingAttendees = Table.make(
-  "meetingAttendees",
+export const ProjectParticipants = Table.make(
+  "projectParticipants",
   Schema.Struct({
-    meetingId: GenericId.GenericId("meetings"),
+    projectId: GenericId.GenericId("projects"),
     name: Schema.String,
     company: OptionalString,
     role: OptionalString,
     email: OptionalString,
     createdAt: Timestamp,
   })
-).index("by_meetingId", ["meetingId", "createdAt"]);
+)
+  .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_email", ["projectId", "email"]);
 
-export const MeetingInputs = Table.make(
-  "meetingInputs",
+export const ProtocolSources = Table.make(
+  "protocolSources",
   Schema.Struct({
-    meetingId: GenericId.GenericId("meetings"),
-    kind: Schema.Literal("notes", "transcript", "file"),
+    protocolId: GenericId.GenericId("protocols"),
+    kind: Schema.Literal("notes", "transcript", "file", "document"),
     text: OptionalString,
     storageId: Schema.optional(GenericId.GenericId("_storage")),
+    fileName: OptionalString,
     createdAt: Timestamp,
   })
 )
-  .index("by_meetingId", ["meetingId", "createdAt"])
-  .index("by_meetingId_and_kind", ["meetingId", "kind", "createdAt"]);
+  .index("by_protocolId", ["protocolId", "createdAt"])
+  .index("by_protocolId_and_kind", ["protocolId", "kind", "createdAt"]);
 
-export const MinuteSections = Table.make(
-  "minuteSections",
+export const ProtocolSections = Table.make(
+  "protocolSections",
   Schema.Struct({
-    meetingId: GenericId.GenericId("meetings"),
+    protocolId: GenericId.GenericId("protocols"),
     title: Schema.String,
     body: Schema.String,
     order: Schema.Number,
     createdAt: Timestamp,
   })
-).index("by_meetingId", ["meetingId", "order"]);
+).index("by_protocolId", ["protocolId", "order"]);
 
-export const MinuteItems = Table.make(
-  "minuteItems",
+export const ProtocolItems = Table.make(
+  "protocolItems",
   Schema.Struct({
-    meetingId: GenericId.GenericId("meetings"),
-    sectionId: GenericId.GenericId("minuteSections"),
+    protocolId: GenericId.GenericId("protocols"),
+    sectionId: GenericId.GenericId("protocolSections"),
     kind: Schema.Literal(
+      "agenda",
       "discussion",
+      "change",
+      "task",
+      "information",
+      "concern",
+      "obstruction",
       "decision",
-      "action",
       "risk",
       "question"
     ),
     title: Schema.String,
     body: Schema.String,
-    status: Schema.optional(Schema.String),
-    ownerName: OptionalString,
+    bauteil: OptionalString,
+    objectName: OptionalString,
+    discipline: OptionalString,
+    responsibleParty: OptionalString,
     dueDate: OptionalString,
     severity: Schema.optional(Schema.Literal("low", "medium", "high")),
+    status: Schema.Literal(
+      "open",
+      "in_progress",
+      "blocked",
+      "resolved",
+      "recorded"
+    ),
     citationsJson: Schema.String,
     createdAt: Timestamp,
     updatedAt: Timestamp,
   })
 )
-  .index("by_meetingId", ["meetingId", "createdAt"])
+  .index("by_protocolId", ["protocolId", "createdAt"])
   .index("by_sectionId", ["sectionId", "createdAt"]);
 
-export const ActionItems = Table.make(
-  "actionItems",
+export const ProjectRecords = Table.make(
+  "projectRecords",
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
-    meetingId: GenericId.GenericId("meetings"),
+    protocolId: GenericId.GenericId("protocols"),
+    protocolItemId: GenericId.GenericId("protocolItems"),
+    recordNumber: Schema.String,
+    kind: Schema.Literal(
+      "agenda",
+      "discussion",
+      "change",
+      "task",
+      "information",
+      "concern",
+      "obstruction",
+      "decision",
+      "risk",
+      "question"
+    ),
     title: Schema.String,
-    ownerName: OptionalString,
+    body: Schema.String,
+    bauteil: OptionalString,
+    objectName: OptionalString,
+    discipline: OptionalString,
+    responsibleParty: OptionalString,
     dueDate: OptionalString,
-    status: Schema.Literal("open", "blocked", "done"),
+    severity: Schema.optional(Schema.Literal("low", "medium", "high")),
+    status: Schema.Literal(
+      "open",
+      "in_progress",
+      "blocked",
+      "resolved",
+      "recorded"
+    ),
+    citationCount: Schema.Number,
+    sourceProtocolTitle: Schema.String,
+    sourceProtocolDate: Schema.String,
     createdAt: Timestamp,
     updatedAt: Timestamp,
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
-  .index("by_projectId_and_status", ["projectId", "status", "createdAt"]);
+  .index("by_projectId_and_kind", ["projectId", "kind", "createdAt"])
+  .index("by_projectId_and_status", ["projectId", "status", "createdAt"])
+  .index("by_projectId_and_bauteil", ["projectId", "bauteil", "createdAt"])
+  .index("by_projectId_and_objectName", [
+    "projectId",
+    "objectName",
+    "createdAt",
+  ])
+  .index("by_projectId_and_discipline", [
+    "projectId",
+    "discipline",
+    "createdAt",
+  ])
+  .index("by_projectId_and_responsibleParty", [
+    "projectId",
+    "responsibleParty",
+    "createdAt",
+  ])
+  .index("by_protocolId", ["protocolId", "createdAt"]);
 
-export const Decisions = Table.make(
-  "decisions",
+export const ProjectTaxonomy = Table.make(
+  "projectTaxonomy",
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
-    meetingId: GenericId.GenericId("meetings"),
+    kind: Schema.Literal("bauteil", "object", "discipline"),
+    label: Schema.String,
+    archivedAt: Schema.optional(Timestamp),
+    createdAt: Timestamp,
+    updatedAt: Timestamp,
+  })
+)
+  .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_kind", ["projectId", "kind", "createdAt"]);
+
+export const LogbookEvents = Table.make(
+  "logbookEvents",
+  Schema.Struct({
+    projectId: GenericId.GenericId("projects"),
+    protocolId: GenericId.GenericId("protocols"),
+    recordId: GenericId.GenericId("projectRecords"),
+    eventType: Schema.Literal(
+      "protocol_published",
+      "record_created",
+      "status_changed",
+      "risk_detected"
+    ),
     title: Schema.String,
     body: Schema.String,
-    decidedAt: Schema.String,
+    bauteil: OptionalString,
+    objectName: OptionalString,
+    discipline: OptionalString,
+    responsibleParty: OptionalString,
+    chronologyDate: Schema.String,
+    createdAt: Timestamp,
+  })
+)
+  .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_chronologyDate", ["projectId", "chronologyDate"])
+  .index("by_projectId_and_objectName", [
+    "projectId",
+    "objectName",
+    "createdAt",
+  ])
+  .index("by_projectId_and_discipline", [
+    "projectId",
+    "discipline",
+    "createdAt",
+  ])
+  .index("by_protocolId", ["protocolId", "createdAt"]);
+
+export const SourceDocuments = Table.make(
+  "sourceDocuments",
+  Schema.Struct({
+    projectId: GenericId.GenericId("projects"),
+    protocolId: Schema.optional(GenericId.GenericId("protocols")),
+    fileName: Schema.String,
+    mimeType: OptionalString,
+    storageId: GenericId.GenericId("_storage"),
+    extractedText: OptionalString,
+    status: Schema.Literal("uploaded", "extracted", "failed"),
+    createdAt: Timestamp,
+    updatedAt: Timestamp,
+  })
+)
+  .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_protocolId", ["protocolId", "createdAt"]);
+
+export const Investigations = Table.make(
+  "investigations",
+  Schema.Struct({
+    projectId: GenericId.GenericId("projects"),
+    question: Schema.String,
+    detectedRisk: Schema.String,
+    likelyCause: Schema.String,
+    impactedObjectsJson: Schema.String,
+    impactedDisciplinesJson: Schema.String,
+    relatedRecordsJson: Schema.String,
+    recommendedActionsJson: Schema.String,
+    citationsJson: Schema.String,
     createdAt: Timestamp,
   })
 ).index("by_projectId", ["projectId", "createdAt"]);
-
-export const Risks = Table.make(
-  "risks",
-  Schema.Struct({
-    projectId: GenericId.GenericId("projects"),
-    meetingId: GenericId.GenericId("meetings"),
-    title: Schema.String,
-    body: Schema.String,
-    severity: Schema.Literal("low", "medium", "high"),
-    status: Schema.Literal("open", "blocked", "done"),
-    createdAt: Timestamp,
-    updatedAt: Timestamp,
-  })
-)
-  .index("by_projectId", ["projectId", "createdAt"])
-  .index("by_projectId_and_status", ["projectId", "status", "createdAt"]);
 
 export const MemoryChunks = Table.make(
   "memoryChunks",
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
-    sourceType: Schema.Literal("meeting", "report"),
+    sourceType: Schema.Literal("protocol", "report"),
     sourceId: Schema.String,
     text: Schema.String,
     chronologyDate: Schema.String,
@@ -227,7 +348,7 @@ export const AiRuns = Table.make(
   "aiRuns",
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
-    meetingId: Schema.optional(GenericId.GenericId("meetings")),
+    protocolId: Schema.optional(GenericId.GenericId("protocols")),
     kind: Schema.String,
     status: Schema.Literal("queued", "running", "succeeded", "failed"),
     error: OptionalString,
@@ -236,7 +357,7 @@ export const AiRuns = Table.make(
   })
 )
   .index("by_projectId", ["projectId", "startedAt"])
-  .index("by_meetingId", ["meetingId", "startedAt"]);
+  .index("by_protocolId", ["protocolId", "startedAt"]);
 
 export const AiRunEvents = Table.make(
   "aiRunEvents",
@@ -268,7 +389,7 @@ export const ShareLinks = Table.make(
   "shareLinks",
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
-    resourceType: Schema.Literal("meeting", "report"),
+    resourceType: Schema.Literal("protocol", "report", "ledger", "logbook"),
     resourceId: Schema.String,
     tokenHash: Schema.String,
     expiresAt: Schema.optional(Timestamp),

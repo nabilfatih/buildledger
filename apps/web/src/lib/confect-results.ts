@@ -7,14 +7,14 @@ export type ProjectsResult = ReturnType<
   typeof usePaginatedQuery<typeof api.projects.listForCurrentUser>
 >;
 
-export type MeetingsResult = ReturnType<
-  typeof useQuery<typeof refs.public.meetings.listByProject>
+export type ProtocolsResult = ReturnType<
+  typeof useQuery<typeof refs.public.protocols.listByProject>
 >;
 
-export type LedgerResult = ReturnType<
-  typeof useQuery<typeof refs.public.ledger.listByProject>
+export type RecordsResult = ReturnType<
+  typeof useQuery<typeof refs.public.records.listByProject>
 >;
 
-export type ReviewResult = ReturnType<
-  typeof useQuery<typeof refs.public.meetings.getReviewState>
+export type ProtocolReviewResult = ReturnType<
+  typeof useQuery<typeof refs.public.protocols.getReviewState>
 >;

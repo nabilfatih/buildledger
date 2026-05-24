@@ -15,10 +15,11 @@ import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
 import { Effect, Layer, Schema } from "effect";
 import { nanoid } from "nanoid";
 
-const maxSharedMeetingInputs = 10;
-const maxSharedMinuteSections = 20;
-const maxSharedMinuteItems = 100;
-const MeetingResourceId = GenericId.GenericId("meetings");
+const maxSharedProtocolSections = 20;
+const maxSharedProtocolItems = 100;
+const maxSharedRecords = 100;
+const maxSharedLogbookEvents = 100;
+const ProtocolResourceId = GenericId.GenericId("protocols");
 const ReportResourceId = GenericId.GenericId("reports");
 
 /** Encodes bytes as lowercase hex for stable token lookup. */
@@ -85,16 +86,16 @@ const getShareLinkByToken = Effect.fn("shares.getShareLinkByToken")(function* (
   return shareLinkOption.value;
 });
 
-/** Validates a stored meeting resource id before direct document lookup. */
-const decodeMeetingResourceId = Effect.fn("shares.decodeMeetingResourceId")(
+/** Validates a stored protocol resource id before direct document lookup. */
+const decodeProtocolResourceId = Effect.fn("shares.decodeProtocolResourceId")(
   function* (resourceId: string) {
-    return yield* Schema.decodeUnknown(MeetingResourceId)(resourceId).pipe(
+    return yield* Schema.decodeUnknown(ProtocolResourceId)(resourceId).pipe(
       Effect.mapError(
         () =>
           new ShareTargetNotFound({
             message: "Share target was not found.",
             resourceId,
-            resourceType: "meeting",
+            resourceType: "protocol",
           })
       )
     );
@@ -128,24 +129,32 @@ const createReadOnlyLink = FunctionImpl.make(
         yield* ensureProjectAccess(input.projectId);
         const reader = yield* DatabaseReader;
         const writer = yield* DatabaseWriter;
+        const selectedTargetCount = [
+          input.protocolId !== undefined,
+          input.reportId !== undefined,
+          input.ledgerView === true,
+          input.logbookView === true,
+        ].filter(Boolean).length;
 
-        if (input.meetingId !== undefined) {
-          if (input.reportId !== undefined) {
-            return yield* Effect.fail(
-              new InvalidShareTarget({
-                message: "Share one meeting or one report, not both.",
-              })
-            );
-          }
+        if (selectedTargetCount !== 1) {
+          return yield* Effect.fail(
+            new InvalidShareTarget({
+              message: "Choose exactly one share target.",
+            })
+          );
+        }
 
-          const meeting = yield* reader.table("meetings").get(input.meetingId);
+        if (input.protocolId !== undefined) {
+          const protocol = yield* reader
+            .table("protocols")
+            .get(input.protocolId);
 
-          if (meeting.projectId !== input.projectId) {
+          if (protocol.projectId !== input.projectId) {
             return yield* Effect.fail(
               new ShareTargetNotFound({
                 message: "Share target does not belong to this project.",
-                resourceId: input.meetingId,
-                resourceType: "meeting",
+                resourceId: input.protocolId,
+                resourceType: "protocol",
               })
             );
           }
@@ -154,8 +163,38 @@ const createReadOnlyLink = FunctionImpl.make(
           const tokenHash = yield* hashShareToken(token);
           const shareLinkId = yield* writer.table("shareLinks").insert({
             projectId: input.projectId,
-            resourceId: input.meetingId,
-            resourceType: "meeting",
+            resourceId: input.protocolId,
+            resourceType: "protocol",
+            tokenHash,
+            createdAt: Date.now(),
+          });
+          const shareLink = yield* reader.table("shareLinks").get(shareLinkId);
+
+          return { shareLink, token };
+        }
+
+        if (input.ledgerView) {
+          const token = nanoid(32);
+          const tokenHash = yield* hashShareToken(token);
+          const shareLinkId = yield* writer.table("shareLinks").insert({
+            projectId: input.projectId,
+            resourceId: input.projectId,
+            resourceType: "ledger",
+            tokenHash,
+            createdAt: Date.now(),
+          });
+          const shareLink = yield* reader.table("shareLinks").get(shareLinkId);
+
+          return { shareLink, token };
+        }
+
+        if (input.logbookView) {
+          const token = nanoid(32);
+          const tokenHash = yield* hashShareToken(token);
+          const shareLinkId = yield* writer.table("shareLinks").insert({
+            projectId: input.projectId,
+            resourceId: input.projectId,
+            resourceType: "logbook",
             tokenHash,
             createdAt: Date.now(),
           });
@@ -167,7 +206,7 @@ const createReadOnlyLink = FunctionImpl.make(
         if (input.reportId === undefined) {
           return yield* Effect.fail(
             new InvalidShareTarget({
-              message: "Choose a meeting or report to share.",
+              message: "Choose a report to share.",
             })
           );
         }
@@ -214,55 +253,86 @@ const resolvePublicResource = FunctionImpl.make(
           .table("projects")
           .get(shareLink.projectId);
 
-        if (shareLink.resourceType === "meeting") {
-          const meetingId = yield* decodeMeetingResourceId(
+        if (shareLink.resourceType === "protocol") {
+          const protocolId = yield* decodeProtocolResourceId(
             shareLink.resourceId
           );
-          const meeting = yield* reader
-            .table("meetings")
-            .get(meetingId)
+          const protocol = yield* reader
+            .table("protocols")
+            .get(protocolId)
             .pipe(
               Effect.mapError(
                 () =>
                   new ShareTargetNotFound({
                     message: "Share target was not found.",
                     resourceId: shareLink.resourceId,
-                    resourceType: "meeting",
+                    resourceType: "protocol",
                   })
               )
             );
 
-          if (meeting.projectId !== project._id) {
+          if (protocol.projectId !== project._id) {
             return yield* Effect.fail(
               new ShareTargetNotFound({
                 message: "Share target does not belong to this project.",
                 resourceId: shareLink.resourceId,
-                resourceType: "meeting",
+                resourceType: "protocol",
               })
             );
           }
 
-          const inputs = yield* reader
-            .table("meetingInputs")
-            .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
-            .take(maxSharedMeetingInputs);
           const sections = yield* reader
-            .table("minuteSections")
-            .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
-            .take(maxSharedMinuteSections);
+            .table("protocolSections")
+            .index("by_protocolId", (q) => q.eq("protocolId", protocol._id))
+            .take(maxSharedProtocolSections);
           const items = yield* reader
-            .table("minuteItems")
-            .index("by_meetingId", (q) => q.eq("meetingId", meeting._id))
-            .take(maxSharedMinuteItems);
+            .table("protocolItems")
+            .index("by_protocolId", (q) => q.eq("protocolId", protocol._id))
+            .take(maxSharedProtocolItems);
 
           return {
-            resourceType: "meeting",
+            resourceType: "protocol",
             projectName: project.name,
             projectCode: project.code,
-            meeting,
-            inputs,
+            protocol,
             sections,
             items,
+          };
+        }
+
+        if (shareLink.resourceType === "ledger") {
+          const records = yield* reader
+            .table("projectRecords")
+            .index(
+              "by_projectId",
+              (q) => q.eq("projectId", shareLink.projectId),
+              "desc"
+            )
+            .take(maxSharedRecords);
+
+          return {
+            resourceType: "ledger",
+            projectName: project.name,
+            projectCode: project.code,
+            records,
+          };
+        }
+
+        if (shareLink.resourceType === "logbook") {
+          const events = yield* reader
+            .table("logbookEvents")
+            .index(
+              "by_projectId",
+              (q) => q.eq("projectId", shareLink.projectId),
+              "desc"
+            )
+            .take(maxSharedLogbookEvents);
+
+          return {
+            resourceType: "logbook",
+            projectName: project.name,
+            projectCode: project.code,
+            events,
           };
         }
 

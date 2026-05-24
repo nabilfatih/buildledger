@@ -38,7 +38,7 @@ export const Route = createRootRoute({
       {
         name: "description",
         content:
-          "Open-source construction meeting intelligence with realtime project memory.",
+          "Open-source construction protocol intelligence with traceable project memory.",
       },
       {
         name: convexUrlMetaName,

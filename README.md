@@ -1,20 +1,20 @@
 # BuildLedger
 
-Open-source AI meeting OS for construction project memory.
+Open-source construction protocol intelligence for traceable project memory.
 
-BuildLedger is an ethical, open-source alternative for construction meeting operations. It is inspired by public construction-tech product patterns, but it does not copy Alago branding, content, private workflows, UI, or visual assets.
+BuildLedger is an ethical, open-source alternative for construction protocol operations. It is inspired by public construction-tech product patterns, but it does not copy Alago branding, content, private workflows, UI, or visual assets.
 
 The current implementation is a Convex-first V1 foundation:
 
-- create organizations and projects from authenticated Convex identity
-- create meeting drafts, add notes/transcripts, and generate AI minutes drafts
-- persist AI run events for realtime progress panels
-- review generated sections and items before publishing
-- publish minutes into actions, decisions, risks, and memory chunks
+- create organizations and projects from a self-hosted workspace identity or an authenticated Convex identity
+- create protocol drafts with protocol number, date, type, location, agenda, and distribution list
+- save notes/transcripts as protocol sources
+- generate editable protocol sections and construction records
+- publish protocols into ledger records, logbook events, and memory chunks
 - generate weekly report drafts from project memory
 - bring your own OpenRouter key, encrypted per user, with demo fallback
-- create and resolve read-only share links
-- render a dense TanStack Start workspace with Coss UI and Evil Charts
+- create read-only share links for protocols, reports, ledger views, and logbook views
+- render a dense TanStack Start workspace with Coss UI
 
 ## Stack
 
@@ -24,7 +24,6 @@ The current implementation is a Convex-first V1 foundation:
 - Effect for AI/business logic
 - TanStack AI with OpenRouter for BYOK provider calls
 - Coss UI for components
-- Evil Charts/Recharts for charts
 
 ## Docs Used
 
@@ -37,8 +36,8 @@ The current implementation is a Convex-first V1 foundation:
 - Coss UI: https://coss.com/ui/docs
 - Coss skills: https://coss.com/ui/docs/skills
 - Coss styling: https://coss.com/ui/docs/styling
-- Evil Charts: https://evilcharts.com/docs
 - TanStack AI OpenRouter: https://tanstack.com/ai/latest/docs/adapters/openrouter
+- Convex Better Auth for TanStack Start: https://labs.convex.dev/better-auth/framework-guides/tanstack-start
 
 ## Local Development
 
@@ -67,7 +66,7 @@ AI runs in Convex. Set `BUILDLEDGER_AI_PROVIDER=openrouter`, `OPENROUTER_API_KEY
 apps/web                  TanStack Start app
 packages/backend          Confect source and Convex target output
 packages/ai               Effect services and schemas
-packages/design-system    Coss UI and Evil Charts exports
+packages/design-system    Coss UI exports
 packages/testing          Shared test helpers
 packages/typescript-config
 ```

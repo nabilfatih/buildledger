@@ -14,7 +14,7 @@ import { Effect, Option } from "effect";
 
 type ProjectId = GenericId<"projects">;
 
-const devUserToken = "buildledger:local-dev-user";
+const selfHostedUserToken = "buildledger:self-hosted-workspace";
 
 /** Reads Convex environment values without blocking short-lived mutations. */
 function readEnvValue(key: string, fallback: string) {
@@ -25,26 +25,22 @@ function readEnvValue(key: string, fallback: string) {
   return process.env[key] ?? fallback;
 }
 
-/** Returns the local Browser test identity when development auth is enabled. */
-const getDevUserToken = Effect.fn("auth.getDevUserToken")(function* () {
-  const mode = readEnvValue("BUILDLEDGER_DEV_AUTH", "disabled");
+/** Returns the single-tenant self-hosted identity when external auth is absent. */
+const getSelfHostedUserToken = Effect.fn("auth.getSelfHostedUserToken")(
+  function* () {
+    const authRequired = readEnvValue("BUILDLEDGER_AUTH_REQUIRED", "disabled");
 
-  if (mode !== "enabled") {
-    return null;
+    if (authRequired === "enabled") {
+      return yield* Effect.fail(
+        new Forbidden({
+          message: "Sign in before accessing BuildLedger.",
+        })
+      );
+    }
+
+    return selfHostedUserToken;
   }
-
-  const nodeEnv = readEnvValue("NODE_ENV", "development");
-
-  if (nodeEnv === "production") {
-    return yield* Effect.fail(
-      new Forbidden({
-        message: "BUILDLEDGER_DEV_AUTH cannot run in production.",
-      })
-    );
-  }
-
-  return devUserToken;
-});
+);
 
 /** Maps unknown boundary failures into the public app error union. */
 export function asAppError<A, R>(effect: EffectType.Effect<A, unknown, R>) {
@@ -58,17 +54,7 @@ export const getUserToken = Effect.fn("auth.getUserToken")(function* () {
   );
 
   if (!identity) {
-    const token = yield* getDevUserToken();
-
-    if (token) {
-      return token;
-    }
-
-    return yield* Effect.fail(
-      new Forbidden({
-        message: "Sign in before accessing BuildLedger.",
-      })
-    );
+    return yield* getSelfHostedUserToken();
   }
 
   return identity.tokenIdentifier;
@@ -85,7 +71,7 @@ export const getOptionalUserToken = Effect.fn("auth.getOptionalUserToken")(
       return identity.tokenIdentifier;
     }
 
-    return yield* getDevUserToken();
+    return yield* getSelfHostedUserToken();
   }
 );
 

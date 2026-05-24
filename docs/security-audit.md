@@ -43,7 +43,7 @@ Out of scope:
 | --- | --- | --- | --- |
 | SA-001 | Medium | Share links | Replaced plaintext-style token storage with SHA-256 token hashing before persistence. |
 | SA-002 | Medium | Share links | Changed public token resolution from reactive query to mutation so expiry checks use fresh time. |
-| SA-003 | Medium | Share links | Added target ownership checks before creating links for meetings or reports. |
+| SA-003 | Medium | Share links | Added target ownership checks before creating links for protocols, reports, ledger views, and logbook views. |
 | SA-004 | Medium | Dependencies | Removed unused `geist` dependency and added a workspace override for patched `ws@8.20.1`. |
 | SA-005 | Low | Backend typing | Removed unsafe error-normalizer casts and replaced breakpoint casts with type guards. |
 | SA-006 | Low | Project docs/assets | Removed scaffold README text and corrected the app manifest to BuildLedger branding. |
@@ -64,10 +64,10 @@ flowchart LR
 
 | Trust Boundary | Data | Existing Controls | Main Risk |
 | --- | --- | --- | --- |
-| Browser to Convex functions | project, meeting, report, share payloads | Confect args/returns schemas and Convex auth identity checks | access-control regression |
+| Browser to Convex functions | project, protocol, record, report, share payloads | Confect args/returns schemas and Convex auth identity checks | access-control regression |
 | Public share token to Convex | opaque token | random token plus stored SHA-256 hash and revoke/expiry checks | token leakage or weak token handling |
 | Convex functions to database | project memory and generated records | explicit table schemas, indexes, and project membership checks | cross-project reads/writes |
-| Convex AI actions to Effect services | meeting text and memory chunks | typed Effect services and tagged errors | prompt/data leakage once real provider is added |
+| Convex AI actions to Effect services | protocol sources and memory chunks | typed Effect services and tagged errors | prompt/data leakage once real provider is added |
 
 ## Residual Risks And Next Controls
 

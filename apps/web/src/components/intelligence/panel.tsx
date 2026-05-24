@@ -2,13 +2,11 @@ import { useAction, useMutation, useQuery } from "@confect/react";
 import {
   Analytics01Icon,
   BubbleChatQuestionIcon,
-  ClipboardCopyIcon,
   Link01Icon,
 } from "@hugeicons/core-free-icons";
 import refs from "@repo/backend/confect/_generated/refs";
 import {
   Alert,
-  AlertAction,
   AlertDescription,
   AlertTitle,
 } from "@repo/design-system/components/ui/alert";
@@ -45,47 +43,62 @@ import { useState } from "react";
 import { formatDateInput } from "@/lib/dates";
 import { getErrorMessage } from "@/lib/errors";
 
+import { getShareLink, investigationSummary, ResultAlert } from "./result";
+
 const defaultQuestion = "What changed about schedule and blockers?";
 
-/** Runs project-level intelligence actions after minutes are published. */
-export function ProjectIntelligencePanel({
-  canUseProjectMemory,
-  selectedMeetingId,
-  selectedProjectId,
-}: {
+interface ProjectIntelligencePanelProps {
   readonly canUseProjectMemory: boolean;
-  readonly selectedMeetingId: GenericId<"meetings"> | null;
   readonly selectedProjectId: GenericId<"projects"> | null;
-}) {
+  readonly selectedProtocolId: GenericId<"protocols"> | null;
+}
+
+/** Runs project-level intelligence actions after protocols are published. */
+export function ProjectIntelligencePanel(props: ProjectIntelligencePanelProps) {
+  const resultKey = `${props.selectedProjectId ?? "project:none"}:${props.selectedProtocolId ?? "protocol:none"}`;
+
+  return <ProjectIntelligenceSession key={resultKey} {...props} />;
+}
+
+/** Keeps generated intelligence results scoped to the active project protocol. */
+function ProjectIntelligenceSession({
+  canUseProjectMemory,
+  selectedProtocolId,
+  selectedProjectId,
+}: ProjectIntelligencePanelProps) {
   const answerQuestion = useAction(refs.public.ai.answerProjectQuestion);
   const generateReport = useAction(refs.public.ai.generateProjectReport);
+  const runInvestigation = useAction(refs.public.investigations.run);
   const createShareLink = useMutation(refs.public.shares.createReadOnlyLink);
   const reports = useQuery(
     refs.public.reports.listByProject,
     selectedProjectId ? { projectId: selectedProjectId } : "skip"
   );
-  const resultKey = `${selectedProjectId ?? "project:none"}:${selectedMeetingId ?? "meeting:none"}`;
+  const investigations = useQuery(
+    refs.public.investigations.listByProject,
+    selectedProjectId ? { projectId: selectedProjectId } : "skip"
+  );
   const [question, setQuestion] = useState(defaultQuestion);
   const [answer, setAnswer] = useState<string | null>(null);
   const [reportId, setReportId] = useState<GenericId<"reports"> | null>(null);
+  const [investigationId, setInvestigationId] =
+    useState<GenericId<"investigations"> | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
-  const [resultKeyState, setResultKeyState] = useState(resultKey);
   const [isAsking, setIsAsking] = useState(false);
+  const [isInvestigating, setIsInvestigating] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
-  if (resultKeyState !== resultKey) {
-    setResultKeyState(resultKey);
-    setAnswer(null);
-    setReportId(null);
-    setShareLink(null);
-  }
 
   const questionHelp = canUseProjectMemory
     ? "Ask cited questions from published project memory."
-    : "Publish minutes first so answers can cite project memory.";
+    : "Publish a protocol first so answers can cite project memory.";
   const report =
     reports._tag === "Success"
       ? reports.value.find((item) => item._id === reportId)
+      : undefined;
+  const investigation =
+    investigations._tag === "Success"
+      ? investigations.value.find((item) => item._id === investigationId)
       : undefined;
 
   /** Asks the project memory service for a cited answer. */
@@ -102,7 +115,7 @@ export function ProjectIntelligencePanel({
     if (!canUseProjectMemory) {
       toastManager.add({
         title: "Publish first",
-        description: "Publish minutes before asking project intelligence.",
+        description: "Publish a protocol before asking project intelligence.",
         type: "warning",
       });
       return;
@@ -110,6 +123,7 @@ export function ProjectIntelligencePanel({
 
     setIsAsking(true);
     setAnswer(null);
+    setInvestigationId(null);
     setReportId(null);
     setShareLink(null);
     return Effect.runPromise(
@@ -122,17 +136,17 @@ export function ProjectIntelligencePanel({
             }),
           catch: getErrorMessage,
         });
-
-        yield* Either.match(result, {
+        const projectAnswer = yield* Either.match(result, {
           onLeft: (error) => Effect.fail(error.message),
-          onRight: (projectAnswer) =>
-            Effect.sync(() => {
-              setAnswer(projectAnswer.answer);
-              toastManager.add({
-                title: "Answer generated",
-                type: "success",
-              });
-            }),
+          onRight: Effect.succeed,
+        });
+
+        yield* Effect.sync(() => {
+          setAnswer(projectAnswer.answer);
+          toastManager.add({
+            title: "Answer generated",
+            type: "success",
+          });
         });
       }).pipe(
         Effect.catchAll((description) =>
@@ -163,7 +177,7 @@ export function ProjectIntelligencePanel({
     if (!canUseProjectMemory) {
       toastManager.add({
         title: "Publish first",
-        description: "Publish minutes before generating a project report.",
+        description: "Publish a protocol before generating a project report.",
         type: "warning",
       });
       return;
@@ -171,6 +185,7 @@ export function ProjectIntelligencePanel({
 
     setIsReporting(true);
     setAnswer(null);
+    setInvestigationId(null);
     setReportId(null);
     setShareLink(null);
     return Effect.runPromise(
@@ -185,17 +200,17 @@ export function ProjectIntelligencePanel({
             }),
           catch: getErrorMessage,
         });
-
-        yield* Either.match(result, {
+        const nextReportId = yield* Either.match(result, {
           onLeft: (error) => Effect.fail(error.message),
-          onRight: (nextReportId) =>
-            Effect.sync(() => {
-              setReportId(nextReportId);
-              toastManager.add({
-                title: "Report Draft Created",
-                type: "success",
-              });
-            }),
+          onRight: Effect.succeed,
+        });
+
+        yield* Effect.sync(() => {
+          setReportId(nextReportId);
+          toastManager.add({
+            title: "Report Draft Created",
+            type: "success",
+          });
         });
       }).pipe(
         Effect.catchAll((description) =>
@@ -212,7 +227,69 @@ export function ProjectIntelligencePanel({
     );
   }
 
-  /** Creates a read-only share token for the active meeting. */
+  /** Runs a risk/root-cause investigation from published project memory. */
+  function handleRunInvestigation() {
+    if (!selectedProjectId) {
+      toastManager.add({
+        title: "Select a project first",
+        description: "Create or select a project before running AI Detective.",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (!canUseProjectMemory) {
+      toastManager.add({
+        title: "Publish first",
+        description: "Publish a protocol before running AI Detective.",
+        type: "warning",
+      });
+      return;
+    }
+
+    setIsInvestigating(true);
+    setAnswer(null);
+    setInvestigationId(null);
+    setReportId(null);
+    setShareLink(null);
+    return Effect.runPromise(
+      Effect.gen(function* () {
+        const result = yield* Effect.tryPromise({
+          try: () =>
+            runInvestigation({
+              projectId: selectedProjectId,
+              question,
+            }),
+          catch: getErrorMessage,
+        });
+        const nextInvestigationId = yield* Either.match(result, {
+          onLeft: (error) => Effect.fail(error.message),
+          onRight: Effect.succeed,
+        });
+
+        yield* Effect.sync(() => {
+          setInvestigationId(nextInvestigationId);
+          toastManager.add({
+            title: "Investigation complete",
+            type: "success",
+          });
+        });
+      }).pipe(
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Investigation was not completed",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsInvestigating(false)))
+      )
+    );
+  }
+
+  /** Creates a read-only share token for the active protocol. */
   function handleCreateShareLink() {
     if (!selectedProjectId) {
       toastManager.add({
@@ -223,10 +300,10 @@ export function ProjectIntelligencePanel({
       return;
     }
 
-    if (!selectedMeetingId) {
+    if (!selectedProtocolId) {
       toastManager.add({
-        title: "Select a meeting first",
-        description: "Create or select a meeting before sharing.",
+        title: "Select a protocol first",
+        description: "Create or select a protocol before sharing.",
         type: "warning",
       });
       return;
@@ -234,6 +311,7 @@ export function ProjectIntelligencePanel({
 
     setIsSharing(true);
     setAnswer(null);
+    setInvestigationId(null);
     setReportId(null);
     setShareLink(null);
     return Effect.runPromise(
@@ -242,23 +320,22 @@ export function ProjectIntelligencePanel({
           try: () =>
             createShareLink({
               projectId: selectedProjectId,
-              meetingId: selectedMeetingId,
+              protocolId: selectedProtocolId,
             }),
           catch: getErrorMessage,
         });
-
-        yield* Either.match(result, {
+        const share = yield* Either.match(result, {
           onLeft: (error) => Effect.fail(error.message),
-          onRight: (share) =>
-            Effect.sync(() => {
-              setShareLink(getShareLink(share.token));
-              toastManager.add({
-                title: "Share Link Created",
-                description:
-                  "Copy the read-only meeting link when you are ready.",
-                type: "success",
-              });
-            }),
+          onRight: Effect.succeed,
+        });
+
+        yield* Effect.sync(() => {
+          setShareLink(getShareLink(share.token));
+          toastManager.add({
+            title: "Share Link Created",
+            description: "Copy the read-only protocol link when you are ready.",
+            type: "success",
+          });
         });
       }).pipe(
         Effect.catchAll((description) =>
@@ -350,6 +427,15 @@ export function ProjectIntelligencePanel({
               <HugeIcons icon={BubbleChatQuestionIcon} /> Ask Project
             </Button>
             <Button
+              loading={isInvestigating}
+              onClick={handleRunInvestigation}
+              size="sm"
+              type="button"
+              variant="secondary"
+            >
+              <HugeIcons icon={Analytics01Icon} /> AI Detective
+            </Button>
+            <Button
               loading={isReporting}
               onClick={handleGenerateReport}
               size="sm"
@@ -387,6 +473,18 @@ export function ProjectIntelligencePanel({
               value={report?.body ?? reportId}
             />
           ) : null}
+          {investigationId ? (
+            <ResultAlert
+              copyLabel="Copy Investigation"
+              label="AI Detective"
+              onCopy={() =>
+                handleCopy(
+                  investigationSummary(investigation) ?? investigationId
+                )
+              }
+              value={investigationSummary(investigation) ?? investigationId}
+            />
+          ) : null}
           {shareLink ? (
             <ResultAlert
               copyLabel="Copy Link"
@@ -399,50 +497,4 @@ export function ProjectIntelligencePanel({
       </FramePanel>
     </Frame>
   );
-}
-
-/** Shows a copyable identifier without letting long tokens break layout. */
-function ResultAlert({
-  copyLabel,
-  label,
-  onCopy,
-  value,
-}: {
-  readonly copyLabel: string;
-  readonly label: string;
-  readonly onCopy: () => void;
-  readonly value: string;
-}) {
-  return (
-    <Alert variant="success">
-      <AlertTitle>{label}</AlertTitle>
-      <AlertDescription>
-        <span className="line-clamp-4 whitespace-pre-wrap break-words text-xs">
-          {value.length > 120 ? value : shortIdentifier(value)}
-        </span>
-      </AlertDescription>
-      <AlertAction>
-        <Button onClick={onCopy} size="sm" type="button" variant="outline">
-          <HugeIcons icon={ClipboardCopyIcon} /> {copyLabel}
-        </Button>
-      </AlertAction>
-    </Alert>
-  );
-}
-
-/** Builds a public share URL from the current deployment origin. */
-function getShareLink(token: string) {
-  const url = new URL("/share", window.location.origin);
-  url.searchParams.set("token", token);
-
-  return url.toString();
-}
-
-/** Shortens generated ids and tokens for display only. */
-function shortIdentifier(value: string) {
-  if (value.length <= 16) {
-    return value;
-  }
-
-  return `${value.slice(0, 6)}...${value.slice(-6)}`;
 }

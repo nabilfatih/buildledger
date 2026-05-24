@@ -3,26 +3,30 @@ import api from "@repo/backend/confect/_generated/api";
 import {
   failGeneration,
   finishGeneration,
+  generate,
   startGeneration,
-} from "@repo/backend/confect/meetings/generation";
-import { publishMinutes } from "@repo/backend/confect/meetings/publish";
+} from "@repo/backend/confect/protocols/generation";
+import { publish } from "@repo/backend/confect/protocols/publish";
 import {
   createDraft,
+  getPrintView,
   getReviewState,
   listByProject,
-  saveInput,
-  updateReviewItem,
-} from "@repo/backend/confect/meetings/review";
+  saveSource,
+  updateReview,
+} from "@repo/backend/confect/protocols/review";
 import { Layer } from "effect";
 
-export const meetings = GroupImpl.make(api, "meetings").pipe(
+export const protocols = GroupImpl.make(api, "protocols").pipe(
   Layer.provide(listByProject),
   Layer.provide(createDraft),
-  Layer.provide(saveInput),
+  Layer.provide(saveSource),
+  Layer.provide(generate),
   Layer.provide(startGeneration),
   Layer.provide(finishGeneration),
   Layer.provide(failGeneration),
   Layer.provide(getReviewState),
-  Layer.provide(updateReviewItem),
-  Layer.provide(publishMinutes)
+  Layer.provide(updateReview),
+  Layer.provide(publish),
+  Layer.provide(getPrintView)
 );
