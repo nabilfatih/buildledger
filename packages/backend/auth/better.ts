@@ -8,6 +8,14 @@ import authConfig from "../convex/auth.config";
 
 const defaultSiteUrl = "http://127.0.0.1:3000";
 const localAuthSecret = "buildledger-local-self-hosted-auth-secret";
+const authRequired = process.env.BUILDLEDGER_AUTH_REQUIRED === "enabled";
+const trustedIpHeaders = [
+  "cf-connecting-ip",
+  "x-vercel-forwarded-for",
+  "x-forwarded-for",
+  "x-real-ip",
+  "x-client-ip",
+];
 
 export const authComponent = createClient<DataModel>(components.betterAuth);
 
@@ -19,7 +27,7 @@ function resolveAuthSecret() {
     return secret;
   }
 
-  if (process.env.BUILDLEDGER_AUTH_REQUIRED === "enabled") {
+  if (authRequired) {
     throw new Error(
       "Set BETTER_AUTH_SECRET or BUILDLEDGER_SECRET_KEY before enabling BuildLedger auth."
     );
@@ -43,6 +51,12 @@ function createConvexPlugin() {
 /** Creates the Better Auth runtime backed by Convex component storage. */
 export function createAuth(ctx: GenericCtx<DataModel>) {
   return betterAuth({
+    advanced: {
+      ipAddress: {
+        disableIpTracking: !authRequired,
+        ipAddressHeaders: trustedIpHeaders,
+      },
+    },
     baseURL: process.env.SITE_URL ?? defaultSiteUrl,
     database: authComponent.adapter(ctx),
     emailAndPassword: {
