@@ -23,9 +23,13 @@ import {
 /** Renders the ledger table across all devices with contained table scrolling. */
 export function LedgerDataTable({
   onCopySelectedRows,
+  onResolveSelectedRows,
+  resolvingSelectedRows,
   table,
 }: {
   readonly onCopySelectedRows: () => void;
+  readonly onResolveSelectedRows: () => void;
+  readonly resolvingSelectedRows: boolean;
   readonly table: LedgerTable;
 }) {
   const rows = table.getRowModel().rows;
@@ -37,7 +41,7 @@ export function LedgerDataTable({
 
   return (
     <>
-      <Table className="min-w-[58rem] table-fixed" variant="card">
+      <Table className="min-w-[76rem] table-fixed" variant="card">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow className="hover:bg-transparent" key={headerGroup.id}>
@@ -100,8 +104,10 @@ export function LedgerDataTable({
         <div className="flex min-w-0 flex-wrap items-center gap-2">
           <ColumnMenu table={table} />
           <SelectionActions
+            isResolving={resolvingSelectedRows}
             onClearSelection={() => table.resetRowSelection()}
             onCopySelectedRows={onCopySelectedRows}
+            onResolveSelectedRows={onResolveSelectedRows}
             selectedCount={table.getSelectedRowModel().rows.length}
           />
         </div>

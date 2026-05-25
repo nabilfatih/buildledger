@@ -60,19 +60,13 @@ export function ProtocolWorkspace(props: ProtocolWorkspaceProps) {
     protocolStatus,
     selectedProtocolId: props.selectedProtocolId,
   });
-  const reviewVersion =
-    reviewState?.items
-      .map((item) => `${item._id}:${item.updatedAt ?? item.createdAt}`)
-      .join("|") ?? "empty";
-  const workflowKey = `${props.selectedProjectId ?? "project:none"}:${props.selectedProtocolId ?? "protocol:none"}:${protocolStatus ?? "status:none"}:${reviewVersion}`;
+  const workflowKey = `${props.selectedProjectId ?? "project:none"}:${props.selectedProtocolId ?? "protocol:none"}`;
 
   return (
     <ProtocolWorkspaceSession
       key={workflowKey}
       {...props}
       initialActiveTab={initialActiveTab}
-      initialNotes={reviewState ? protocolNotes(reviewState.sources) : ""}
-      initialReviewDrafts={reviewState?.items.map(reviewDraftFromItem) ?? []}
       protocolStatus={protocolStatus}
       reviewState={reviewState}
     />
@@ -81,8 +75,6 @@ export function ProtocolWorkspace(props: ProtocolWorkspaceProps) {
 
 interface ProtocolWorkspaceSessionProps extends ProtocolWorkspaceProps {
   readonly initialActiveTab: WorkflowTab;
-  readonly initialNotes: string;
-  readonly initialReviewDrafts: readonly ReviewDraft[];
   readonly protocolStatus: string | undefined;
   readonly reviewState: ReviewState | null;
 }
@@ -90,8 +82,6 @@ interface ProtocolWorkspaceSessionProps extends ProtocolWorkspaceProps {
 /** Keeps local editing state scoped to the selected protocol without render-time sync. */
 function ProtocolWorkspaceSession({
   initialActiveTab,
-  initialNotes,
-  initialReviewDrafts,
   protocols,
   protocolStatus,
   review,
@@ -105,12 +95,28 @@ function ProtocolWorkspaceSession({
   const generateProtocol = useAction(refs.public.protocols.generate);
   const publishProtocol = useMutation(refs.public.protocols.publish);
   const [activeTab, setActiveTab] = useState(initialActiveTab);
-  const [notes, setNotes] = useState(initialNotes);
-  const [reviewDrafts, setReviewDrafts] = useState(() => initialReviewDrafts);
+  const [notesOverride, setNotesOverride] = useState<string | null>(null);
+  const [reviewPatches, setReviewPatches] = useState<
+    ReadonlyArray<{
+      readonly itemId: GenericId<"protocolItems">;
+      readonly patch: Partial<ReviewDraft>;
+    }>
+  >([]);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
   const [isSavingReview, setIsSavingReview] = useState(false);
 
+  const notes =
+    notesOverride ?? (reviewState ? protocolNotes(reviewState.sources) : "");
+  const reviewDrafts =
+    reviewState?.items.map((item) => {
+      const draft = reviewDraftFromItem(item);
+      const patch = reviewPatches.find(
+        (candidate) => candidate.itemId === item._id
+      )?.patch;
+
+      return patch ? { ...draft, ...patch } : draft;
+    }) ?? [];
   const hasReviewItems = Boolean(reviewState?.items.length);
   const isReviewDirty = reviewState
     ? reviewDrafts.some((draft) => {
@@ -266,7 +272,7 @@ function ProtocolWorkspaceSession({
             description: "Ledger rows and project intelligence are ready.",
             type: "success",
           });
-          setActiveTab("protocols");
+          setActiveTab("published");
         });
       }).pipe(
         Effect.catchAll((description) =>
@@ -305,26 +311,29 @@ function ProtocolWorkspaceSession({
     itemId: GenericId<"protocolItems">,
     patch: Partial<ReviewDraft>
   ) {
-    setReviewDrafts((drafts) =>
-      drafts.map((draft) => {
-        if (draft.itemId !== itemId) {
-          return draft;
-        }
+    setReviewPatches((patches) => {
+      const currentDraft = reviewDrafts.find(
+        (draft) => draft.itemId === itemId
+      );
 
-        const next = { ...draft, ...patch };
+      if (!currentDraft) {
+        return patches;
+      }
 
-        if (patch.kind && patch.kind !== "task") {
-          next.responsibleParty = "";
-          next.dueDate = "";
-        }
+      const nextPatch = normalizeReviewPatch({ ...currentDraft, ...patch });
+      const nextEntry = { itemId, patch: nextPatch };
+      const currentIndex = patches.findIndex(
+        (entry) => entry.itemId === itemId
+      );
 
-        if (patch.kind && patch.kind !== "risk") {
-          next.severity = "medium";
-        }
+      if (currentIndex === -1) {
+        return [...patches, nextEntry];
+      }
 
-        return next;
-      })
-    );
+      return patches.map((entry, index) =>
+        index === currentIndex ? nextEntry : entry
+      );
+    });
   }
 
   /** Persists edited review items sequentially so the first failure is visible. */
@@ -339,7 +348,7 @@ function ProtocolWorkspaceSession({
               title: draft.title,
               body: draft.body,
               bauteil: optionalText(draft.bauteil),
-              discipline: optionalText(draft.discipline),
+              trade: optionalText(draft.trade),
               dueDate:
                 draft.kind === "task" ? optionalText(draft.dueDate) : undefined,
               objectName: optionalText(draft.objectName),
@@ -410,15 +419,15 @@ function ProtocolWorkspaceSession({
           value={activeTab}
         >
           <TabsList className="max-w-full flex-wrap">
-            <TabsTab value="input">Input</TabsTab>
+            <TabsTab value="source">Source</TabsTab>
             <TabsTab value="review">Review</TabsTab>
-            <TabsTab value="protocols">Protocols</TabsTab>
+            <TabsTab value="published">Published</TabsTab>
           </TabsList>
-          <TabsPanel value="input">
+          <TabsPanel value="source">
             <InputPanel
               canEdit={canEditInput(protocolStatus)}
               notes={notes}
-              onNotesChange={setNotes}
+              onNotesChange={setNotesOverride}
               selectedProtocolId={selectedProtocolId}
             />
           </TabsPanel>
@@ -429,7 +438,7 @@ function ProtocolWorkspaceSession({
               review={review}
             />
           </TabsPanel>
-          <TabsPanel value="protocols">
+          <TabsPanel value="published">
             <ProtocolsList
               protocols={protocols}
               selectedProtocolId={selectedProtocolId}
@@ -451,4 +460,20 @@ function changedReviewDrafts(
     const item = items.find((candidate) => candidate._id === draft.itemId);
     return item ? reviewDraftChanged(draft, item) : false;
   });
+}
+
+/** Keeps dependent review fields coherent when users change item kind. */
+function normalizeReviewPatch(draft: ReviewDraft) {
+  const patch = { ...draft };
+
+  if (patch.kind !== "task") {
+    patch.responsibleParty = "";
+    patch.dueDate = "";
+  }
+
+  if (patch.kind !== "risk") {
+    patch.severity = "medium";
+  }
+
+  return patch;
 }

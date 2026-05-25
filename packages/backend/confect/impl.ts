@@ -4,6 +4,7 @@ import { ai } from "@repo/backend/confect/ai.impl";
 import { aiSettings } from "@repo/backend/confect/ai-settings.impl";
 import { documents } from "@repo/backend/confect/documents.impl";
 import { investigations } from "@repo/backend/confect/investigations.impl";
+import { logbook } from "@repo/backend/confect/logbook.impl";
 import { memory } from "@repo/backend/confect/memory.impl";
 import { projects } from "@repo/backend/confect/projects.impl";
 import { protocols } from "@repo/backend/confect/protocols.impl";
@@ -21,6 +22,7 @@ export default Impl.make(api).pipe(
   Layer.provide(records),
   Layer.provide(taxonomy),
   Layer.provide(documents),
+  Layer.provide(logbook),
   Layer.provide(investigations),
   Layer.provide(memory),
   Layer.provide(reports),

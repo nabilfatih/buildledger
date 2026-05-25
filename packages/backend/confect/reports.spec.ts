@@ -6,6 +6,18 @@ import { Schema } from "effect";
 
 export const reports = GroupSpec.make("reports")
   .addFunction(
+    FunctionSpec.publicAction({
+      name: "generate",
+      args: Schema.Struct({
+        projectId: GenericId.GenericId("projects"),
+        periodEnd: Schema.String,
+        periodStart: Schema.String,
+      }),
+      returns: GenericId.GenericId("reports"),
+      error: AppError,
+    })
+  )
+  .addFunction(
     FunctionSpec.publicQuery({
       name: "listByProject",
       args: Schema.Struct({ projectId: GenericId.GenericId("projects") }),
@@ -39,6 +51,16 @@ export const reports = GroupSpec.make("reports")
         report: ProjectReport,
       }),
       returns: GenericId.GenericId("reports"),
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.publicMutation({
+      name: "publish",
+      args: Schema.Struct({
+        reportId: GenericId.GenericId("reports"),
+      }),
+      returns: Schema.Null,
       error: AppError,
     })
   );

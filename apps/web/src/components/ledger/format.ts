@@ -38,7 +38,7 @@ export function matchesLedgerFilters(
   row: LedgerRow,
   filters: LedgerFilterState
 ) {
-  const searchText = `${row.recordNumber} ${row.title} ${row.body ?? ""} ${row.sourceProtocolTitle} ${row.bauteil ?? ""} ${row.objectName ?? ""} ${row.discipline ?? ""}`;
+  const searchText = `${row.recordNumber} ${row.title} ${row.body ?? ""} ${row.sourceProtocolTitle} ${row.bauteil ?? ""} ${row.objectName ?? ""} ${row.trade ?? ""}`;
 
   if (!includesFilter(searchText, filterQuery(filters.search))) {
     return false;

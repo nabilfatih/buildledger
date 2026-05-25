@@ -1,15 +1,19 @@
-import { ClipboardCopyIcon } from "@hugeicons/core-free-icons";
+import { ClipboardCopyIcon, Tick02Icon } from "@hugeicons/core-free-icons";
 import { Button } from "@repo/design-system/components/ui/button";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 
 /** Shows the concrete action available after rows are selected. */
 export function SelectionActions({
+  isResolving,
   onClearSelection,
   onCopySelectedRows,
+  onResolveSelectedRows,
   selectedCount,
 }: {
+  readonly isResolving: boolean;
   readonly onClearSelection: () => void;
   readonly onCopySelectedRows: () => void;
+  readonly onResolveSelectedRows: () => void;
   readonly selectedCount: number;
 }) {
   if (selectedCount === 0) {
@@ -27,6 +31,16 @@ export function SelectionActions({
       >
         <HugeIcons icon={ClipboardCopyIcon} />
         Copy Selected
+      </Button>
+      <Button
+        loading={isResolving}
+        onClick={onResolveSelectedRows}
+        size="sm"
+        type="button"
+        variant="secondary"
+      >
+        <HugeIcons icon={Tick02Icon} />
+        Mark Resolved
       </Button>
       <Button
         onClick={onClearSelection}

@@ -32,6 +32,7 @@ import {
 import type { GenericId } from "convex/values";
 import { useMemo, useState } from "react";
 
+import { AuthMenu } from "@/components/auth/menu";
 import { NewProjectSheet } from "@/components/rail/create";
 import { ThemeMenu } from "@/components/rail/theme";
 import { AiSettingsSheet } from "@/components/settings/ai";
@@ -202,6 +203,9 @@ export function ProjectRail({
       </SidebarContent>
       <SidebarFooter>
         <SidebarMenu>
+          <SidebarMenuItem>
+            <AuthMenu />
+          </SidebarMenuItem>
           <SidebarMenuItem>
             <ThemeMenu />
           </SidebarMenuItem>

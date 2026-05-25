@@ -89,7 +89,7 @@ const create = FunctionImpl.make(
         yield* writer.table("projectMembers").insert({
           projectId,
           userToken,
-          role: "manager",
+          role: "owner",
           createdAt: timestamp,
         });
 

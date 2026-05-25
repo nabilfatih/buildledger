@@ -8,6 +8,72 @@ import {
 import { Button } from "@repo/design-system/components/ui/button";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 
+/** Renders the current intelligence output without duplicating result UI. */
+export function IntelligenceResults({
+  answer,
+  investigation,
+  investigationId,
+  onCopy,
+  report,
+  reportId,
+  shareLabel,
+  shareLink,
+}: {
+  readonly answer: string | null;
+  readonly investigation:
+    | {
+        readonly detectedRisk: string;
+        readonly likelyCause: string;
+        readonly recommendedActionsJson: string;
+      }
+    | undefined;
+  readonly investigationId: string | null;
+  readonly onCopy: (value: string) => void;
+  readonly report: { readonly body: string } | undefined;
+  readonly reportId: string | null;
+  readonly shareLabel: string;
+  readonly shareLink: string | null;
+}) {
+  const investigationValue = investigationSummary(investigation);
+
+  return (
+    <div className="grid min-w-0 gap-2">
+      {answer ? (
+        <Alert variant="success">
+          <AlertTitle>Answer</AlertTitle>
+          <AlertDescription>
+            <span className="break-words">{answer}</span>
+          </AlertDescription>
+        </Alert>
+      ) : null}
+      {reportId ? (
+        <ResultAlert
+          copyLabel="Copy Report"
+          label="Report Draft"
+          onCopy={() => onCopy(report?.body ?? reportId)}
+          value={report?.body ?? reportId}
+        />
+      ) : null}
+      {investigationId ? (
+        <ResultAlert
+          copyLabel="Copy Investigation"
+          label="AI Detective"
+          onCopy={() => onCopy(investigationValue ?? investigationId)}
+          value={investigationValue ?? investigationId}
+        />
+      ) : null}
+      {shareLink ? (
+        <ResultAlert
+          copyLabel="Copy Link"
+          label={shareLabel}
+          onCopy={() => onCopy(shareLink)}
+          value={shareLink}
+        />
+      ) : null}
+    </div>
+  );
+}
+
 /** Shows a copyable intelligence result without letting long tokens break layout. */
 export function ResultAlert({
   copyLabel,

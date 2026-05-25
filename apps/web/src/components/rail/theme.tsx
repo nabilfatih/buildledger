@@ -1,13 +1,10 @@
-import {
-  ComputerIcon,
-  Moon02Icon,
-  Sun03Icon,
-} from "@hugeicons/core-free-icons";
+import { ComputerIcon } from "@hugeicons/core-free-icons";
 import {
   useColorScheme,
   useIsomorphicEffect,
   useLocalStorage,
 } from "@mantine/hooks";
+import { Button } from "@repo/design-system/components/ui/button";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import {
   Menu,
@@ -18,10 +15,7 @@ import {
   MenuRadioItem,
   MenuTrigger,
 } from "@repo/design-system/components/ui/menu";
-import {
-  SidebarMenuButton,
-  useSidebar,
-} from "@repo/design-system/components/ui/sidebar";
+import { useSidebar } from "@repo/design-system/components/ui/sidebar";
 
 import {
   applyThemePreference,
@@ -51,7 +45,7 @@ export function ThemeMenu() {
   const [themePreference, setThemePreference] = useLocalStorage({
     defaultValue: "system",
     deserialize: parseThemePreference,
-    getInitialValueInEffect: true,
+    getInitialValueInEffect: false,
     key: themeStorageKey,
     serialize: (value) => value,
   });
@@ -66,7 +60,16 @@ export function ThemeMenu() {
 
   return (
     <Menu>
-      <MenuTrigger render={<SidebarMenuButton size="sm" type="button" />}>
+      <MenuTrigger
+        render={
+          <Button
+            className="w-full justify-start"
+            size="sm"
+            type="button"
+            variant="ghost"
+          />
+        }
+      >
         <HugeIcons icon={ComputerIcon} />
         <span>Theme</span>
       </MenuTrigger>
@@ -85,15 +88,6 @@ export function ThemeMenu() {
           >
             {themeOptions.map((option) => (
               <MenuRadioItem key={option.value} value={option.value}>
-                {option.value === "system" ? (
-                  <HugeIcons icon={ComputerIcon} />
-                ) : null}
-                {option.value === "light" ? (
-                  <HugeIcons icon={Sun03Icon} />
-                ) : null}
-                {option.value === "dark" ? (
-                  <HugeIcons icon={Moon02Icon} />
-                ) : null}
                 {option.label}
               </MenuRadioItem>
             ))}

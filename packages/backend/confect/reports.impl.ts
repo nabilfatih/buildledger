@@ -1,15 +1,28 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
 import type { MemoryChunk, ProjectReport } from "@repo/ai/schemas";
+import { ReportGenerationService } from "@repo/ai/services";
 import api from "@repo/backend/confect/_generated/api";
+import refs from "@repo/backend/confect/_generated/refs";
 import {
+  ActionRunner,
   DatabaseReader,
   DatabaseWriter,
+  MutationRunner,
+  QueryRunner,
 } from "@repo/backend/confect/_generated/services";
+import { ReportNotFound } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
+import { zeroEmbedding } from "@repo/backend/confect/protocols/helpers";
 import type { GenericId } from "convex/values";
+import { format, parseISO } from "date-fns";
 import { Effect, Layer } from "effect";
 
 type ProjectId = GenericId<"projects">;
+
+/** Formats report periods for user-facing report prose. */
+function formatReportPeriod(start: string, end: string) {
+  return `${format(parseISO(start), "MMMM d, yyyy")} to ${format(parseISO(end), "MMMM d, yyyy")}`;
+}
 
 /** Loads report-ready memory chunks for an accessible project and period. */
 const getReportChunks = Effect.fn("reports.getReportChunks")(function* (input: {
@@ -31,15 +44,14 @@ const getReportChunks = Effect.fn("reports.getReportChunks")(function* (input: {
     )
     .take(50);
 
-  return chunks.map((chunk) => ({
-    chunkId: chunk._id,
-    text: chunk.text,
-    chronologyDate: chunk.chronologyDate,
-    sourceTitle:
-      chunk.sourceType === "protocol"
-        ? "Published protocol"
-        : "Published report",
-  }));
+  return chunks
+    .filter((chunk) => chunk.sourceType === "protocol")
+    .map((chunk) => ({
+      chunkId: chunk._id,
+      text: chunk.text,
+      chronologyDate: chunk.chronologyDate,
+      sourceTitle: "Published protocol",
+    }));
 });
 
 /** Inserts a report record from the stable AI report contract. */
@@ -68,6 +80,46 @@ const insertReport = Effect.fn("reports.insertReport")(function* (input: {
     updatedAt: timestamp,
   });
 });
+
+/** Generates a report draft from published protocol memory. */
+const generate = FunctionImpl.make(
+  api,
+  "reports",
+  "generate",
+  ({ projectId, periodEnd, periodStart }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const runAction = yield* ActionRunner;
+        const runQuery = yield* QueryRunner;
+        const runMutation = yield* MutationRunner;
+        const settings = yield* runAction(
+          refs.internal.aiSettings.resolveRuntime,
+          {}
+        );
+        const input = yield* runQuery(
+          refs.internal.reports.getWeeklyDraftInput,
+          {
+            periodEnd,
+            periodStart,
+            projectId,
+          }
+        );
+        const report = yield* ReportGenerationService.generate({
+          projectName: input.projectName,
+          periodLabel: input.periodLabel,
+          chunks: input.chunks,
+          settings,
+        }).pipe(Effect.provide(ReportGenerationService.Default));
+
+        return yield* runMutation(refs.internal.reports.saveWeeklyDraft, {
+          periodEnd,
+          periodStart,
+          projectId,
+          report,
+        });
+      })
+    )
+);
 
 /** Lists generated report drafts and published reports for a project. */
 const listByProject = FunctionImpl.make(
@@ -105,7 +157,7 @@ const getWeeklyDraftInput = FunctionImpl.make(
 
         return {
           projectName: project.name,
-          periodLabel: `${periodStart} to ${periodEnd}`,
+          periodLabel: formatReportPeriod(periodStart, periodEnd),
           chunks,
         };
       })
@@ -132,8 +184,57 @@ const saveWeeklyDraft = FunctionImpl.make(
     )
 );
 
+/** Publishes a report and makes it available to project memory exactly once. */
+const publish = FunctionImpl.make(api, "reports", "publish", ({ reportId }) =>
+  asAppError(
+    Effect.gen(function* () {
+      const reader = yield* DatabaseReader;
+      const report = yield* reader
+        .table("reports")
+        .get(reportId)
+        .pipe(
+          Effect.mapError(
+            () =>
+              new ReportNotFound({
+                reportId,
+                message: "Report not found.",
+              })
+          )
+        );
+
+      yield* ensureProjectAccess(report.projectId);
+
+      if (report.status === "published") {
+        return null;
+      }
+
+      const writer = yield* DatabaseWriter;
+      const timestamp = Date.now();
+
+      yield* writer.table("reports").patch(reportId, {
+        status: "published",
+        updatedAt: timestamp,
+      });
+      yield* writer.table("memoryChunks").insert({
+        projectId: report.projectId,
+        sourceType: "report",
+        sourceId: reportId,
+        text: `${report.title}\n\n${report.body}`,
+        chronologyDate: report.periodEnd,
+        embedding: zeroEmbedding,
+        metadataJson: JSON.stringify({ sourceTitle: report.title }),
+        createdAt: timestamp,
+      });
+
+      return null;
+    })
+  )
+);
+
 export const reports = GroupImpl.make(api, "reports").pipe(
+  Layer.provide(generate),
   Layer.provide(listByProject),
   Layer.provide(getWeeklyDraftInput),
-  Layer.provide(saveWeeklyDraft)
+  Layer.provide(saveWeeklyDraft),
+  Layer.provide(publish)
 );

@@ -35,6 +35,7 @@ describe("AI services", () => {
     const citation = expectDefined(item.citations[0]);
 
     expect(citation.chunkId).toBe("input-1");
+    expect(item.trade).toBe("Coordination");
   });
 
   it("rejects empty protocol source input", async () => {

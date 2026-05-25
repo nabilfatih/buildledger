@@ -4,6 +4,7 @@ import {
   LogbookEvents,
   ProjectRecords,
   ProtocolItems,
+  ProtocolParticipants,
   ProtocolSections,
   Protocols,
   Reports,
@@ -24,6 +25,7 @@ export const SharedProtocolResource = Schema.Struct({
   projectName: Schema.String,
   projectCode: Schema.String,
   protocol: Protocols.Doc,
+  participants: Schema.Array(ProtocolParticipants.Doc),
   sections: Schema.Array(ProtocolSections.Doc),
   items: Schema.Array(ProtocolItems.Doc),
 });
@@ -70,7 +72,7 @@ export const shares = GroupSpec.make("shares")
   )
   .addFunction(
     FunctionSpec.publicQuery({
-      name: "resolvePublicResource",
+      name: "resolve",
       args: Schema.Struct({ token: Schema.String }),
       returns: SharedResource,
       error: AppError,

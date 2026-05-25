@@ -69,71 +69,91 @@ export const publish = FunctionImpl.make(
           .index("by_protocolId", (q) => q.eq("protocolId", protocolId))
           .take(maxProtocolItems);
 
-        yield* Effect.all(
-          items.map((item, index) =>
-            Effect.gen(function* () {
-              const timestamp = Date.now();
-              const recordId = yield* writer.table("projectRecords").insert({
-                projectId: protocol.projectId,
-                protocolId,
-                protocolItemId: item._id,
-                recordNumber: `${protocol.protocolNumber}-${index + 1}`,
-                kind: item.kind,
-                title: item.title,
-                body: item.body,
-                bauteil: item.bauteil,
-                objectName: item.objectName,
-                discipline: item.discipline,
-                responsibleParty: item.responsibleParty,
-                dueDate: item.dueDate,
-                severity: item.severity,
-                status: item.status,
-                citationCount: countCitations(item.citationsJson),
-                sourceProtocolTitle: protocol.title,
-                sourceProtocolDate: protocol.protocolDate,
-                createdAt: timestamp,
-                updatedAt: timestamp,
-              });
+        const existingRecords = yield* reader
+          .table("projectRecords")
+          .index("by_protocolId", (q) => q.eq("protocolId", protocolId))
+          .take(maxProtocolItems);
 
-              yield* writer.table("logbookEvents").insert({
-                projectId: protocol.projectId,
-                protocolId,
-                recordId,
-                eventType:
-                  item.kind === "risk" ? "risk_detected" : "record_created",
-                title: item.title,
-                body: item.body,
-                bauteil: item.bauteil,
-                objectName: item.objectName,
-                discipline: item.discipline,
-                responsibleParty: item.responsibleParty,
-                chronologyDate: protocol.protocolDate,
-                createdAt: timestamp,
-              });
-            })
+        if (existingRecords.length === 0) {
+          yield* Effect.all(
+            items.map((item, index) =>
+              Effect.gen(function* () {
+                const timestamp = Date.now();
+                const recordId = yield* writer.table("projectRecords").insert({
+                  projectId: protocol.projectId,
+                  protocolId,
+                  protocolItemId: item._id,
+                  recordNumber: `${protocol.protocolNumber}-${index + 1}`,
+                  kind: item.kind,
+                  title: item.title,
+                  body: item.body,
+                  bauteil: item.bauteil,
+                  objectName: item.objectName,
+                  trade: item.trade,
+                  responsibleParty: item.responsibleParty,
+                  dueDate: item.dueDate,
+                  severity: item.severity,
+                  status: item.status,
+                  citationCount: countCitations(item.citationsJson),
+                  sourceProtocolTitle: protocol.title,
+                  sourceProtocolDate: protocol.protocolDate,
+                  createdAt: timestamp,
+                  updatedAt: timestamp,
+                });
+
+                yield* writer.table("logbookEvents").insert({
+                  projectId: protocol.projectId,
+                  protocolId,
+                  recordId,
+                  eventType:
+                    item.kind === "risk" ? "risk_detected" : "record_created",
+                  title: item.title,
+                  body: item.body,
+                  bauteil: item.bauteil,
+                  objectName: item.objectName,
+                  trade: item.trade,
+                  responsibleParty: item.responsibleParty,
+                  chronologyDate: protocol.protocolDate,
+                  createdAt: timestamp,
+                });
+              })
+            )
+          );
+        }
+
+        const existingChunks = yield* reader
+          .table("memoryChunks")
+          .index("by_projectId_and_sourceId", (q) =>
+            q.eq("projectId", protocol.projectId).eq("sourceId", protocolId)
           )
-        );
+          .take(1);
 
-        const chunks = yield* MemoryChunkingService.chunk({
-          sourceTitle: protocol.title,
-          chronologyDate: protocol.protocolDate,
-          text: items.map((item) => `${item.title}\n${item.body}`).join("\n\n"),
-        }).pipe(Effect.provide(MemoryChunkingService.Default));
+        if (existingChunks.length === 0) {
+          const chunks = yield* MemoryChunkingService.chunk({
+            sourceTitle: protocol.title,
+            chronologyDate: protocol.protocolDate,
+            text: items
+              .map((item) => `${item.title}\n${item.body}`)
+              .join("\n\n"),
+          }).pipe(Effect.provide(MemoryChunkingService.Default));
 
-        yield* Effect.all(
-          chunks.map((chunk) =>
-            writer.table("memoryChunks").insert({
-              projectId: protocol.projectId,
-              sourceType: "protocol",
-              sourceId: protocolId,
-              text: chunk.text,
-              chronologyDate: chunk.chronologyDate,
-              embedding: zeroEmbedding,
-              metadataJson: JSON.stringify({ sourceTitle: chunk.sourceTitle }),
-              createdAt: Date.now(),
-            })
-          )
-        );
+          yield* Effect.all(
+            chunks.map((chunk) =>
+              writer.table("memoryChunks").insert({
+                projectId: protocol.projectId,
+                sourceType: "protocol",
+                sourceId: protocolId,
+                text: chunk.text,
+                chronologyDate: chunk.chronologyDate,
+                embedding: zeroEmbedding,
+                metadataJson: JSON.stringify({
+                  sourceTitle: chunk.sourceTitle,
+                }),
+                createdAt: Date.now(),
+              })
+            )
+          );
+        }
 
         yield* writer.table("protocols").patch(protocolId, {
           status: "published",

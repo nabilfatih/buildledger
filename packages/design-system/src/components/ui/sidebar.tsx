@@ -87,7 +87,7 @@ export function SidebarProvider({
   onOpenChange?: (open: boolean) => void;
 }): React.ReactElement {
   const isMobile = useMediaQuery("(max-width: 799px)", false, {
-    getInitialValueInEffect: false,
+    getInitialValueInEffect: true,
   });
   const [openMobile, setOpenMobile] = React.useState(false);
 

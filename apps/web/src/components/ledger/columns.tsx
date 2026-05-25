@@ -41,6 +41,15 @@ export const ledgerColumns = [
     size: 92,
     cell: (info) => <KindBadge kind={info.getValue()} />,
   }),
+  columnHelper.accessor("recordNumber", {
+    header: "ID",
+    size: 108,
+    cell: (info) => (
+      <span className="block min-w-0 truncate font-mono text-muted-foreground text-xs">
+        {info.getValue()}
+      </span>
+    ),
+  }),
   columnHelper.accessor("title", {
     header: "Description",
     size: 300,
@@ -78,8 +87,8 @@ export const ledgerColumns = [
       <MutedValue fallback="Unassigned" value={info.getValue()} />
     ),
   }),
-  columnHelper.accessor("discipline", {
-    header: "Discipline",
+  columnHelper.accessor("trade", {
+    header: "Gewerk",
     size: 112,
     cell: (info) => (
       <MutedValue fallback="Unassigned" value={info.getValue()} />

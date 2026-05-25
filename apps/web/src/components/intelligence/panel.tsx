@@ -1,17 +1,6 @@
 import { useAction, useMutation, useQuery } from "@confect/react";
-import {
-  Analytics01Icon,
-  BubbleChatQuestionIcon,
-  Link01Icon,
-} from "@hugeicons/core-free-icons";
 import refs from "@repo/backend/confect/_generated/refs";
-import {
-  Alert,
-  AlertDescription,
-  AlertTitle,
-} from "@repo/design-system/components/ui/alert";
 import { Badge } from "@repo/design-system/components/ui/badge";
-import { Button } from "@repo/design-system/components/ui/button";
 import {
   Field,
   FieldDescription,
@@ -28,22 +17,23 @@ import {
   FramePanel,
   FrameTitle,
 } from "@repo/design-system/components/ui/frame";
-import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { toastManager } from "@repo/design-system/components/ui/toast";
-import {
-  Toolbar,
-  ToolbarGroup,
-} from "@repo/design-system/components/ui/toolbar";
 import type { GenericId } from "convex/values";
 import { subDays } from "date-fns";
 import { Effect, Either } from "effect";
 import { useState } from "react";
 
+import {
+  type ShareTarget,
+  shareArgs,
+  shareLabelForTarget,
+} from "@/components/intelligence/share";
+import { IntelligenceToolbar } from "@/components/intelligence/toolbar";
 import { formatDateInput } from "@/lib/dates";
 import { getErrorMessage } from "@/lib/errors";
 
-import { getShareLink, investigationSummary, ResultAlert } from "./result";
+import { getShareLink, IntelligenceResults } from "./result";
 
 const defaultQuestion = "What changed about schedule and blockers?";
 
@@ -67,8 +57,9 @@ function ProjectIntelligenceSession({
   selectedProjectId,
 }: ProjectIntelligencePanelProps) {
   const answerQuestion = useAction(refs.public.ai.answerProjectQuestion);
-  const generateReport = useAction(refs.public.ai.generateProjectReport);
+  const generateReport = useAction(refs.public.reports.generate);
   const runInvestigation = useAction(refs.public.investigations.run);
+  const publishReport = useMutation(refs.public.reports.publish);
   const createShareLink = useMutation(refs.public.shares.createReadOnlyLink);
   const reports = useQuery(
     refs.public.reports.listByProject,
@@ -84,9 +75,11 @@ function ProjectIntelligenceSession({
   const [investigationId, setInvestigationId] =
     useState<GenericId<"investigations"> | null>(null);
   const [shareLink, setShareLink] = useState<string | null>(null);
+  const [shareLabel, setShareLabel] = useState("Share Link");
   const [isAsking, setIsAsking] = useState(false);
   const [isInvestigating, setIsInvestigating] = useState(false);
   const [isReporting, setIsReporting] = useState(false);
+  const [isPublishingReport, setIsPublishingReport] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
 
   const questionHelp = canUseProjectMemory
@@ -126,6 +119,7 @@ function ProjectIntelligenceSession({
     setInvestigationId(null);
     setReportId(null);
     setShareLink(null);
+    setShareLabel("Share Link");
     return Effect.runPromise(
       Effect.gen(function* () {
         const result = yield* Effect.tryPromise({
@@ -188,6 +182,7 @@ function ProjectIntelligenceSession({
     setInvestigationId(null);
     setReportId(null);
     setShareLink(null);
+    setShareLabel("Share Link");
     return Effect.runPromise(
       Effect.gen(function* () {
         const now = new Date();
@@ -252,6 +247,7 @@ function ProjectIntelligenceSession({
     setInvestigationId(null);
     setReportId(null);
     setShareLink(null);
+    setShareLabel("Share Link");
     return Effect.runPromise(
       Effect.gen(function* () {
         const result = yield* Effect.tryPromise({
@@ -289,8 +285,53 @@ function ProjectIntelligenceSession({
     );
   }
 
-  /** Creates a read-only share token for the active protocol. */
-  function handleCreateShareLink() {
+  /** Publishes the latest report draft into project memory. */
+  function handlePublishReport() {
+    if (!reportId) {
+      toastManager.add({
+        title: "Generate a report first",
+        type: "warning",
+      });
+      return;
+    }
+
+    setIsPublishingReport(true);
+    return Effect.runPromise(
+      Effect.tryPromise({
+        try: () => publishReport({ reportId }),
+        catch: getErrorMessage,
+      }).pipe(
+        Effect.flatMap((result) =>
+          Either.match(result, {
+            onLeft: (error) => Effect.fail(error.message),
+            onRight: () => Effect.void,
+          })
+        ),
+        Effect.tap(() =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Report published",
+              description: "The report is now part of project memory.",
+              type: "success",
+            })
+          )
+        ),
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Report was not published",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsPublishingReport(false)))
+      )
+    );
+  }
+
+  /** Creates a read-only share token for a project resource. */
+  function handleCreateShareLink(target: ShareTarget) {
     if (!selectedProjectId) {
       toastManager.add({
         title: "Select a project first",
@@ -300,7 +341,7 @@ function ProjectIntelligenceSession({
       return;
     }
 
-    if (!selectedProtocolId) {
+    if (target === "protocol" && !selectedProtocolId) {
       toastManager.add({
         title: "Select a protocol first",
         description: "Create or select a protocol before sharing.",
@@ -309,19 +350,30 @@ function ProjectIntelligenceSession({
       return;
     }
 
+    if (target === "report" && !reportId) {
+      toastManager.add({
+        title: "Generate a report first",
+        description: "A report share link needs a generated report.",
+        type: "warning",
+      });
+      return;
+    }
+
     setIsSharing(true);
     setAnswer(null);
     setInvestigationId(null);
-    setReportId(null);
     setShareLink(null);
     return Effect.runPromise(
       Effect.gen(function* () {
         const result = yield* Effect.tryPromise({
           try: () =>
-            createShareLink({
-              projectId: selectedProjectId,
-              protocolId: selectedProtocolId,
-            }),
+            createShareLink(
+              shareArgs(target, {
+                projectId: selectedProjectId,
+                protocolId: selectedProtocolId,
+                reportId,
+              })
+            ),
           catch: getErrorMessage,
         });
         const share = yield* Either.match(result, {
@@ -331,9 +383,10 @@ function ProjectIntelligenceSession({
 
         yield* Effect.sync(() => {
           setShareLink(getShareLink(share.token));
+          setShareLabel(shareLabelForTarget(target));
           toastManager.add({
             title: "Share Link Created",
-            description: "Copy the read-only protocol link when you are ready.",
+            description: "Copy the read-only link when you are ready.",
             type: "success",
           });
         });
@@ -416,84 +469,30 @@ function ProjectIntelligenceSession({
           </Field>
         </Fieldset>
 
-        <Toolbar className="flex-wrap">
-          <ToolbarGroup className="flex-wrap">
-            <Button
-              loading={isAsking}
-              onClick={handleAskProject}
-              size="sm"
-              type="button"
-            >
-              <HugeIcons icon={BubbleChatQuestionIcon} /> Ask Project
-            </Button>
-            <Button
-              loading={isInvestigating}
-              onClick={handleRunInvestigation}
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              <HugeIcons icon={Analytics01Icon} /> AI Detective
-            </Button>
-            <Button
-              loading={isReporting}
-              onClick={handleGenerateReport}
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              <HugeIcons icon={Analytics01Icon} /> Generate Report
-            </Button>
-            <Button
-              loading={isSharing}
-              onClick={handleCreateShareLink}
-              size="sm"
-              type="button"
-              variant="outline"
-            >
-              <HugeIcons icon={Link01Icon} /> Create Share Link
-            </Button>
-          </ToolbarGroup>
-        </Toolbar>
+        <IntelligenceToolbar
+          hasReport={Boolean(reportId)}
+          isAsking={isAsking}
+          isInvestigating={isInvestigating}
+          isPublishingReport={isPublishingReport}
+          isReporting={isReporting}
+          isSharing={isSharing}
+          onAsk={handleAskProject}
+          onInvestigate={handleRunInvestigation}
+          onPublishReport={handlePublishReport}
+          onReport={handleGenerateReport}
+          onShare={handleCreateShareLink}
+        />
 
-        <div className="grid min-w-0 gap-2">
-          {answer ? (
-            <Alert variant="success">
-              <AlertTitle>Answer</AlertTitle>
-              <AlertDescription>
-                <span className="break-words">{answer}</span>
-              </AlertDescription>
-            </Alert>
-          ) : null}
-          {reportId ? (
-            <ResultAlert
-              copyLabel="Copy Report"
-              label="Report Draft"
-              onCopy={() => handleCopy(report?.body ?? reportId)}
-              value={report?.body ?? reportId}
-            />
-          ) : null}
-          {investigationId ? (
-            <ResultAlert
-              copyLabel="Copy Investigation"
-              label="AI Detective"
-              onCopy={() =>
-                handleCopy(
-                  investigationSummary(investigation) ?? investigationId
-                )
-              }
-              value={investigationSummary(investigation) ?? investigationId}
-            />
-          ) : null}
-          {shareLink ? (
-            <ResultAlert
-              copyLabel="Copy Link"
-              label="Share Link"
-              onCopy={() => handleCopy(shareLink)}
-              value={shareLink}
-            />
-          ) : null}
-        </div>
+        <IntelligenceResults
+          answer={answer}
+          investigation={investigation}
+          investigationId={investigationId}
+          onCopy={handleCopy}
+          report={report}
+          reportId={reportId}
+          shareLabel={shareLabel}
+          shareLink={shareLink}
+        />
       </FramePanel>
     </Frame>
   );

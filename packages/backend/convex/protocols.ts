@@ -1,5 +1,6 @@
 import registeredFunctions from "../confect/_generated/registeredFunctions";
 
+export const attachDocument = registeredFunctions.protocols.attachDocument;
 export const createDraft = registeredFunctions.protocols.createDraft;
 export const failGeneration = registeredFunctions.protocols.failGeneration;
 export const finishGeneration = registeredFunctions.protocols.finishGeneration;

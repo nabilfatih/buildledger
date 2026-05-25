@@ -24,7 +24,7 @@ const reviewKindValues = [
 ] as const;
 const severityValues = ["low", "medium", "high"] as const;
 
-export type WorkflowTab = "input" | "review" | "protocols";
+export type WorkflowTab = "source" | "review" | "published";
 export type ProtocolType = (typeof protocolTypeValues)[number];
 export type ReviewKind = (typeof reviewKindValues)[number];
 export type Severity = (typeof severityValues)[number];
@@ -37,7 +37,6 @@ export type ReviewItem = ReviewState["items"][number];
 export interface ReviewDraft {
   readonly bauteil: string;
   readonly body: string;
-  readonly discipline: string;
   readonly dueDate: string;
   readonly itemId: GenericId<"protocolItems">;
   readonly kind: ReviewKind;
@@ -46,6 +45,7 @@ export interface ReviewDraft {
   readonly severity: Severity;
   readonly status: ReviewItem["status"];
   readonly title: string;
+  readonly trade: string;
 }
 
 export const protocolTypeItems: readonly {
@@ -101,6 +101,27 @@ export const protocolValidationMessages = {
   type: "Protocol type is required.",
 } as const;
 
+/** Parses one participant line into a normalized protocol person input. */
+export function parseProtocolPeople(value: string) {
+  return value
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [name = "", company, role, email] = line
+        .split(",")
+        .map((part) => part.trim());
+
+      return {
+        name,
+        company: optionalText(company),
+        role: optionalText(role),
+        email: optionalText(email),
+      };
+    })
+    .filter((person) => person.name.length > 0);
+}
+
 /** Selects the tab that best matches the current protocol state. */
 export function getWorkflowTab({
   protocolStatus,
@@ -110,18 +131,18 @@ export function getWorkflowTab({
   readonly selectedProtocolId: GenericId<"protocols"> | null;
 }): WorkflowTab {
   if (!selectedProtocolId) {
-    return "input";
+    return "source";
   }
 
   if (protocolStatus === "published") {
-    return "protocols";
+    return "published";
   }
 
   if (protocolStatus === "review") {
     return "review";
   }
 
-  return "input";
+  return "source";
 }
 
 /** Derives the one primary task shown in the protocol workflow. */
@@ -212,7 +233,7 @@ export function canEditInput(status: string | undefined) {
 
 /** Narrows COSS tab change values to the local workflow tab set. */
 export function isWorkflowTab(value: string): value is WorkflowTab {
-  return value === "input" || value === "review" || value === "protocols";
+  return value === "source" || value === "review" || value === "published";
 }
 
 /** Formats backend status values for a consistent UI voice. */
@@ -232,7 +253,7 @@ export function reviewDraftFromItem(item: ReviewItem): ReviewDraft {
     title: item.title,
     body: item.body,
     bauteil: item.bauteil ?? "",
-    discipline: item.discipline ?? "",
+    trade: item.trade ?? "",
     objectName: item.objectName ?? "",
     responsibleParty: item.responsibleParty ?? "",
     dueDate: item.dueDate ?? "",
@@ -254,7 +275,7 @@ export function reviewDraftChanged(draft: ReviewDraft, item: ReviewItem) {
   if (
     optionalText(draft.bauteil) !== optionalText(item.bauteil) ||
     optionalText(draft.objectName) !== optionalText(item.objectName) ||
-    optionalText(draft.discipline) !== optionalText(item.discipline) ||
+    optionalText(draft.trade) !== optionalText(item.trade) ||
     draft.status !== item.status
   ) {
     return true;

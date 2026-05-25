@@ -8,6 +8,7 @@ import {
   InvalidProtocolState,
   ProtocolNotFound,
   ReviewItemNotFound,
+  SourceDocumentNotFound,
 } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
 import { Effect } from "effect";
@@ -17,17 +18,20 @@ import {
   maxAiRunEventsPerRun,
   maxAiRuns,
   maxProtocolItems,
+  maxProtocolParticipants,
   maxProtocolSections,
   maxProtocolSources,
   reviewItemPatch,
 } from "./helpers";
+import { insertParticipants } from "./people";
+import { upsertProtocolSource } from "./sources";
 
 /** Lists recent protocols for a project the user can access. */
 export const listByProject = FunctionImpl.make(
   api,
   "protocols",
   "listByProject",
-  ({ projectId }) =>
+  ({ paginationOpts, projectId }) =>
     asAppError(
       Effect.gen(function* () {
         yield* ensureProjectAccess(projectId);
@@ -36,7 +40,7 @@ export const listByProject = FunctionImpl.make(
         return yield* reader
           .table("protocols")
           .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
-          .take(50);
+          .paginate(paginationOpts);
       })
     )
 );
@@ -54,7 +58,8 @@ export const createDraft = FunctionImpl.make(
     protocolDate,
     location,
     agenda,
-    distributionList,
+    attendees,
+    distribution,
   }) =>
     asAppError(
       Effect.gen(function* () {
@@ -62,7 +67,7 @@ export const createDraft = FunctionImpl.make(
         const writer = yield* DatabaseWriter;
         const timestamp = Date.now();
 
-        return yield* writer.table("protocols").insert({
+        const protocolId = yield* writer.table("protocols").insert({
           projectId,
           title,
           protocolNumber,
@@ -70,11 +75,25 @@ export const createDraft = FunctionImpl.make(
           protocolDate,
           location,
           agenda,
-          distributionList,
           status: "draft",
           createdAt: timestamp,
           updatedAt: timestamp,
         });
+
+        yield* insertParticipants({
+          protocolId,
+          projectId,
+          kind: "attendee",
+          people: attendees,
+        });
+        yield* insertParticipants({
+          protocolId,
+          projectId,
+          kind: "distribution",
+          people: distribution,
+        });
+
+        return protocolId;
       })
     )
 );
@@ -112,37 +131,91 @@ export const saveSource = FunctionImpl.make(
           );
         }
 
-        const existingInputs = yield* reader
-          .table("protocolSources")
-          .index(
-            "by_protocolId_and_kind",
-            (q) => q.eq("protocolId", protocolId).eq("kind", kind),
-            "desc"
-          )
-          .take(50);
-        const writer = yield* DatabaseWriter;
-        const [currentInput, ...staleInputs] = existingInputs;
+        return yield* upsertProtocolSource({
+          protocolId,
+          kind,
+          text,
+        });
+      })
+    )
+);
 
-        if (!currentInput) {
-          return yield* writer.table("protocolSources").insert({
-            protocolId,
-            kind,
-            text: text.trim(),
-            createdAt: Date.now(),
-          });
+/** Attaches an extracted source document to the active protocol draft. */
+export const attachDocument = FunctionImpl.make(
+  api,
+  "protocols",
+  "attachDocument",
+  ({ protocolId, documentId }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const reader = yield* DatabaseReader;
+        const protocol = yield* reader
+          .table("protocols")
+          .get(protocolId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new ProtocolNotFound({
+                  protocolId,
+                  message: "Protocol not found.",
+                })
+            )
+          );
+        const document = yield* reader
+          .table("sourceDocuments")
+          .get(documentId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new SourceDocumentNotFound({
+                  documentId,
+                  message: "Source document not found.",
+                })
+            )
+          );
+
+        yield* ensureProjectAccess(protocol.projectId);
+
+        if (document.projectId !== protocol.projectId) {
+          return yield* Effect.fail(
+            new SourceDocumentNotFound({
+              documentId,
+              message: "Source document does not belong to this project.",
+            })
+          );
         }
 
-        yield* writer.table("protocolSources").patch(currentInput._id, {
-          text: text.trim(),
-          createdAt: Date.now(),
-        });
-        yield* Effect.all(
-          staleInputs.map((input) =>
-            writer.table("protocolSources").delete(input._id)
-          )
-        );
+        if (!canSaveProtocolInput(protocol.status)) {
+          return yield* Effect.fail(
+            new InvalidProtocolState({
+              protocolId,
+              message: "Documents can only be attached before generation.",
+            })
+          );
+        }
 
-        return currentInput._id;
+        if (!document.extractedText?.trim()) {
+          return yield* Effect.fail(
+            new SourceDocumentNotFound({
+              documentId,
+              message: "Extract document text before attaching it.",
+            })
+          );
+        }
+
+        const writer = yield* DatabaseWriter;
+        yield* writer.table("sourceDocuments").patch(documentId, {
+          protocolId,
+          updatedAt: Date.now(),
+        });
+
+        return yield* upsertProtocolSource({
+          protocolId,
+          kind: "document",
+          text: document.extractedText,
+          fileName: document.fileName,
+          storageId: document.storageId,
+        });
       })
     )
 );
@@ -171,6 +244,10 @@ export const getReviewState = FunctionImpl.make(
 
         yield* ensureProjectAccess(protocol.projectId);
 
+        const participants = yield* reader
+          .table("protocolParticipants")
+          .index("by_protocolId", (q) => q.eq("protocolId", protocolId))
+          .take(maxProtocolParticipants);
         const sources = yield* reader
           .table("protocolSources")
           .index("by_protocolId", (q) => q.eq("protocolId", protocolId))
@@ -198,6 +275,7 @@ export const getReviewState = FunctionImpl.make(
 
         return {
           protocol,
+          participants,
           sources,
           sections,
           items,
@@ -220,7 +298,7 @@ export const updateReview = FunctionImpl.make(
     body,
     bauteil,
     objectName,
-    discipline,
+    trade,
     responsibleParty,
     dueDate,
     severity,
@@ -271,7 +349,7 @@ export const updateReview = FunctionImpl.make(
           body,
           bauteil,
           objectName,
-          discipline,
+          trade,
           responsibleParty,
           dueDate,
           severity,
@@ -319,6 +397,10 @@ export const getPrintView = FunctionImpl.make(
 
         yield* ensureProjectAccess(protocol.projectId);
 
+        const participants = yield* reader
+          .table("protocolParticipants")
+          .index("by_protocolId", (q) => q.eq("protocolId", protocolId))
+          .take(maxProtocolParticipants);
         const sections = yield* reader
           .table("protocolSections")
           .index("by_protocolId", (q) => q.eq("protocolId", protocolId))
@@ -328,7 +410,7 @@ export const getPrintView = FunctionImpl.make(
           .index("by_protocolId", (q) => q.eq("protocolId", protocolId))
           .take(maxProtocolItems);
 
-        return { protocol, sections, items };
+        return { protocol, participants, sections, items };
       })
     )
 );

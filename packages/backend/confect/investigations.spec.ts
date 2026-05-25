@@ -35,4 +35,14 @@ export const investigations = GroupSpec.make("investigations")
       returns: Schema.Array(Investigations.Doc),
       error: AppError,
     })
+  )
+  .addFunction(
+    FunctionSpec.publicQuery({
+      name: "get",
+      args: Schema.Struct({
+        investigationId: GenericId.GenericId("investigations"),
+      }),
+      returns: Investigations.Doc,
+      error: AppError,
+    })
   );

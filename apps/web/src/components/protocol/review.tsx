@@ -214,13 +214,13 @@ function ReviewItemEditor({
           />
         </Field>
         <Field>
-          <FieldLabel>Discipline</FieldLabel>
+          <FieldLabel>Gewerk</FieldLabel>
           <Input
             onChange={(event) =>
-              onDraftChange(draft.itemId, { discipline: event.target.value })
+              onDraftChange(draft.itemId, { trade: event.target.value })
             }
             placeholder="ELT"
-            value={draft.discipline}
+            value={draft.trade}
           />
         </Field>
       </div>

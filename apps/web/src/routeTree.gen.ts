@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as ShareRouteImport } from './routes/share'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as ApiAuthSplatIndexRouteImport } from './routes/api/auth/$/index'
 
 const ShareRoute = ShareRouteImport.update({
   id: '/share',
@@ -22,31 +23,40 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthSplatIndexRoute = ApiAuthSplatIndexRouteImport.update({
+  id: '/api/auth/$/',
+  path: '/api/auth/$/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/share': typeof ShareRoute
+  '/api/auth/$/': typeof ApiAuthSplatIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/share': typeof ShareRoute
+  '/api/auth/$': typeof ApiAuthSplatIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/share': typeof ShareRoute
+  '/api/auth/$/': typeof ApiAuthSplatIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/share'
+  fullPaths: '/' | '/share' | '/api/auth/$/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/share'
-  id: '__root__' | '/' | '/share'
+  to: '/' | '/share' | '/api/auth/$'
+  id: '__root__' | '/' | '/share' | '/api/auth/$/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ShareRoute: typeof ShareRoute
+  ApiAuthSplatIndexRoute: typeof ApiAuthSplatIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/$/': {
+      id: '/api/auth/$/'
+      path: '/api/auth/$'
+      fullPath: '/api/auth/$/'
+      preLoaderRoute: typeof ApiAuthSplatIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ShareRoute: ShareRoute,
+  ApiAuthSplatIndexRoute: ApiAuthSplatIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

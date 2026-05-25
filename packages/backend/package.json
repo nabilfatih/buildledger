@@ -22,8 +22,11 @@
     "@confect/core": "8.0.0",
     "@confect/react": "8.0.0",
     "@confect/server": "8.0.0",
+    "@convex-dev/better-auth": "^0.12.2",
     "@repo/ai": "workspace:*",
+    "better-auth": "~1.6.11",
     "convex": "1.39.1",
+    "date-fns": "4.2.1",
     "effect": "3.21.2",
     "nanoid": "5.1.6"
   },

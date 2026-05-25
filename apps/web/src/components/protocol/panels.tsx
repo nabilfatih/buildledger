@@ -83,8 +83,8 @@ export function ProtocolsList({
         </EmptyHeader>
       </Empty>
     ),
-    onSuccess: (items) =>
-      items.length === 0 ? (
+    onSuccess: (protocolPage) =>
+      protocolPage.page.length === 0 ? (
         <Empty className="min-h-56">
           <EmptyHeader>
             <EmptyTitle>No protocols yet</EmptyTitle>
@@ -95,7 +95,7 @@ export function ProtocolsList({
         </Empty>
       ) : (
         <div className="grid min-w-0 gap-2">
-          {items.map((protocol) => {
+          {protocolPage.page.map((protocol) => {
             const isSelected = protocol._id === selectedProtocolId;
 
             return (

@@ -15,6 +15,7 @@ import {
   Projects,
   ProjectTaxonomy,
   ProtocolItems,
+  ProtocolParticipants,
   ProtocolSections,
   ProtocolSources,
   Protocols,
@@ -30,6 +31,7 @@ export default DatabaseSchema.make()
   .addTable(ProjectMembers)
   .addTable(AiProviderSettings)
   .addTable(Protocols)
+  .addTable(ProtocolParticipants)
   .addTable(ProtocolSources)
   .addTable(ProtocolSections)
   .addTable(ProtocolItems)

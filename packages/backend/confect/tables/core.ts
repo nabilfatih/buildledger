@@ -52,7 +52,7 @@ export const ProjectMembers = Table.make(
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
     userToken: Schema.String,
-    role: Schema.Literal("manager", "editor", "viewer"),
+    role: Schema.Literal("owner", "manager", "editor", "commenter", "viewer"),
     createdAt: Timestamp,
   })
 )
@@ -84,7 +84,6 @@ export const Protocols = Table.make(
     protocolDate: Schema.String,
     location: OptionalString,
     agenda: OptionalString,
-    distributionList: OptionalString,
     status: Schema.Literal(
       "draft",
       "processing",
@@ -97,7 +96,26 @@ export const Protocols = Table.make(
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_protocolDate", ["projectId", "protocolDate"])
   .index("by_projectId_and_status", ["projectId", "status", "createdAt"]);
+
+export const ProtocolParticipants = Table.make(
+  "protocolParticipants",
+  Schema.Struct({
+    protocolId: GenericId.GenericId("protocols"),
+    projectId: GenericId.GenericId("projects"),
+    kind: Schema.Literal("attendee", "distribution"),
+    name: Schema.String,
+    company: OptionalString,
+    role: OptionalString,
+    email: OptionalString,
+    createdAt: Timestamp,
+  })
+)
+  .index("by_protocolId", ["protocolId", "createdAt"])
+  .index("by_protocolId_and_kind", ["protocolId", "kind", "createdAt"])
+  .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_email", ["projectId", "email"]);
 
 export const ProjectParticipants = Table.make(
   "projectParticipants",
@@ -159,7 +177,7 @@ export const ProtocolItems = Table.make(
     body: Schema.String,
     bauteil: OptionalString,
     objectName: OptionalString,
-    discipline: OptionalString,
+    trade: OptionalString,
     responsibleParty: OptionalString,
     dueDate: OptionalString,
     severity: Schema.optional(Schema.Literal("low", "medium", "high")),
@@ -201,7 +219,7 @@ export const ProjectRecords = Table.make(
     body: Schema.String,
     bauteil: OptionalString,
     objectName: OptionalString,
-    discipline: OptionalString,
+    trade: OptionalString,
     responsibleParty: OptionalString,
     dueDate: OptionalString,
     severity: Schema.optional(Schema.Literal("low", "medium", "high")),
@@ -220,23 +238,50 @@ export const ProjectRecords = Table.make(
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_sourceProtocolDate", [
+    "projectId",
+    "sourceProtocolDate",
+  ])
   .index("by_projectId_and_kind", ["projectId", "kind", "createdAt"])
+  .index("by_projectId_and_kind_and_sourceProtocolDate", [
+    "projectId",
+    "kind",
+    "sourceProtocolDate",
+  ])
   .index("by_projectId_and_status", ["projectId", "status", "createdAt"])
+  .index("by_projectId_and_status_and_sourceProtocolDate", [
+    "projectId",
+    "status",
+    "sourceProtocolDate",
+  ])
   .index("by_projectId_and_bauteil", ["projectId", "bauteil", "createdAt"])
   .index("by_projectId_and_objectName", [
     "projectId",
     "objectName",
     "createdAt",
   ])
-  .index("by_projectId_and_discipline", [
+  .index("by_projectId_and_trade", ["projectId", "trade", "createdAt"])
+  .index("by_projectId_and_trade_and_sourceProtocolDate", [
     "projectId",
-    "discipline",
-    "createdAt",
+    "trade",
+    "sourceProtocolDate",
   ])
   .index("by_projectId_and_responsibleParty", [
     "projectId",
     "responsibleParty",
     "createdAt",
+  ])
+  .index("by_projectId_and_responsibleParty_and_status", [
+    "projectId",
+    "responsibleParty",
+    "status",
+    "createdAt",
+  ])
+  .index("by_projectId_and_responsible_status_date", [
+    "projectId",
+    "responsibleParty",
+    "status",
+    "sourceProtocolDate",
   ])
   .index("by_protocolId", ["protocolId", "createdAt"]);
 
@@ -244,7 +289,7 @@ export const ProjectTaxonomy = Table.make(
   "projectTaxonomy",
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
-    kind: Schema.Literal("bauteil", "object", "discipline"),
+    kind: Schema.Literal("bauteil", "object", "trade"),
     label: Schema.String,
     archivedAt: Schema.optional(Timestamp),
     createdAt: Timestamp,
@@ -264,13 +309,14 @@ export const LogbookEvents = Table.make(
       "protocol_published",
       "record_created",
       "status_changed",
+      "assignment_changed",
       "risk_detected"
     ),
     title: Schema.String,
     body: Schema.String,
     bauteil: OptionalString,
     objectName: OptionalString,
-    discipline: OptionalString,
+    trade: OptionalString,
     responsibleParty: OptionalString,
     chronologyDate: Schema.String,
     createdAt: Timestamp,
@@ -278,16 +324,14 @@ export const LogbookEvents = Table.make(
 )
   .index("by_projectId", ["projectId", "createdAt"])
   .index("by_projectId_and_chronologyDate", ["projectId", "chronologyDate"])
+  .index("by_projectId_and_bauteil", ["projectId", "bauteil", "createdAt"])
   .index("by_projectId_and_objectName", [
     "projectId",
     "objectName",
     "createdAt",
   ])
-  .index("by_projectId_and_discipline", [
-    "projectId",
-    "discipline",
-    "createdAt",
-  ])
+  .index("by_projectId_and_trade", ["projectId", "trade", "createdAt"])
+  .index("by_recordId", ["recordId", "createdAt"])
   .index("by_protocolId", ["protocolId", "createdAt"]);
 
 export const SourceDocuments = Table.make(
@@ -297,7 +341,7 @@ export const SourceDocuments = Table.make(
     protocolId: Schema.optional(GenericId.GenericId("protocols")),
     fileName: Schema.String,
     mimeType: OptionalString,
-    storageId: GenericId.GenericId("_storage"),
+    storageId: Schema.optional(GenericId.GenericId("_storage")),
     extractedText: OptionalString,
     status: Schema.Literal("uploaded", "extracted", "failed"),
     createdAt: Timestamp,
@@ -315,7 +359,7 @@ export const Investigations = Table.make(
     detectedRisk: Schema.String,
     likelyCause: Schema.String,
     impactedObjectsJson: Schema.String,
-    impactedDisciplinesJson: Schema.String,
+    impactedTradesJson: Schema.optional(Schema.String),
     relatedRecordsJson: Schema.String,
     recommendedActionsJson: Schema.String,
     citationsJson: Schema.String,
@@ -337,6 +381,7 @@ export const MemoryChunks = Table.make(
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_sourceId", ["projectId", "sourceId", "createdAt"])
   .index("by_projectId_and_chronologyDate", ["projectId", "chronologyDate"])
   .vectorIndex("by_embedding", {
     vectorField: "embedding",

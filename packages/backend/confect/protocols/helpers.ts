@@ -4,6 +4,7 @@ import type { Schema } from "effect";
 
 export const zeroEmbedding = Array.from({ length: 1536 }, () => 0);
 export const maxProtocolSources = 10;
+export const maxProtocolParticipants = 100;
 export const maxProtocolSections = 20;
 export const maxProtocolItems = 100;
 export const maxAiRuns = 10;
@@ -49,7 +50,7 @@ export function reviewItemPatch(input: {
   readonly body: string;
   readonly bauteil?: string | undefined;
   readonly objectName?: string | undefined;
-  readonly discipline?: string | undefined;
+  readonly trade?: string | undefined;
   readonly responsibleParty?: string | undefined;
   readonly dueDate?: string | undefined;
   readonly severity?: "low" | "medium" | "high" | undefined;
@@ -64,7 +65,7 @@ export function reviewItemPatch(input: {
     body,
     bauteil: optionalText(input.bauteil),
     objectName: optionalText(input.objectName),
-    discipline: optionalText(input.discipline),
+    trade: optionalText(input.trade),
     responsibleParty:
       input.kind === "task" ? optionalText(input.responsibleParty) : undefined,
     dueDate: input.kind === "task" ? optionalText(input.dueDate) : undefined,

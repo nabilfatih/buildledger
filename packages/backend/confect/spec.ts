@@ -3,6 +3,7 @@ import { ai } from "@repo/backend/confect/ai.spec";
 import { aiSettings } from "@repo/backend/confect/ai-settings.spec";
 import { documents } from "@repo/backend/confect/documents.spec";
 import { investigations } from "@repo/backend/confect/investigations.spec";
+import { logbook } from "@repo/backend/confect/logbook.spec";
 import { memory } from "@repo/backend/confect/memory.spec";
 import { projects } from "@repo/backend/confect/projects.spec";
 import { protocols } from "@repo/backend/confect/protocols.spec";
@@ -19,6 +20,7 @@ export default Spec.make()
   .add(records)
   .add(taxonomy)
   .add(documents)
+  .add(logbook)
   .add(investigations)
   .add(memory)
   .add(reports)

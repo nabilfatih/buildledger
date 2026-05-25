@@ -9,6 +9,7 @@ import {
   MutationRunner,
   QueryRunner,
 } from "@repo/backend/confect/_generated/services";
+import { InvestigationNotFound } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
 
@@ -68,9 +69,7 @@ const saveResult = FunctionImpl.make(
           detectedRisk: investigation.detectedRisk,
           likelyCause: investigation.likelyCause,
           impactedObjectsJson: JSON.stringify(investigation.impactedObjects),
-          impactedDisciplinesJson: JSON.stringify(
-            investigation.impactedDisciplines
-          ),
+          impactedTradesJson: JSON.stringify(investigation.impactedTrades),
           relatedRecordsJson: JSON.stringify(investigation.relatedRecords),
           recommendedActionsJson: JSON.stringify(
             investigation.recommendedActions
@@ -101,8 +100,38 @@ const listByProject = FunctionImpl.make(
     )
 );
 
+/** Loads one AI Detective investigation after checking project access. */
+const get = FunctionImpl.make(
+  api,
+  "investigations",
+  "get",
+  ({ investigationId }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const reader = yield* DatabaseReader;
+        const investigation = yield* reader
+          .table("investigations")
+          .get(investigationId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new InvestigationNotFound({
+                  investigationId,
+                  message: "Investigation not found.",
+                })
+            )
+          );
+
+        yield* ensureProjectAccess(investigation.projectId);
+
+        return investigation;
+      })
+    )
+);
+
 export const investigations = GroupImpl.make(api, "investigations").pipe(
   Layer.provide(run),
   Layer.provide(saveResult),
-  Layer.provide(listByProject)
+  Layer.provide(listByProject),
+  Layer.provide(get)
 );

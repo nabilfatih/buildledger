@@ -1,9 +1,6 @@
 import { FunctionSpec, GenericId, GroupSpec } from "@confect/core";
 import { AppError } from "@repo/backend/confect/errors";
-import {
-  LogbookEvents,
-  ProjectRecords,
-} from "@repo/backend/confect/tables/core";
+import { ProjectRecords } from "@repo/backend/confect/tables/core";
 import { Schema } from "effect";
 
 const PaginationOpts = Schema.Struct({
@@ -20,18 +17,6 @@ const RecordsPage = Schema.mutable(
     continueCursor: Schema.String,
     isDone: Schema.Boolean,
     page: Schema.mutable(Schema.Array(ProjectRecords.Doc)),
-    pageStatus: Schema.optional(
-      Schema.NullOr(Schema.Literal("SplitRecommended", "SplitRequired"))
-    ),
-    splitCursor: Schema.optional(Schema.NullOr(Schema.String)),
-  })
-);
-
-const LogbookPage = Schema.mutable(
-  Schema.Struct({
-    continueCursor: Schema.String,
-    isDone: Schema.Boolean,
-    page: Schema.mutable(Schema.Array(LogbookEvents.Doc)),
     pageStatus: Schema.optional(
       Schema.NullOr(Schema.Literal("SplitRecommended", "SplitRequired"))
     ),
@@ -69,13 +54,14 @@ export const records = GroupSpec.make("records")
     })
   )
   .addFunction(
-    FunctionSpec.publicQuery({
-      name: "getTimeline",
+    FunctionSpec.publicMutation({
+      name: "assign",
       args: Schema.Struct({
-        projectId: GenericId.GenericId("projects"),
-        paginationOpts: PaginationOpts,
+        recordId: GenericId.GenericId("projectRecords"),
+        responsibleParty: Schema.optional(Schema.String),
+        dueDate: Schema.optional(Schema.String),
       }),
-      returns: LogbookPage,
+      returns: Schema.Null,
       error: AppError,
     })
   )

@@ -1,3 +1,4 @@
+import { GenericId } from "@confect/core";
 import { FunctionImpl, GroupImpl } from "@confect/server";
 import api from "@repo/backend/confect/_generated/api";
 import {
@@ -5,9 +6,15 @@ import {
   DatabaseWriter,
   StorageWriter,
 } from "@repo/backend/confect/_generated/services";
-import { InternalFailure } from "@repo/backend/confect/errors";
+import {
+  InvalidDocumentUpload,
+  ProtocolNotFound,
+  SourceDocumentNotFound,
+} from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
-import { Effect, Layer } from "effect";
+import { Effect, Layer, Schema } from "effect";
+
+const StorageId = GenericId.GenericId("_storage");
 
 /** Creates a Convex upload URL for one accessible project. */
 const createUploadUrl = FunctionImpl.make(
@@ -30,10 +37,47 @@ const saveSourceDocument = FunctionImpl.make(
   api,
   "documents",
   "saveSourceDocument",
-  ({ projectId, protocolId, fileName, mimeType, storageId }) =>
+  ({ projectId, protocolId, fileName, mimeType, storageId, extractedText }) =>
     asAppError(
       Effect.gen(function* () {
         yield* ensureProjectAccess(projectId);
+        const reader = yield* DatabaseReader;
+
+        if (protocolId) {
+          const protocol = yield* reader
+            .table("protocols")
+            .get(protocolId)
+            .pipe(
+              Effect.mapError(
+                () =>
+                  new ProtocolNotFound({
+                    protocolId,
+                    message: "Protocol not found.",
+                  })
+              )
+            );
+
+          if (protocol.projectId !== projectId) {
+            return yield* Effect.fail(
+              new ProtocolNotFound({
+                protocolId,
+                message: "Protocol does not belong to this project.",
+              })
+            );
+          }
+        }
+
+        const parsedStorageId = yield* storageId
+          ? Schema.decodeUnknown(StorageId)(storageId).pipe(
+              Effect.mapError(
+                () =>
+                  new InvalidDocumentUpload({
+                    message: "Uploaded storage id was not valid.",
+                  })
+              )
+            )
+          : Effect.succeed(undefined);
+        const trimmedText = extractedText?.trim();
         const writer = yield* DatabaseWriter;
         const timestamp = Date.now();
 
@@ -42,8 +86,9 @@ const saveSourceDocument = FunctionImpl.make(
           protocolId,
           fileName,
           mimeType,
-          storageId,
-          status: "uploaded",
+          storageId: parsedStorageId,
+          extractedText: trimmedText || undefined,
+          status: trimmedText ? "extracted" : "uploaded",
           createdAt: timestamp,
           updatedAt: timestamp,
         });
@@ -66,7 +111,8 @@ const extractText = FunctionImpl.make(
           .pipe(
             Effect.mapError(
               () =>
-                new InternalFailure({
+                new SourceDocumentNotFound({
+                  documentId,
                   message: "Source document not found.",
                 })
             )
@@ -86,12 +132,68 @@ const extractText = FunctionImpl.make(
     )
 );
 
+/** Links an uploaded source document to a protocol in the same project. */
+const attachToProtocol = FunctionImpl.make(
+  api,
+  "documents",
+  "attachToProtocol",
+  ({ documentId, protocolId }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const reader = yield* DatabaseReader;
+        const document = yield* reader
+          .table("sourceDocuments")
+          .get(documentId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new SourceDocumentNotFound({
+                  documentId,
+                  message: "Source document not found.",
+                })
+            )
+          );
+        const protocol = yield* reader
+          .table("protocols")
+          .get(protocolId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new ProtocolNotFound({
+                  protocolId,
+                  message: "Protocol not found.",
+                })
+            )
+          );
+
+        yield* ensureProjectAccess(document.projectId);
+
+        if (protocol.projectId !== document.projectId) {
+          return yield* Effect.fail(
+            new SourceDocumentNotFound({
+              documentId,
+              message: "Source document does not belong to this protocol.",
+            })
+          );
+        }
+
+        const writer = yield* DatabaseWriter;
+        yield* writer.table("sourceDocuments").patch(documentId, {
+          protocolId,
+          updatedAt: Date.now(),
+        });
+
+        return null;
+      })
+    )
+);
+
 /** Lists recent source documents for one accessible project. */
 const listByProject = FunctionImpl.make(
   api,
   "documents",
   "listByProject",
-  ({ projectId }) =>
+  ({ projectId, paginationOpts }) =>
     asAppError(
       Effect.gen(function* () {
         yield* ensureProjectAccess(projectId);
@@ -100,7 +202,7 @@ const listByProject = FunctionImpl.make(
         return yield* reader
           .table("sourceDocuments")
           .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
-          .take(50);
+          .paginate(paginationOpts);
       })
     )
 );
@@ -109,5 +211,6 @@ export const documents = GroupImpl.make(api, "documents").pipe(
   Layer.provide(createUploadUrl),
   Layer.provide(saveSourceDocument),
   Layer.provide(extractText),
+  Layer.provide(attachToProtocol),
   Layer.provide(listByProject)
 );

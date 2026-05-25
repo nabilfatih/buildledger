@@ -64,7 +64,7 @@ function makeDemoProtocolDraft(input: {
             body: firstSentence(text),
             bauteil: "General",
             objectName: "Project",
-            discipline: "Coordination",
+            trade: "Coordination",
             status: "recorded",
             citations: [makeCitation(text)],
           },
@@ -74,7 +74,7 @@ function makeDemoProtocolDraft(input: {
             body: "The site team accepted the revised crane window and sequencing update.",
             bauteil: "Envelope",
             objectName: "Crane window",
-            discipline: "Site logistics",
+            trade: "Site logistics",
             status: "recorded",
             citations: [makeCitation(text)],
           },
@@ -84,7 +84,7 @@ function makeDemoProtocolDraft(input: {
             body: "Coordinate inspection timing so drywall crews can proceed.",
             bauteil: "Interior",
             objectName: "Drywall",
-            discipline: "Drywall",
+            trade: "Drywall",
             responsibleParty: "Site team",
             dueDate: new Date().toISOString().slice(0, 10),
             status: "open",
@@ -96,7 +96,7 @@ function makeDemoProtocolDraft(input: {
             body: "Drywall crews remain blocked if inspection timing slips.",
             bauteil: "Interior",
             objectName: "Drywall",
-            discipline: "Drywall",
+            trade: "Drywall",
             severity: "high",
             status: "open",
             citations: [makeCitation(text)],
@@ -254,7 +254,7 @@ const runProjectInvestigation = Effect.fn("ProjectInvestigationService.run")(
       const payload = yield* runOpenRouterJson({
         settings,
         system:
-          "You are an AI detective for construction projects. Return only JSON matching { detectedRisk: string, likelyCause: string, impactedObjects: string[], impactedDisciplines: string[], relatedRecords: string[], recommendedActions: string[], citations: [{ chunkId: string, quote: string }] }.",
+          "You are an AI detective for construction projects. Return only JSON matching { detectedRisk: string, likelyCause: string, impactedObjects: string[], impactedTrades: string[], relatedRecords: string[], recommendedActions: string[], citations: [{ chunkId: string, quote: string }] }.",
         user: `Investigation question: ${input.question}\n\nMemory:\n${formatMemoryChunks(input.chunks)}`,
       });
 
@@ -265,7 +265,7 @@ const runProjectInvestigation = Effect.fn("ProjectInvestigationService.run")(
       detectedRisk: "Schedule risk from unresolved coordination blockers",
       likelyCause: firstSentence(chunk.text),
       impactedObjects: ["Drywall", "Crane window"],
-      impactedDisciplines: ["Site logistics", "Drywall"],
+      impactedTrades: ["Site logistics", "Drywall"],
       relatedRecords: [chunk.chunkId],
       recommendedActions: [
         "Confirm inspection timing",
@@ -311,7 +311,7 @@ export class ProtocolExtractionService extends Effect.Service<ProtocolExtraction
             const payload = yield* runOpenRouterJson({
               settings,
               system:
-                "You convert construction protocol notes and transcripts into structured Bauprotokoll records. Return only JSON that matches { summary: string, sections: [{ title: string, body: string, items: [{ kind: 'agenda' | 'discussion' | 'change' | 'task' | 'information' | 'concern' | 'obstruction' | 'decision' | 'risk' | 'question', title: string, body: string, bauteil?: string, objectName?: string, discipline?: string, responsibleParty?: string, dueDate?: string, severity?: 'low' | 'medium' | 'high', status?: 'open' | 'in_progress' | 'blocked' | 'resolved' | 'recorded', citations: [{ chunkId: string, quote: string }] }] }] }. Use chunkId 'input-1' for citations.",
+                "You convert construction protocol notes and transcripts into structured Bauprotokoll records. Return only JSON that matches { summary: string, sections: [{ title: string, body: string, items: [{ kind: 'agenda' | 'discussion' | 'change' | 'task' | 'information' | 'concern' | 'obstruction' | 'decision' | 'risk' | 'question', title: string, body: string, bauteil?: string, objectName?: string, trade?: string, responsibleParty?: string, dueDate?: string, severity?: 'low' | 'medium' | 'high', status?: 'open' | 'in_progress' | 'blocked' | 'resolved' | 'recorded', citations: [{ chunkId: string, quote: string }] }] }] }. Use chunkId 'input-1' for citations.",
               user: `Protocol title: ${input.title}\n\nSources:\n${text}`,
             });
 

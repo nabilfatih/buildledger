@@ -16,6 +16,7 @@ import { Effect, Layer, Schema } from "effect";
 import { nanoid } from "nanoid";
 
 const maxSharedProtocolSections = 20;
+const maxSharedProtocolParticipants = 100;
 const maxSharedProtocolItems = 100;
 const maxSharedRecords = 100;
 const maxSharedLogbookEvents = 100;
@@ -240,138 +241,137 @@ const createReadOnlyLink = FunctionImpl.make(
 );
 
 /** Resolves a public share link into a safe read-only resource payload. */
-const resolvePublicResource = FunctionImpl.make(
-  api,
-  "shares",
-  "resolvePublicResource",
-  ({ token }) =>
-    asAppError(
-      Effect.gen(function* () {
-        const reader = yield* DatabaseReader;
-        const shareLink = yield* getShareLinkByToken(token);
-        const project = yield* reader
-          .table("projects")
-          .get(shareLink.projectId);
+const resolve = FunctionImpl.make(api, "shares", "resolve", ({ token }) =>
+  asAppError(
+    Effect.gen(function* () {
+      const reader = yield* DatabaseReader;
+      const shareLink = yield* getShareLinkByToken(token);
+      const project = yield* reader.table("projects").get(shareLink.projectId);
 
-        if (shareLink.resourceType === "protocol") {
-          const protocolId = yield* decodeProtocolResourceId(
-            shareLink.resourceId
-          );
-          const protocol = yield* reader
-            .table("protocols")
-            .get(protocolId)
-            .pipe(
-              Effect.mapError(
-                () =>
-                  new ShareTargetNotFound({
-                    message: "Share target was not found.",
-                    resourceId: shareLink.resourceId,
-                    resourceType: "protocol",
-                  })
-              )
-            );
-
-          if (protocol.projectId !== project._id) {
-            return yield* Effect.fail(
-              new ShareTargetNotFound({
-                message: "Share target does not belong to this project.",
-                resourceId: shareLink.resourceId,
-                resourceType: "protocol",
-              })
-            );
-          }
-
-          const sections = yield* reader
-            .table("protocolSections")
-            .index("by_protocolId", (q) => q.eq("protocolId", protocol._id))
-            .take(maxSharedProtocolSections);
-          const items = yield* reader
-            .table("protocolItems")
-            .index("by_protocolId", (q) => q.eq("protocolId", protocol._id))
-            .take(maxSharedProtocolItems);
-
-          return {
-            resourceType: "protocol",
-            projectName: project.name,
-            projectCode: project.code,
-            protocol,
-            sections,
-            items,
-          };
-        }
-
-        if (shareLink.resourceType === "ledger") {
-          const records = yield* reader
-            .table("projectRecords")
-            .index(
-              "by_projectId",
-              (q) => q.eq("projectId", shareLink.projectId),
-              "desc"
-            )
-            .take(maxSharedRecords);
-
-          return {
-            resourceType: "ledger",
-            projectName: project.name,
-            projectCode: project.code,
-            records,
-          };
-        }
-
-        if (shareLink.resourceType === "logbook") {
-          const events = yield* reader
-            .table("logbookEvents")
-            .index(
-              "by_projectId",
-              (q) => q.eq("projectId", shareLink.projectId),
-              "desc"
-            )
-            .take(maxSharedLogbookEvents);
-
-          return {
-            resourceType: "logbook",
-            projectName: project.name,
-            projectCode: project.code,
-            events,
-          };
-        }
-
-        const reportId = yield* decodeReportResourceId(shareLink.resourceId);
-        const report = yield* reader
-          .table("reports")
-          .get(reportId)
+      if (shareLink.resourceType === "protocol") {
+        const protocolId = yield* decodeProtocolResourceId(
+          shareLink.resourceId
+        );
+        const protocol = yield* reader
+          .table("protocols")
+          .get(protocolId)
           .pipe(
             Effect.mapError(
               () =>
                 new ShareTargetNotFound({
                   message: "Share target was not found.",
                   resourceId: shareLink.resourceId,
-                  resourceType: "report",
+                  resourceType: "protocol",
                 })
             )
           );
 
-        if (report.projectId !== project._id) {
+        if (protocol.projectId !== project._id) {
           return yield* Effect.fail(
             new ShareTargetNotFound({
               message: "Share target does not belong to this project.",
               resourceId: shareLink.resourceId,
-              resourceType: "report",
+              resourceType: "protocol",
             })
           );
         }
 
+        const sections = yield* reader
+          .table("protocolSections")
+          .index("by_protocolId", (q) => q.eq("protocolId", protocol._id))
+          .take(maxSharedProtocolSections);
+        const participants = yield* reader
+          .table("protocolParticipants")
+          .index("by_protocolId", (q) => q.eq("protocolId", protocol._id))
+          .take(maxSharedProtocolParticipants);
+        const items = yield* reader
+          .table("protocolItems")
+          .index("by_protocolId", (q) => q.eq("protocolId", protocol._id))
+          .take(maxSharedProtocolItems);
+
         return {
-          resourceType: "report",
+          resourceType: "protocol",
           projectName: project.name,
           projectCode: project.code,
-          report,
+          protocol,
+          participants,
+          sections,
+          items,
         };
-      })
-    )
+      }
+
+      if (shareLink.resourceType === "ledger") {
+        const records = yield* reader
+          .table("projectRecords")
+          .index(
+            "by_projectId",
+            (q) => q.eq("projectId", shareLink.projectId),
+            "desc"
+          )
+          .take(maxSharedRecords);
+
+        return {
+          resourceType: "ledger",
+          projectName: project.name,
+          projectCode: project.code,
+          records,
+        };
+      }
+
+      if (shareLink.resourceType === "logbook") {
+        const events = yield* reader
+          .table("logbookEvents")
+          .index(
+            "by_projectId",
+            (q) => q.eq("projectId", shareLink.projectId),
+            "desc"
+          )
+          .take(maxSharedLogbookEvents);
+
+        return {
+          resourceType: "logbook",
+          projectName: project.name,
+          projectCode: project.code,
+          events,
+        };
+      }
+
+      const reportId = yield* decodeReportResourceId(shareLink.resourceId);
+      const report = yield* reader
+        .table("reports")
+        .get(reportId)
+        .pipe(
+          Effect.mapError(
+            () =>
+              new ShareTargetNotFound({
+                message: "Share target was not found.",
+                resourceId: shareLink.resourceId,
+                resourceType: "report",
+              })
+          )
+        );
+
+      if (report.projectId !== project._id) {
+        return yield* Effect.fail(
+          new ShareTargetNotFound({
+            message: "Share target does not belong to this project.",
+            resourceId: shareLink.resourceId,
+            resourceType: "report",
+          })
+        );
+      }
+
+      return {
+        resourceType: "report",
+        projectName: project.name,
+        projectCode: project.code,
+        report,
+      };
+    })
+  )
 );
 
 export const shares = GroupImpl.make(api, "shares").pipe(
   Layer.provide(createReadOnlyLink),
-  Layer.provide(resolvePublicResource)
+  Layer.provide(resolve)
 );

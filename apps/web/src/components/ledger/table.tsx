@@ -1,4 +1,5 @@
-import { QueryResult } from "@confect/react";
+import { QueryResult, useMutation } from "@confect/react";
+import refs from "@repo/backend/confect/_generated/refs";
 import {
   Frame,
   FrameDescription,
@@ -17,7 +18,7 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
-import { Effect } from "effect";
+import { Effect, Either } from "effect";
 import { useMemo, useState } from "react";
 
 import { ledgerColumns } from "@/components/ledger/columns";
@@ -30,6 +31,7 @@ import {
 import { LedgerTableSkeleton } from "@/components/ledger/skeleton";
 import { ledgerPageSize } from "@/components/ledger/types";
 import type { RecordsResult } from "@/lib/confect-results";
+import { getErrorMessage } from "@/lib/errors";
 
 /** Shows derived project memory as a sortable and filterable ledger. */
 export function ProjectLedgerTable({
@@ -37,6 +39,7 @@ export function ProjectLedgerTable({
 }: {
   readonly records: RecordsResult;
 }) {
+  const updateStatus = useMutation(refs.public.records.updateStatus);
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("all");
   const [status, setStatus] = useState("all");
@@ -53,6 +56,7 @@ export function ProjectLedgerTable({
     { id: "sourceProtocolDate", desc: true },
   ]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
+  const [isResolvingRows, setIsResolvingRows] = useState(false);
   const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({
     citationCount: false,
     dueDate: false,
@@ -140,6 +144,62 @@ export function ProjectLedgerTable({
     );
   }
 
+  /** Marks selected records as resolved and writes the audit event server-side. */
+  function handleResolveSelectedRows() {
+    const selectedRows = table
+      .getSelectedRowModel()
+      .rows.map((row) => row.original);
+
+    if (selectedRows.length === 0) {
+      toastManager.add({
+        title: "Select ledger rows first",
+        type: "warning",
+      });
+      return;
+    }
+
+    setIsResolvingRows(true);
+    return Effect.runPromise(
+      Effect.forEach(
+        selectedRows,
+        (row) =>
+          Effect.tryPromise({
+            try: () => updateStatus({ recordId: row._id, status: "resolved" }),
+            catch: getErrorMessage,
+          }).pipe(
+            Effect.flatMap((result) =>
+              Either.match(result, {
+                onLeft: (error) => Effect.fail(error.message),
+                onRight: () => Effect.void,
+              })
+            )
+          ),
+        { concurrency: 3 }
+      ).pipe(
+        Effect.tap(() =>
+          Effect.sync(() => {
+            table.resetRowSelection();
+            toastManager.add({
+              title: "Ledger rows resolved",
+              description: `${selectedRows.length} selected row${selectedRows.length === 1 ? "" : "s"} updated.`,
+              type: "success",
+            });
+          })
+        ),
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Rows were not updated",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setIsResolvingRows(false)))
+      )
+    );
+  }
+
   return (
     <Frame className="min-w-0">
       <FrameHeader>
@@ -175,6 +235,8 @@ export function ProjectLedgerTable({
           onSuccess: () => (
             <LedgerDataTable
               onCopySelectedRows={handleCopySelectedRows}
+              onResolveSelectedRows={handleResolveSelectedRows}
+              resolvingSelectedRows={isResolvingRows}
               table={table}
             />
           ),

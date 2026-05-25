@@ -12,8 +12,11 @@ import { createFileRoute } from "@tanstack/react-router";
 import { usePaginatedQuery } from "convex/react";
 import type { GenericId } from "convex/values";
 import { useState } from "react";
+import { AuthGate } from "@/components/auth/gate";
+import { DocumentsPanel } from "@/components/documents/panel";
 import { ProjectIntelligencePanel } from "@/components/intelligence/panel";
 import { ProjectLedgerTable } from "@/components/ledger/table";
+import { LogbookPanel } from "@/components/logbook/panel";
 import { ProtocolWorkspace } from "@/components/protocol/workspace";
 import { ProjectRail } from "@/components/rail/rail";
 
@@ -25,6 +28,15 @@ export const Route = createFileRoute("/")({
 
 /** Renders the BuildLedger app shell around project memory workflows. */
 function BuildLedgerHome() {
+  return (
+    <AuthGate>
+      <BuildLedgerWorkspace />
+    </AuthGate>
+  );
+}
+
+/** Renders the authenticated project memory workspace. */
+function BuildLedgerWorkspace() {
   const [selectedProjectId, setSelectedProjectId] =
     useState<GenericId<"projects"> | null>(null);
   const [selectedProtocolId, setSelectedProtocolId] =
@@ -42,7 +54,12 @@ function BuildLedgerHome() {
   );
   const protocols = useQuery(
     refs.public.protocols.listByProject,
-    activeProjectId ? { projectId: activeProjectId } : "skip"
+    activeProjectId
+      ? {
+          paginationOpts: { cursor: null, numItems: 50 },
+          projectId: activeProjectId,
+        }
+      : "skip"
   );
   const records = useQuery(
     refs.public.records.listByProject,
@@ -53,8 +70,30 @@ function BuildLedgerHome() {
         }
       : "skip"
   );
-  const protocolItems = protocols._tag === "Success" ? protocols.value : [];
+  const logbook = useQuery(
+    refs.public.logbook.listByProject,
+    activeProjectId
+      ? {
+          paginationOpts: { cursor: null, numItems: 50 },
+          projectId: activeProjectId,
+        }
+      : "skip"
+  );
+  const documents = useQuery(
+    refs.public.documents.listByProject,
+    activeProjectId
+      ? {
+          paginationOpts: { cursor: null, numItems: 50 },
+          projectId: activeProjectId,
+        }
+      : "skip"
+  );
+  const protocolItems =
+    protocols._tag === "Success" ? protocols.value.page : [];
   const activeProtocolId = selectedProtocolId ?? protocolItems[0]?._id ?? null;
+  const activeProtocol = protocolItems.find(
+    (protocol) => protocol._id === activeProtocolId
+  );
   const hasPublishedProtocol = protocolItems.some(
     (protocol) => protocol.status === "published"
   );
@@ -109,6 +148,13 @@ function BuildLedgerHome() {
                 selectedProjectId={activeProjectId}
                 selectedProtocolId={activeProtocolId}
                 setSelectedProtocolId={setSelectedProtocolId}
+              />
+              <LogbookPanel logbook={logbook} />
+              <DocumentsPanel
+                activeProtocolStatus={activeProtocol?.status}
+                documents={documents}
+                selectedProjectId={activeProjectId}
+                selectedProtocolId={activeProtocolId}
               />
             </section>
             <aside className="min-w-0 self-start 2xl:sticky 2xl:top-4">

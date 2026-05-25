@@ -20,7 +20,14 @@ import {
 import type { ReactNode } from "react";
 
 import { ConvexClientProvider } from "@/lib/convex";
-import { convexUrlMetaName, getPublicConvexUrl } from "@/lib/public-config";
+import {
+  authRequiredMetaName,
+  convexSiteUrlMetaName,
+  convexUrlMetaName,
+  getPublicAuthRequired,
+  getPublicConvexSiteUrl,
+  getPublicConvexUrl,
+} from "@/lib/public-config";
 import appCss from "@/styles.css?url";
 
 export const Route = createRootRoute({
@@ -43,6 +50,14 @@ export const Route = createRootRoute({
       {
         name: convexUrlMetaName,
         content: getPublicConvexUrl(),
+      },
+      {
+        name: convexSiteUrlMetaName,
+        content: getPublicConvexSiteUrl(),
+      },
+      {
+        name: authRequiredMetaName,
+        content: getPublicAuthRequired() ? "enabled" : "disabled",
       },
     ],
     links: [{ rel: "stylesheet", href: appCss }],

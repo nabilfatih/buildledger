@@ -70,7 +70,7 @@ const updateStatus = FunctionImpl.make(
           body: `Status changed to ${status}.`,
           bauteil: record.bauteil,
           objectName: record.objectName,
-          discipline: record.discipline,
+          trade: record.trade,
           responsibleParty: record.responsibleParty,
           chronologyDate: record.sourceProtocolDate,
           createdAt: timestamp,
@@ -81,21 +81,56 @@ const updateStatus = FunctionImpl.make(
     )
 );
 
-/** Lists project logbook events with Convex pagination. */
-const getTimeline = FunctionImpl.make(
+/** Assigns ownership and due date metadata to a project record. */
+const assign = FunctionImpl.make(
   api,
   "records",
-  "getTimeline",
-  ({ projectId, paginationOpts }) =>
+  "assign",
+  ({ recordId, responsibleParty, dueDate }) =>
     asAppError(
       Effect.gen(function* () {
-        yield* ensureProjectAccess(projectId);
         const reader = yield* DatabaseReader;
+        const record = yield* reader
+          .table("projectRecords")
+          .get(recordId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new ProjectRecordNotFound({
+                  recordId,
+                  message: "Project record not found.",
+                })
+            )
+          );
 
-        return yield* reader
-          .table("logbookEvents")
-          .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
-          .paginate(paginationOpts);
+        yield* ensureProjectAccess(record.projectId);
+
+        const writer = yield* DatabaseWriter;
+        const timestamp = Date.now();
+        const nextResponsible = optionalText(responsibleParty);
+        const nextDueDate = optionalText(dueDate);
+
+        yield* writer.table("projectRecords").patch(recordId, {
+          responsibleParty: nextResponsible,
+          dueDate: nextDueDate,
+          updatedAt: timestamp,
+        });
+        yield* writer.table("logbookEvents").insert({
+          projectId: record.projectId,
+          protocolId: record.protocolId,
+          recordId,
+          eventType: "assignment_changed",
+          title: record.title,
+          body: "Responsible party or due date changed.",
+          bauteil: record.bauteil,
+          objectName: record.objectName,
+          trade: record.trade,
+          responsibleParty: nextResponsible,
+          chronologyDate: record.sourceProtocolDate,
+          createdAt: timestamp,
+        });
+
+        return null;
       })
     )
 );
@@ -135,6 +170,12 @@ const getByProtocol = FunctionImpl.make(
 export const records = GroupImpl.make(api, "records").pipe(
   Layer.provide(listByProject),
   Layer.provide(updateStatus),
-  Layer.provide(getTimeline),
+  Layer.provide(assign),
   Layer.provide(getByProtocol)
 );
+
+/** Normalizes optional assignment fields before storage. */
+function optionalText(value: string | undefined) {
+  const text = value?.trim();
+  return text && text.length > 0 ? text : undefined;
+}

@@ -11,7 +11,9 @@
 import type * as ai from "../ai.js";
 import type * as aiSettings from "../aiSettings.js";
 import type * as documents from "../documents.js";
+import type * as http from "../http.js";
 import type * as investigations from "../investigations.js";
+import type * as logbook from "../logbook.js";
 import type * as memory from "../memory.js";
 import type * as projects from "../projects.js";
 import type * as protocols from "../protocols.js";
@@ -30,7 +32,9 @@ declare const fullApi: ApiFromModules<{
   ai: typeof ai;
   aiSettings: typeof aiSettings;
   documents: typeof documents;
+  http: typeof http;
   investigations: typeof investigations;
+  logbook: typeof logbook;
   memory: typeof memory;
   projects: typeof projects;
   protocols: typeof protocols;
@@ -66,4 +70,6 @@ export declare const internal: FilterApi<
   FunctionReference<any, "internal">
 >;
 
-export declare const components: {};
+export declare const components: {
+  betterAuth: import("@convex-dev/better-auth/_generated/component.js").ComponentApi<"betterAuth">;
+};

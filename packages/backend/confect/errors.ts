@@ -21,6 +21,21 @@ export class ProtocolNotFound extends Schema.TaggedError<ProtocolNotFound>()(
   }
 ) {}
 
+export class SourceDocumentNotFound extends Schema.TaggedError<SourceDocumentNotFound>()(
+  "SourceDocumentNotFound",
+  {
+    documentId: GenericId.GenericId("sourceDocuments"),
+    message: Schema.String,
+  }
+) {}
+
+export class InvalidDocumentUpload extends Schema.TaggedError<InvalidDocumentUpload>()(
+  "InvalidDocumentUpload",
+  {
+    message: Schema.String,
+  }
+) {}
+
 export class ReviewItemNotFound extends Schema.TaggedError<ReviewItemNotFound>()(
   "ReviewItemNotFound",
   {
@@ -33,6 +48,22 @@ export class ProjectRecordNotFound extends Schema.TaggedError<ProjectRecordNotFo
   "ProjectRecordNotFound",
   {
     recordId: GenericId.GenericId("projectRecords"),
+    message: Schema.String,
+  }
+) {}
+
+export class InvestigationNotFound extends Schema.TaggedError<InvestigationNotFound>()(
+  "InvestigationNotFound",
+  {
+    investigationId: GenericId.GenericId("investigations"),
+    message: Schema.String,
+  }
+) {}
+
+export class ReportNotFound extends Schema.TaggedError<ReportNotFound>()(
+  "ReportNotFound",
+  {
+    reportId: GenericId.GenericId("reports"),
     message: Schema.String,
   }
 ) {}
@@ -80,8 +111,12 @@ export const AppError = Schema.Union(
   Forbidden,
   ProjectNotFound,
   ProtocolNotFound,
+  SourceDocumentNotFound,
+  InvalidDocumentUpload,
   ReviewItemNotFound,
   ProjectRecordNotFound,
+  InvestigationNotFound,
+  ReportNotFound,
   InvalidProtocolState,
   ShareLinkExpired,
   ShareTargetNotFound,
@@ -123,8 +158,12 @@ export function normalizeAppError(error: unknown): AppError {
     error instanceof Forbidden ||
     error instanceof ProjectNotFound ||
     error instanceof ProtocolNotFound ||
+    error instanceof SourceDocumentNotFound ||
+    error instanceof InvalidDocumentUpload ||
     error instanceof ReviewItemNotFound ||
     error instanceof ProjectRecordNotFound ||
+    error instanceof InvestigationNotFound ||
+    error instanceof ReportNotFound ||
     error instanceof InvalidProtocolState ||
     error instanceof ShareLinkExpired ||
     error instanceof ShareTargetNotFound ||

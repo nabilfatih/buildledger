@@ -19,7 +19,6 @@ import {
   FramePanel,
   FrameTitle,
 } from "@repo/design-system/components/ui/frame";
-import { Skeleton } from "@repo/design-system/components/ui/skeleton";
 import {
   Table,
   TableBody,
@@ -29,9 +28,11 @@ import {
   TableRow,
 } from "@repo/design-system/components/ui/table";
 import { createFileRoute } from "@tanstack/react-router";
-import type { ReactNode } from "react";
 
+import { ShareShell, ShareSkeleton } from "@/components/share/shell";
 import { formatDisplayDate, formatDisplayDateRange } from "@/lib/dates";
+
+const sharedLabelSeparator = /[\s_]+/;
 
 export const Route = createFileRoute("/share")({
   validateSearch: (search) => ({
@@ -44,7 +45,7 @@ export const Route = createFileRoute("/share")({
 function ShareRoute() {
   const { token } = Route.useSearch();
   const resource = useQuery(
-    refs.public.shares.resolvePublicResource,
+    refs.public.shares.resolve,
     token ? { token } : "skip"
   );
 
@@ -79,21 +80,12 @@ function ShareRoute() {
   );
 }
 
-/** Keeps the public share page centered and bounded. */
-function ShareShell({ children }: { readonly children: ReactNode }) {
-  return (
-    <main className="min-h-svh bg-background p-4 md:p-8">
-      <div className="mx-auto grid max-w-5xl gap-4">{children}</div>
-    </main>
-  );
-}
-
 /** Chooses the concrete shared resource view after the query succeeds. */
 function SharedResource({
   resource,
 }: {
   readonly resource: ReturnType<
-    typeof useQuery<typeof refs.public.shares.resolvePublicResource>
+    typeof useQuery<typeof refs.public.shares.resolve>
   >;
 }) {
   if (resource._tag !== "Success") {
@@ -115,22 +107,6 @@ function SharedResource({
   return <SharedReport value={resource.value} />;
 }
 
-/** Shows a stable loading surface for shared resources. */
-function ShareSkeleton() {
-  return (
-    <Frame>
-      <FrameHeader>
-        <Skeleton className="h-6 w-52" />
-        <Skeleton className="h-4 w-72" />
-      </FrameHeader>
-      <FramePanel className="grid gap-3 p-4">
-        <Skeleton className="h-20 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </FramePanel>
-    </Frame>
-  );
-}
-
 /** Displays a shared protocol with published sections and records. */
 function SharedProtocol({
   value,
@@ -144,6 +120,12 @@ function SharedProtocol({
       readonly protocolType: string;
       readonly title: string;
     };
+    readonly participants: ReadonlyArray<{
+      readonly kind: string;
+      readonly name: string;
+      readonly company?: string | undefined;
+      readonly role?: string | undefined;
+    }>;
     readonly sections: ReadonlyArray<{
       readonly body: string;
       readonly title: string;
@@ -176,6 +158,9 @@ function SharedProtocol({
             This read-only record was shared from BuildLedger.
           </AlertDescription>
         </Alert>
+        {value.participants.length > 0 ? (
+          <SharedParticipants participants={value.participants} />
+        ) : null}
         <SharedSections sections={value.sections} />
         <Table className="table-fixed" variant="card">
           <TableHeader>
@@ -208,6 +193,41 @@ function SharedProtocol({
         </Table>
       </FramePanel>
     </Frame>
+  );
+}
+
+/** Shows protocol attendees and distribution rows from normalized participants. */
+function SharedParticipants({
+  participants,
+}: {
+  readonly participants: ReadonlyArray<{
+    readonly kind: string;
+    readonly name: string;
+    readonly company?: string | undefined;
+    readonly role?: string | undefined;
+  }>;
+}) {
+  return (
+    <Table className="table-fixed" variant="card">
+      <TableHeader>
+        <TableRow>
+          <TableHead className="w-36">Group</TableHead>
+          <TableHead>Name</TableHead>
+          <TableHead className="w-40">Company</TableHead>
+          <TableHead className="w-40">Role</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {participants.map((person) => (
+          <TableRow key={`${person.kind}:${person.name}`}>
+            <TableCell>{formatSharedLabel(person.kind)}</TableCell>
+            <TableCell className="truncate">{person.name}</TableCell>
+            <TableCell className="truncate">{person.company ?? ""}</TableCell>
+            <TableCell className="truncate">{person.role ?? ""}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -439,7 +459,7 @@ function SharedRecords({
 /** Formats persisted enum strings for public labels. */
 function formatSharedLabel(value: string) {
   return value
-    .split(" ")
+    .split(sharedLabelSeparator)
     .filter(Boolean)
     .map((part) => `${part.slice(0, 1).toUpperCase()}${part.slice(1)}`)
     .join(" ");

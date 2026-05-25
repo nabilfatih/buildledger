@@ -49,6 +49,7 @@ import { useState } from "react";
 
 import {
   optionalText,
+  parseProtocolPeople,
   protocolTypeItems,
   protocolValidationMessages,
   todayDate,
@@ -76,8 +77,9 @@ export function NewProtocolSheet({
   const form = useForm({
     defaultValues: {
       agenda: "",
+      attendees: "",
       date: todayDate(),
-      distributionList: "",
+      distribution: "",
       location: "",
       number: "",
       title: "",
@@ -99,7 +101,8 @@ export function NewProtocolSheet({
                 protocolType: value.type,
                 protocolDate: value.date,
                 agenda: optionalText(value.agenda),
-                distributionList: optionalText(value.distributionList),
+                attendees: parseProtocolPeople(value.attendees),
+                distribution: parseProtocolPeople(value.distribution),
                 location: optionalText(value.location),
               }),
             catch: getErrorMessage,
@@ -390,7 +393,23 @@ export function NewProtocolSheet({
                   </Field>
                 )}
               </form.Field>
-              <form.Field name="distributionList">
+              <form.Field name="attendees">
+                {(field) => (
+                  <Field>
+                    <FieldLabel>Attendees</FieldLabel>
+                    <Textarea
+                      name={field.name}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="Nabil Akbar, Owner, Project Lead, nabil@example.com"
+                      value={field.state.value}
+                    />
+                  </Field>
+                )}
+              </form.Field>
+              <form.Field name="distribution">
                 {(field) => (
                   <Field>
                     <FieldLabel>Distribution List</FieldLabel>
@@ -400,7 +419,7 @@ export function NewProtocolSheet({
                       onChange={(event) =>
                         field.handleChange(event.target.value)
                       }
-                      placeholder="Owner, GC, architect, structural engineer"
+                      placeholder="Architect Team, Design Office, Reviewer, architect@example.com"
                       value={field.state.value}
                     />
                   </Field>
@@ -425,8 +444,9 @@ export function NewProtocolSheet({
 function defaultProtocolFormValues() {
   return {
     agenda: "",
+    attendees: "",
     date: todayDate(),
-    distributionList: "",
+    distribution: "",
     location: "",
     number: "",
     title: "",
