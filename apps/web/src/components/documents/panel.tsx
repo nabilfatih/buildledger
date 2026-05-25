@@ -312,7 +312,7 @@ export function DocumentsPanel({
           <Field>
             <FieldLabel>Source File</FieldLabel>
             <Input
-              disabled={!selectedProjectId || isUploading}
+              disabled={isUploading}
               onChange={(event) => {
                 handleFile(event.currentTarget.files?.[0]);
                 event.currentTarget.value = "";
