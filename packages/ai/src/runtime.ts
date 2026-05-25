@@ -71,29 +71,29 @@ export function resolveAiRuntimeSettings(input: {
   readonly envApiKey: string;
   readonly envModel: string;
 }) {
-  const userKey = input.userSettings?.apiKey?.trim();
+  return Effect.sync(() => {
+    const userKey = input.userSettings?.apiKey?.trim();
 
-  if (input.userSettings?.provider === "openrouter" && userKey) {
-    return Effect.succeed(input.userSettings);
-  }
+    if (input.userSettings?.provider === "openrouter" && userKey) {
+      return input.userSettings;
+    }
 
-  const envProvider = normalizeAiProvider(input.envProvider);
-  const envModel = normalizeOpenRouterModel(input.envModel);
-  const envKey = input.envApiKey.trim();
+    const envProvider = normalizeAiProvider(input.envProvider);
+    const envModel = normalizeOpenRouterModel(input.envModel);
+    const envKey = input.envApiKey.trim();
 
-  if (envProvider === "openrouter" && envKey) {
-    const settings = {
-      provider: "openrouter",
-      source: "environment",
-      model: envModel,
-      apiKey: envKey,
-      keyLast4: envKey.slice(-4),
-    } satisfies AiRuntimeSettings;
+    if (envProvider === "openrouter" && envKey) {
+      return {
+        provider: "openrouter",
+        source: "environment",
+        model: envModel,
+        apiKey: envKey,
+        keyLast4: envKey.slice(-4),
+      } satisfies AiRuntimeSettings;
+    }
 
-    return Effect.succeed(settings);
-  }
-
-  return Effect.succeed(demoAiRuntimeSettings);
+    return demoAiRuntimeSettings;
+  });
 }
 
 /** Reads AI settings from Effect Config and applies provider precedence. */

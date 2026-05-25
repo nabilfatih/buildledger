@@ -5,8 +5,8 @@ import type { ProtocolReviewResult } from "@/lib/confect-results";
 import { formatDateInput } from "@/lib/dates";
 
 const protocolTypeValues = [
-  "Bauprotokoll",
-  "Jour Fixe",
+  "Construction Protocol",
+  "Coordination Meeting",
   "Site Review",
   "Change Notice",
 ] as const;
@@ -35,8 +35,8 @@ export type ReviewState = Extract<
 export type ReviewItem = ReviewState["items"][number];
 
 export interface ReviewDraft {
-  readonly bauteil: string;
   readonly body: string;
+  readonly component: string;
   readonly dueDate: string;
   readonly itemId: GenericId<"protocolItems">;
   readonly kind: ReviewKind;
@@ -52,8 +52,8 @@ export const protocolTypeItems: readonly {
   readonly label: string;
   readonly value: ProtocolType;
 }[] = [
-  { label: "Bauprotokoll", value: "Bauprotokoll" },
-  { label: "Jour Fixe", value: "Jour Fixe" },
+  { label: "Construction Protocol", value: "Construction Protocol" },
+  { label: "Coordination Meeting", value: "Coordination Meeting" },
   { label: "Site Review", value: "Site Review" },
   { label: "Change Notice", value: "Change Notice" },
 ] as const;
@@ -226,6 +226,17 @@ export function protocolNotes(sources: ReviewState["sources"]) {
   return notesInput?.text ?? "";
 }
 
+/** Checks whether a protocol already has saved source text. */
+export function hasProtocolSources(
+  sources: ReviewState["sources"] | undefined
+) {
+  if (!sources) {
+    return false;
+  }
+
+  return sources.some((source) => (source.text?.trim().length ?? 0) > 0);
+}
+
 /** Checks whether selected protocol notes can still be edited. */
 export function canEditInput(status: string | undefined) {
   return status === "draft" || status === "failed";
@@ -252,7 +263,7 @@ export function reviewDraftFromItem(item: ReviewItem): ReviewDraft {
     kind: item.kind,
     title: item.title,
     body: item.body,
-    bauteil: item.bauteil ?? "",
+    component: item.component ?? "",
     trade: item.trade ?? "",
     objectName: item.objectName ?? "",
     responsibleParty: item.responsibleParty ?? "",
@@ -273,7 +284,7 @@ export function reviewDraftChanged(draft: ReviewDraft, item: ReviewItem) {
   }
 
   if (
-    optionalText(draft.bauteil) !== optionalText(item.bauteil) ||
+    optionalText(draft.component) !== optionalText(item.component) ||
     optionalText(draft.objectName) !== optionalText(item.objectName) ||
     optionalText(draft.trade) !== optionalText(item.trade) ||
     draft.status !== item.status

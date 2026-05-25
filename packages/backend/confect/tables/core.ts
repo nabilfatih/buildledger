@@ -175,7 +175,7 @@ export const ProtocolItems = Table.make(
     ),
     title: Schema.String,
     body: Schema.String,
-    bauteil: OptionalString,
+    component: OptionalString,
     objectName: OptionalString,
     trade: OptionalString,
     responsibleParty: OptionalString,
@@ -217,7 +217,7 @@ export const ProjectRecords = Table.make(
     ),
     title: Schema.String,
     body: Schema.String,
-    bauteil: OptionalString,
+    component: OptionalString,
     objectName: OptionalString,
     trade: OptionalString,
     responsibleParty: OptionalString,
@@ -254,7 +254,7 @@ export const ProjectRecords = Table.make(
     "status",
     "sourceProtocolDate",
   ])
-  .index("by_projectId_and_bauteil", ["projectId", "bauteil", "createdAt"])
+  .index("by_projectId_and_component", ["projectId", "component", "createdAt"])
   .index("by_projectId_and_objectName", [
     "projectId",
     "objectName",
@@ -289,7 +289,7 @@ export const ProjectTaxonomy = Table.make(
   "projectTaxonomy",
   Schema.Struct({
     projectId: GenericId.GenericId("projects"),
-    kind: Schema.Literal("bauteil", "object", "trade"),
+    kind: Schema.Literal("component", "object", "trade"),
     label: Schema.String,
     archivedAt: Schema.optional(Timestamp),
     createdAt: Timestamp,
@@ -314,7 +314,7 @@ export const LogbookEvents = Table.make(
     ),
     title: Schema.String,
     body: Schema.String,
-    bauteil: OptionalString,
+    component: OptionalString,
     objectName: OptionalString,
     trade: OptionalString,
     responsibleParty: OptionalString,
@@ -324,7 +324,7 @@ export const LogbookEvents = Table.make(
 )
   .index("by_projectId", ["projectId", "createdAt"])
   .index("by_projectId_and_chronologyDate", ["projectId", "chronologyDate"])
-  .index("by_projectId_and_bauteil", ["projectId", "bauteil", "createdAt"])
+  .index("by_projectId_and_component", ["projectId", "component", "createdAt"])
   .index("by_projectId_and_objectName", [
     "projectId",
     "objectName",
@@ -383,6 +383,11 @@ export const MemoryChunks = Table.make(
   .index("by_projectId", ["projectId", "createdAt"])
   .index("by_projectId_and_sourceId", ["projectId", "sourceId", "createdAt"])
   .index("by_projectId_and_chronologyDate", ["projectId", "chronologyDate"])
+  .index("by_projectId_and_sourceType_and_chronologyDate", [
+    "projectId",
+    "sourceType",
+    "chronologyDate",
+  ])
   .vectorIndex("by_embedding", {
     vectorField: "embedding",
     dimensions: 1536,

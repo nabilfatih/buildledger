@@ -17,7 +17,7 @@ export const taxonomy = GroupSpec.make("taxonomy")
       name: "upsert",
       args: Schema.Struct({
         projectId: GenericId.GenericId("projects"),
-        kind: Schema.Literal("bauteil", "object", "trade"),
+        kind: Schema.Literal("component", "object", "trade"),
         label: Schema.String,
       }),
       returns: GenericId.GenericId("projectTaxonomy"),

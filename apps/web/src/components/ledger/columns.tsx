@@ -73,22 +73,22 @@ export const ledgerColumns = [
       <span className="block min-w-0 truncate">{info.getValue()}</span>
     ),
   }),
-  columnHelper.accessor("bauteil", {
-    header: "Bauteil",
+  columnHelper.accessor("component", {
+    header: "Component",
     size: 120,
     cell: (info) => (
       <MutedValue fallback="Unassigned" value={info.getValue()} />
     ),
   }),
   columnHelper.accessor("objectName", {
-    header: "Objekt",
+    header: "Object",
     size: 120,
     cell: (info) => (
       <MutedValue fallback="Unassigned" value={info.getValue()} />
     ),
   }),
   columnHelper.accessor("trade", {
-    header: "Gewerk",
+    header: "Trade",
     size: 112,
     cell: (info) => (
       <MutedValue fallback="Unassigned" value={info.getValue()} />

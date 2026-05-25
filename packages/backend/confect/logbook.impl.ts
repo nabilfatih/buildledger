@@ -67,12 +67,12 @@ const listByTaxonomy = FunctionImpl.make(
         yield* ensureProjectAccess(projectId);
         const reader = yield* DatabaseReader;
 
-        if (kind === "bauteil") {
+        if (kind === "component") {
           return yield* reader
             .table("logbookEvents")
             .index(
-              "by_projectId_and_bauteil",
-              (q) => q.eq("projectId", projectId).eq("bauteil", value),
+              "by_projectId_and_component",
+              (q) => q.eq("projectId", projectId).eq("component", value),
               "desc"
             )
             .paginate(paginationOpts);

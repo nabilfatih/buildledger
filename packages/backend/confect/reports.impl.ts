@@ -34,24 +34,23 @@ const getReportChunks = Effect.fn("reports.getReportChunks")(function* (input: {
   const chunks = yield* reader
     .table("memoryChunks")
     .index(
-      "by_projectId_and_chronologyDate",
+      "by_projectId_and_sourceType_and_chronologyDate",
       (q) =>
         q
           .eq("projectId", input.projectId)
+          .eq("sourceType", "protocol")
           .gte("chronologyDate", input.periodStart)
           .lte("chronologyDate", input.periodEnd),
       "desc"
     )
     .take(50);
 
-  return chunks
-    .filter((chunk) => chunk.sourceType === "protocol")
-    .map((chunk) => ({
-      chunkId: chunk._id,
-      text: chunk.text,
-      chronologyDate: chunk.chronologyDate,
-      sourceTitle: "Published protocol",
-    }));
+  return chunks.map((chunk) => ({
+    chunkId: chunk._id,
+    text: chunk.text,
+    chronologyDate: chunk.chronologyDate,
+    sourceTitle: "Published protocol",
+  }));
 });
 
 /** Inserts a report record from the stable AI report contract. */

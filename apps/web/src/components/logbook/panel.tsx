@@ -64,9 +64,9 @@ export function LogbookPanel({ logbook }: { readonly logbook: LogbookResult }) {
                     <TableHead className="w-32">Date</TableHead>
                     <TableHead className="w-36">Event</TableHead>
                     <TableHead>Description</TableHead>
-                    <TableHead className="w-32">Bauteil</TableHead>
-                    <TableHead className="w-32">Objekt</TableHead>
-                    <TableHead className="w-32">Gewerk</TableHead>
+                    <TableHead className="w-32">Component</TableHead>
+                    <TableHead className="w-32">Object</TableHead>
+                    <TableHead className="w-32">Trade</TableHead>
                     <TableHead className="w-40">Responsible</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -85,7 +85,7 @@ export function LogbookPanel({ logbook }: { readonly logbook: LogbookResult }) {
                           {event.body}
                         </span>
                       </TableCell>
-                      <TableCell>{event.bauteil ?? "Unassigned"}</TableCell>
+                      <TableCell>{event.component ?? "Unassigned"}</TableCell>
                       <TableCell>{event.objectName ?? "Unassigned"}</TableCell>
                       <TableCell>{event.trade ?? "Unassigned"}</TableCell>
                       <TableCell>

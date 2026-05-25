@@ -62,7 +62,7 @@ function makeDemoProtocolDraft(input: {
             kind: "discussion",
             title: input.title,
             body: firstSentence(text),
-            bauteil: "General",
+            component: "General",
             objectName: "Project",
             trade: "Coordination",
             status: "recorded",
@@ -72,7 +72,7 @@ function makeDemoProtocolDraft(input: {
             kind: "decision",
             title: "Sequencing update accepted",
             body: "The site team accepted the revised crane window and sequencing update.",
-            bauteil: "Envelope",
+            component: "Envelope",
             objectName: "Crane window",
             trade: "Site logistics",
             status: "recorded",
@@ -82,7 +82,7 @@ function makeDemoProtocolDraft(input: {
             kind: "task",
             title: "Resolve inspection blocker",
             body: "Coordinate inspection timing so drywall crews can proceed.",
-            bauteil: "Interior",
+            component: "Interior",
             objectName: "Drywall",
             trade: "Drywall",
             responsibleParty: "Site team",
@@ -94,7 +94,7 @@ function makeDemoProtocolDraft(input: {
             kind: "risk",
             title: "Drywall sequence delay",
             body: "Drywall crews remain blocked if inspection timing slips.",
-            bauteil: "Interior",
+            component: "Interior",
             objectName: "Drywall",
             trade: "Drywall",
             severity: "high",
@@ -311,7 +311,7 @@ export class ProtocolExtractionService extends Effect.Service<ProtocolExtraction
             const payload = yield* runOpenRouterJson({
               settings,
               system:
-                "You convert construction protocol notes and transcripts into structured Bauprotokoll records. Return only JSON that matches { summary: string, sections: [{ title: string, body: string, items: [{ kind: 'agenda' | 'discussion' | 'change' | 'task' | 'information' | 'concern' | 'obstruction' | 'decision' | 'risk' | 'question', title: string, body: string, bauteil?: string, objectName?: string, trade?: string, responsibleParty?: string, dueDate?: string, severity?: 'low' | 'medium' | 'high', status?: 'open' | 'in_progress' | 'blocked' | 'resolved' | 'recorded', citations: [{ chunkId: string, quote: string }] }] }] }. Use chunkId 'input-1' for citations.",
+                "You convert construction protocol notes and transcripts into structured Construction Protocol records. Return only JSON that matches { summary: string, sections: [{ title: string, body: string, items: [{ kind: 'agenda' | 'discussion' | 'change' | 'task' | 'information' | 'concern' | 'obstruction' | 'decision' | 'risk' | 'question', title: string, body: string, component?: string, objectName?: string, trade?: string, responsibleParty?: string, dueDate?: string, severity?: 'low' | 'medium' | 'high', status?: 'open' | 'in_progress' | 'blocked' | 'resolved' | 'recorded', citations: [{ chunkId: string, quote: string }] }] }] }. Use chunkId 'input-1' for citations.",
               user: `Protocol title: ${input.title}\n\nSources:\n${text}`,
             });
 

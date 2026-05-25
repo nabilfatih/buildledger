@@ -194,17 +194,17 @@ function ReviewItemEditor({
       </Field>
       <div className="grid gap-3 md:grid-cols-3">
         <Field>
-          <FieldLabel>Bauteil</FieldLabel>
+          <FieldLabel>Component</FieldLabel>
           <Input
             onChange={(event) =>
-              onDraftChange(draft.itemId, { bauteil: event.target.value })
+              onDraftChange(draft.itemId, { component: event.target.value })
             }
             placeholder="TG South"
-            value={draft.bauteil}
+            value={draft.component}
           />
         </Field>
         <Field>
-          <FieldLabel>Objekt</FieldLabel>
+          <FieldLabel>Object</FieldLabel>
           <Input
             onChange={(event) =>
               onDraftChange(draft.itemId, { objectName: event.target.value })
@@ -214,7 +214,7 @@ function ReviewItemEditor({
           />
         </Field>
         <Field>
-          <FieldLabel>Gewerk</FieldLabel>
+          <FieldLabel>Trade</FieldLabel>
           <Input
             onChange={(event) =>
               onDraftChange(draft.itemId, { trade: event.target.value })

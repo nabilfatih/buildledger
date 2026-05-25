@@ -26,6 +26,7 @@ import {
   canEditInput,
   getPrimaryTask,
   getWorkflowTab,
+  hasProtocolSources,
   isWorkflowTab,
   optionalText,
   protocolNotes,
@@ -108,6 +109,7 @@ function ProtocolWorkspaceSession({
 
   const notes =
     notesOverride ?? (reviewState ? protocolNotes(reviewState.sources) : "");
+  const savedSourcesAvailable = hasProtocolSources(reviewState?.sources);
   const reviewDrafts =
     reviewState?.items.map((item) => {
       const draft = reviewDraftFromItem(item);
@@ -143,10 +145,13 @@ function ProtocolWorkspaceSession({
       return;
     }
 
-    if (notes.trim().length === 0) {
+    const trimmedNotes = notes.trim();
+
+    if (!(trimmedNotes.length > 0 || savedSourcesAvailable)) {
       toastManager.add({
-        title: "Notes required",
-        description: "Add protocol notes before generating a protocol.",
+        title: "Source required",
+        description:
+          "Add notes or attach a source document before generating a protocol.",
         type: "warning",
       });
       return;
@@ -155,19 +160,21 @@ function ProtocolWorkspaceSession({
     setIsGenerating(true);
     return Effect.runPromise(
       Effect.gen(function* () {
-        const saveResult = yield* Effect.tryPromise({
-          try: () =>
-            saveSource({
-              protocolId: selectedProtocolId,
-              kind: "notes",
-              text: notes,
-            }),
-          catch: getErrorMessage,
-        });
-        yield* Either.match(saveResult, {
-          onLeft: (error) => Effect.fail(error.message),
-          onRight: () => Effect.void,
-        });
+        if (trimmedNotes.length > 0) {
+          const saveResult = yield* Effect.tryPromise({
+            try: () =>
+              saveSource({
+                protocolId: selectedProtocolId,
+                kind: "notes",
+                text: trimmedNotes,
+              }),
+            catch: getErrorMessage,
+          });
+          yield* Either.match(saveResult, {
+            onLeft: (error) => Effect.fail(error.message),
+            onRight: () => Effect.void,
+          });
+        }
 
         const generateResult = yield* Effect.tryPromise({
           try: () => generateProtocol({ protocolId: selectedProtocolId }),
@@ -347,7 +354,7 @@ function ProtocolWorkspaceSession({
               kind: draft.kind,
               title: draft.title,
               body: draft.body,
-              bauteil: optionalText(draft.bauteil),
+              component: optionalText(draft.component),
               trade: optionalText(draft.trade),
               dueDate:
                 draft.kind === "task" ? optionalText(draft.dueDate) : undefined,

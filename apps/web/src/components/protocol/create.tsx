@@ -245,7 +245,7 @@ export function NewProtocolSheet({
                         onChange={(event) =>
                           field.handleChange(event.target.value)
                         }
-                        placeholder="BP-001"
+                        placeholder="CP-001"
                         value={field.state.value}
                       />
                       {error ? (

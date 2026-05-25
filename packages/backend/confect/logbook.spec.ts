@@ -52,7 +52,7 @@ export const logbook = GroupSpec.make("logbook")
       name: "listByTaxonomy",
       args: Schema.Struct({
         projectId: GenericId.GenericId("projects"),
-        kind: Schema.Literal("bauteil", "object", "trade"),
+        kind: Schema.Literal("component", "object", "trade"),
         value: Schema.String,
         paginationOpts: PaginationOpts,
       }),

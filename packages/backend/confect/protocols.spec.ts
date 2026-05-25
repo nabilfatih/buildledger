@@ -112,7 +112,7 @@ export const protocols = GroupSpec.make("protocols")
         ),
         title: Schema.String,
         body: Schema.String,
-        bauteil: Schema.optional(Schema.String),
+        component: Schema.optional(Schema.String),
         objectName: Schema.optional(Schema.String),
         trade: Schema.optional(Schema.String),
         responsibleParty: Schema.optional(Schema.String),

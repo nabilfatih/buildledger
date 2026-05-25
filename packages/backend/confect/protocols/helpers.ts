@@ -48,7 +48,7 @@ export function reviewItemPatch(input: {
   readonly kind: ProjectRecordType;
   readonly title: string;
   readonly body: string;
-  readonly bauteil?: string | undefined;
+  readonly component?: string | undefined;
   readonly objectName?: string | undefined;
   readonly trade?: string | undefined;
   readonly responsibleParty?: string | undefined;
@@ -63,7 +63,7 @@ export function reviewItemPatch(input: {
     kind: input.kind,
     title,
     body,
-    bauteil: optionalText(input.bauteil),
+    component: optionalText(input.component),
     objectName: optionalText(input.objectName),
     trade: optionalText(input.trade),
     responsibleParty:

@@ -65,7 +65,7 @@ export const insertProtocolDraft = Effect.fn("protocols.insertProtocolDraft")(
             kind: item.kind,
             title: item.title,
             body: item.body,
-            bauteil: item.bauteil,
+            component: item.component,
             objectName: item.objectName,
             trade: item.trade,
             responsibleParty: item.responsibleParty,

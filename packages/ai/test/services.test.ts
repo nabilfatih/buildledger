@@ -21,36 +21,43 @@ const liveServices = Layer.mergeAll(
 );
 
 describe("AI services", () => {
-  it("creates a cited protocol draft from source text", async () => {
-    const result = await Effect.runPromise(
+  it("creates a cited protocol draft from source text", () =>
+    Effect.runPromise(
       ProtocolExtractionService.extract({
         title: "Weekly site coordination",
         text: "Concrete pour is delayed by two days. The site manager will update the schedule.",
         settings: demoAiRuntimeSettings,
-      }).pipe(Effect.provide(liveServices))
-    );
+      }).pipe(
+        Effect.provide(liveServices),
+        Effect.map((result) => {
+          const section = expectDefined(result.sections[0]);
+          const item = expectDefined(section.items[0]);
+          const citation = expectDefined(item.citations[0]);
 
-    const section = expectDefined(result.sections[0]);
-    const item = expectDefined(section.items[0]);
-    const citation = expectDefined(item.citations[0]);
+          expect(citation.chunkId).toBe("input-1");
+          expect(item.trade).toBe("Coordination");
+          return result;
+        })
+      )
+    ));
 
-    expect(citation.chunkId).toBe("input-1");
-    expect(item.trade).toBe("Coordination");
-  });
-
-  it("rejects empty protocol source input", async () => {
-    const result = await Effect.runPromiseExit(
+  it("rejects empty protocol source input", () =>
+    Effect.runPromise(
       ProtocolExtractionService.extract({
         title: "Empty protocol",
         text: " ",
         settings: demoAiRuntimeSettings,
-      }).pipe(Effect.provide(liveServices))
-    );
+      }).pipe(
+        Effect.provide(liveServices),
+        Effect.exit,
+        Effect.map((result) => {
+          expect(result._tag).toBe("Failure");
+          return result;
+        })
+      )
+    ));
 
-    expect(result._tag).toBe("Failure");
-  });
-
-  it("answers with citations from project memory", async () => {
+  it("answers with citations from project memory", () => {
     const program = Effect.gen(function* () {
       const chunks = yield* MemoryChunkingService.chunk({
         sourceTitle: "Weekly site coordination",
@@ -65,41 +72,52 @@ describe("AI services", () => {
       });
     }).pipe(Effect.provide(liveServices));
 
-    const result = await Effect.runPromise(program);
-
-    expect(result.citations).toHaveLength(1);
+    return Effect.runPromise(
+      program.pipe(
+        Effect.map((result) => {
+          expect(result.citations).toHaveLength(1);
+          return result;
+        })
+      )
+    );
   });
 
-  it("uses the deterministic demo provider when no key exists", async () => {
-    const settings = await Effect.runPromise(
+  it("uses the deterministic demo provider when no key exists", () =>
+    Effect.runPromise(
       resolveAiRuntimeSettings({
         envProvider: "openrouter",
         envApiKey: "",
         envModel: "openai/gpt-5-mini",
-      })
-    );
+      }).pipe(
+        Effect.map((settings) => {
+          expect(settings.provider).toBe("demo");
+          expect(settings.source).toBe("demo");
+          return settings;
+        })
+      )
+    ));
 
-    expect(settings.provider).toBe("demo");
-    expect(settings.source).toBe("demo");
-  });
-
-  it("selects OpenRouter from environment settings", async () => {
-    const settings = await Effect.runPromise(
+  it("selects OpenRouter from environment settings", () =>
+    Effect.runPromise(
       resolveAiRuntimeSettings({
         envProvider: "openrouter",
         envApiKey: "sk-or-example",
         envModel: "openai/gpt-5",
-      })
-    );
+      }).pipe(
+        Effect.map((settings) => {
+          expect(settings.provider).toBe("openrouter");
+          expect(settings.source).toBe("environment");
+          expect(settings.model).toBe("openai/gpt-5");
+          expect("keyLast4" in settings ? settings.keyLast4 : null).toBe(
+            "mple"
+          );
+          return settings;
+        })
+      )
+    ));
 
-    expect(settings.provider).toBe("openrouter");
-    expect(settings.source).toBe("environment");
-    expect(settings.model).toBe("openai/gpt-5");
-    expect("keyLast4" in settings ? settings.keyLast4 : null).toBe("mple");
-  });
-
-  it("lets a saved user key override the environment key", async () => {
-    const settings = await Effect.runPromise(
+  it("lets a saved user key override the environment key", () =>
+    Effect.runPromise(
       resolveAiRuntimeSettings({
         userSettings: {
           provider: "openrouter",
@@ -111,16 +129,20 @@ describe("AI services", () => {
         envProvider: "openrouter",
         envApiKey: "sk-env-value",
         envModel: "openai/gpt-5",
-      })
-    );
+      }).pipe(
+        Effect.map((settings) => {
+          expect(settings.source).toBe("user");
+          expect(settings.model).toBe("anthropic/claude-sonnet-4.5");
+          expect("keyLast4" in settings ? settings.keyLast4 : null).toBe(
+            "alue"
+          );
+          return settings;
+        })
+      )
+    ));
 
-    expect(settings.source).toBe("user");
-    expect(settings.model).toBe("anthropic/claude-sonnet-4.5");
-    expect("keyLast4" in settings ? settings.keyLast4 : null).toBe("alue");
-  });
-
-  it("ignores an empty saved key and falls back safely", async () => {
-    const settings = await Effect.runPromise(
+  it("ignores an empty saved key and falls back safely", () =>
+    Effect.runPromise(
       resolveAiRuntimeSettings({
         userSettings: {
           provider: "openrouter",
@@ -132,22 +154,27 @@ describe("AI services", () => {
         envProvider: "demo",
         envApiKey: "",
         envModel: "openai/gpt-5-mini",
+      }).pipe(
+        Effect.map((settings) => {
+          expect(settings.source).toBe("demo");
+          return settings;
+        })
+      )
+    ));
+
+  it("never exposes raw keys in public AI settings", () =>
+    Effect.runSync(
+      Effect.sync(() => {
+        const publicSettings = toPublicAiSettings({
+          provider: "openrouter",
+          source: "user",
+          model: "openai/gpt-5-mini",
+          apiKey: "sk-user-value",
+          keyLast4: "alue",
+        });
+
+        expect(publicSettings).not.toHaveProperty("apiKey");
+        expect(publicSettings).toMatchObject({ keyLast4: "alue" });
       })
-    );
-
-    expect(settings.source).toBe("demo");
-  });
-
-  it("never exposes raw keys in public AI settings", () => {
-    const publicSettings = toPublicAiSettings({
-      provider: "openrouter",
-      source: "user",
-      model: "openai/gpt-5-mini",
-      apiKey: "sk-user-value",
-      keyLast4: "alue",
-    });
-
-    expect(publicSettings).not.toHaveProperty("apiKey");
-    expect(publicSettings).toMatchObject({ keyLast4: "alue" });
-  });
+    ));
 });
