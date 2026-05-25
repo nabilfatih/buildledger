@@ -13,17 +13,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@repo/design-system/components/ui/select";
-
-import { getPageOption } from "@/components/ledger/format";
-import type { LedgerTable } from "@/components/ledger/types";
+import type { Table } from "@tanstack/react-table";
 
 /** Controls TanStack pagination without adding another primary action. */
-export function LedgerPagination({
+export function DataTablePagination<Row>({
   className,
+  label,
   table,
 }: {
   readonly className?: string;
-  readonly table: LedgerTable;
+  readonly label: string;
+  readonly table: Table<Row>;
 }) {
   const pageOptions = Array.from({ length: table.getPageCount() }, (_, index) =>
     getPageOption(table, index)
@@ -49,7 +49,7 @@ export function LedgerPagination({
           value={currentPage ?? null}
         >
           <SelectTrigger
-            aria-label="Select ledger result range"
+            aria-label={`Select ${label} result range`}
             className="w-fit min-w-24"
             size="sm"
           >
@@ -103,4 +103,16 @@ export function LedgerPagination({
       </Pagination>
     </div>
   );
+}
+
+/** Creates the displayed page range for the pagination select. */
+function getPageOption<Row>(table: Table<Row>, index: number) {
+  const pageSize = table.getState().pagination.pageSize;
+  const start = index * pageSize + 1;
+  const end = Math.min((index + 1) * pageSize, table.getRowCount());
+
+  return {
+    label: `${start}-${end}`,
+    value: index,
+  };
 }

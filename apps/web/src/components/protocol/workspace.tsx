@@ -94,7 +94,7 @@ function ProtocolWorkspaceSession({
   const saveSource = useMutation(refs.public.protocols.saveSource);
   const updateReview = useMutation(refs.public.protocols.updateReview);
   const generateProtocol = useAction(refs.public.protocols.generate);
-  const publishProtocol = useMutation(refs.public.protocols.publish);
+  const publishProtocol = useAction(refs.public.protocols.publish);
   const [activeTab, setActiveTab] = useState(initialActiveTab);
   const [notesOverride, setNotesOverride] = useState<string | null>(null);
   const [reviewPatches, setReviewPatches] = useState<

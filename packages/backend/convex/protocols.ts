@@ -12,3 +12,5 @@ export const publish = registeredFunctions.protocols.publish;
 export const saveSource = registeredFunctions.protocols.saveSource;
 export const startGeneration = registeredFunctions.protocols.startGeneration;
 export const updateReview = registeredFunctions.protocols.updateReview;
+export const writePublishMemory = registeredFunctions.protocols.writePublishMemory;
+export const writePublishRecords = registeredFunctions.protocols.writePublishRecords;

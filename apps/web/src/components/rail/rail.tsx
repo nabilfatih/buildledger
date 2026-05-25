@@ -31,7 +31,10 @@ import {
 } from "@repo/design-system/components/ui/sidebar";
 import type { GenericId } from "convex/values";
 import { useMemo, useState } from "react";
-
+import {
+  type WorkspaceSection,
+  workspaceSections,
+} from "@/components/app/section";
 import { AuthMenu } from "@/components/auth/menu";
 import { NewProjectSheet } from "@/components/rail/create";
 import { ThemeMenu } from "@/components/rail/theme";
@@ -52,11 +55,15 @@ const projectPageSize = 8;
 /** Creates projects and switches the active project from the app sidebar. */
 export function ProjectRail({
   projects,
+  activeSection,
   selectedProjectId,
+  setActiveSection,
   setSelectedProjectId,
 }: {
   readonly projects: ProjectsResult;
+  readonly activeSection: WorkspaceSection;
   readonly selectedProjectId: GenericId<"projects"> | null;
+  readonly setActiveSection: (section: WorkspaceSection) => void;
   readonly setSelectedProjectId: (
     projectId: GenericId<"projects"> | null
   ) => void;
@@ -132,7 +139,25 @@ export function ProjectRail({
       </SidebarHeader>
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Projects</SidebarGroupLabel>
+          <SidebarGroupLabel>Workspace</SidebarGroupLabel>
+          <SidebarGroupContent>
+            <SidebarMenu>
+              {workspaceSections.map((section) => (
+                <SidebarMenuItem key={section.value}>
+                  <SidebarMenuButton
+                    isActive={section.value === activeSection}
+                    onClick={() => setActiveSection(section.value)}
+                  >
+                    <HugeIcons icon={section.icon} />
+                    <span>{section.label}</span>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupLabel className="sr-only">Projects</SidebarGroupLabel>
           <SidebarGroupContent className="grid gap-2">
             <InputGroup>
               <InputGroupInput

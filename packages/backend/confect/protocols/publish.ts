@@ -1,9 +1,11 @@
 import { FunctionImpl } from "@confect/server";
 import { MemoryChunkingService } from "@repo/ai/services";
 import api from "@repo/backend/confect/_generated/api";
+import refs from "@repo/backend/confect/_generated/refs";
 import {
   DatabaseReader,
   DatabaseWriter,
+  MutationRunner,
 } from "@repo/backend/confect/_generated/services";
 import {
   InvalidProtocolState,
@@ -26,11 +28,33 @@ function countCitations(citationsJson: string) {
   );
 }
 
-/** Publishes reviewed protocol items into project records, logbook, and memory. */
+/** Orchestrates protocol publishing across small Convex mutations. */
 export const publish = FunctionImpl.make(
   api,
   "protocols",
   "publish",
+  ({ protocolId }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const runMutation = yield* MutationRunner;
+
+        yield* runMutation(refs.internal.protocols.writePublishRecords, {
+          protocolId,
+        });
+        yield* runMutation(refs.internal.protocols.writePublishMemory, {
+          protocolId,
+        });
+
+        return null;
+      })
+    )
+);
+
+/** Writes reviewed items into ledger records and logbook events once. */
+export const writePublishRecords = FunctionImpl.make(
+  api,
+  "protocols",
+  "writePublishRecords",
   ({ protocolId }) =>
     asAppError(
       Effect.gen(function* () {
@@ -75,10 +99,10 @@ export const publish = FunctionImpl.make(
           .take(maxProtocolItems);
 
         if (existingRecords.length === 0) {
+          const timestamp = Date.now();
           yield* Effect.all(
             items.map((item, index) =>
               Effect.gen(function* () {
-                const timestamp = Date.now();
                 const recordId = yield* writer.table("projectRecords").insert({
                   projectId: protocol.projectId,
                   protocolId,
@@ -120,6 +144,54 @@ export const publish = FunctionImpl.make(
             )
           );
         }
+
+        return null;
+      })
+    )
+);
+
+/** Writes project memory chunks and marks the protocol as published once. */
+export const writePublishMemory = FunctionImpl.make(
+  api,
+  "protocols",
+  "writePublishMemory",
+  ({ protocolId }) =>
+    asAppError(
+      Effect.gen(function* () {
+        const reader = yield* DatabaseReader;
+        const writer = yield* DatabaseWriter;
+        const protocol = yield* reader
+          .table("protocols")
+          .get(protocolId)
+          .pipe(
+            Effect.mapError(
+              () =>
+                new ProtocolNotFound({
+                  protocolId,
+                  message: "Protocol not found.",
+                })
+            )
+          );
+
+        yield* ensureProjectAccess(protocol.projectId);
+
+        if (protocol.status === "published") {
+          return null;
+        }
+
+        if (protocol.status !== "review") {
+          return yield* Effect.fail(
+            new InvalidProtocolState({
+              protocolId,
+              message: "Protocol must be in review before publishing.",
+            })
+          );
+        }
+
+        const items = yield* reader
+          .table("protocolItems")
+          .index("by_protocolId", (q) => q.eq("protocolId", protocolId))
+          .take(maxProtocolItems);
 
         const existingChunks = yield* reader
           .table("memoryChunks")

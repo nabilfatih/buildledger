@@ -9,6 +9,7 @@ import authConfig from "../convex/auth.config";
 const defaultSiteUrl = "http://127.0.0.1:3000";
 const localAuthSecret = "buildledger-local-self-hosted-auth-secret";
 const authRequired = process.env.BUILDLEDGER_AUTH_REQUIRED === "enabled";
+const rateLimitEnabled = authRequired && process.env.NODE_ENV === "production";
 const trustedIpHeaders = [
   "cf-connecting-ip",
   "x-vercel-forwarded-for",
@@ -64,6 +65,9 @@ export function createAuth(ctx: GenericCtx<DataModel>) {
       requireEmailVerification: false,
     },
     plugins: [createConvexPlugin()],
+    rateLimit: {
+      enabled: rateLimitEnabled,
+    },
     secret: resolveAuthSecret(),
   });
 }

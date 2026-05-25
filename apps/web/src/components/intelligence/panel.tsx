@@ -1,6 +1,5 @@
 import { useAction, useMutation, useQuery } from "@confect/react";
 import refs from "@repo/backend/confect/_generated/refs";
-import { Badge } from "@repo/design-system/components/ui/badge";
 import {
   Field,
   FieldDescription,
@@ -12,7 +11,6 @@ import {
 } from "@repo/design-system/components/ui/fieldset";
 import {
   Frame,
-  FrameDescription,
   FrameHeader,
   FramePanel,
   FrameTitle,
@@ -445,13 +443,7 @@ function ProjectIntelligenceSession({
   return (
     <Frame className="min-w-0">
       <FrameHeader>
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <FrameTitle>Project Intelligence</FrameTitle>
-            <FrameDescription>Answers, reports, and sharing.</FrameDescription>
-          </div>
-          <Badge variant="info">Cited Memory</Badge>
-        </div>
+        <FrameTitle>Project Intelligence</FrameTitle>
       </FrameHeader>
       <FramePanel className="flex min-w-0 flex-col gap-4 p-4">
         <Fieldset className="grid gap-4">
@@ -465,7 +457,9 @@ function ProjectIntelligenceSession({
               onChange={(event) => setQuestion(event.target.value)}
               value={question}
             />
-            <FieldDescription>{questionHelp}</FieldDescription>
+            {canUseProjectMemory ? null : (
+              <FieldDescription>{questionHelp}</FieldDescription>
+            )}
           </Field>
         </Fieldset>
 

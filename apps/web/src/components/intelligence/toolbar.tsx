@@ -1,10 +1,19 @@
 import {
+  AiSearchIcon,
   Analytics01Icon,
   BubbleChatQuestionIcon,
   Link01Icon,
+  Share02Icon,
 } from "@hugeicons/core-free-icons";
 import { Button } from "@repo/design-system/components/ui/button";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
+import {
+  Menu,
+  MenuGroup,
+  MenuItem,
+  MenuPopup,
+  MenuTrigger,
+} from "@repo/design-system/components/ui/menu";
 import {
   Toolbar,
   ToolbarGroup,
@@ -42,7 +51,7 @@ export function IntelligenceToolbar({
     <Toolbar className="flex-wrap">
       <ToolbarGroup className="flex-wrap">
         <Button loading={isAsking} onClick={onAsk} size="sm" type="button">
-          <HugeIcons icon={BubbleChatQuestionIcon} /> Ask Project
+          <HugeIcons icon={BubbleChatQuestionIcon} /> Ask
         </Button>
         <Button
           loading={isInvestigating}
@@ -51,7 +60,7 @@ export function IntelligenceToolbar({
           type="button"
           variant="secondary"
         >
-          <HugeIcons icon={Analytics01Icon} /> AI Detective
+          <HugeIcons icon={AiSearchIcon} /> Investigate
         </Button>
         <Button
           loading={isReporting}
@@ -73,45 +82,62 @@ export function IntelligenceToolbar({
             <HugeIcons icon={Analytics01Icon} /> Publish Report
           </Button>
         ) : null}
-        <Button
-          loading={isSharing}
-          onClick={() => onShare("protocol")}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <HugeIcons icon={Link01Icon} /> Share Protocol
-        </Button>
-        <Button
-          loading={isSharing}
-          onClick={() => onShare("ledger")}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <HugeIcons icon={Link01Icon} /> Share Ledger
-        </Button>
-        <Button
-          loading={isSharing}
-          onClick={() => onShare("logbook")}
-          size="sm"
-          type="button"
-          variant="outline"
-        >
-          <HugeIcons icon={Link01Icon} /> Share Logbook
-        </Button>
-        {hasReport ? (
+        <ShareMenu
+          hasReport={hasReport}
+          isSharing={isSharing}
+          onShare={onShare}
+        />
+      </ToolbarGroup>
+    </Toolbar>
+  );
+}
+
+/** Keeps all share targets behind one compact COSS menu action. */
+function ShareMenu({
+  hasReport,
+  isSharing,
+  onShare,
+}: {
+  readonly hasReport: boolean;
+  readonly isSharing: boolean;
+  readonly onShare: (target: ShareTarget) => void;
+}) {
+  return (
+    <Menu>
+      <MenuTrigger
+        render={
           <Button
             loading={isSharing}
-            onClick={() => onShare("report")}
             size="sm"
             type="button"
             variant="outline"
-          >
-            <HugeIcons icon={Link01Icon} /> Share Report
-          </Button>
-        ) : null}
-      </ToolbarGroup>
-    </Toolbar>
+          />
+        }
+      >
+        <HugeIcons icon={Share02Icon} /> Share
+      </MenuTrigger>
+      <MenuPopup align="end">
+        <MenuGroup>
+          <MenuItem onClick={() => onShare("protocol")}>
+            <HugeIcons icon={Link01Icon} />
+            Protocol
+          </MenuItem>
+          <MenuItem onClick={() => onShare("ledger")}>
+            <HugeIcons icon={Link01Icon} />
+            Ledger
+          </MenuItem>
+          <MenuItem onClick={() => onShare("logbook")}>
+            <HugeIcons icon={Link01Icon} />
+            Logbook
+          </MenuItem>
+          {hasReport ? (
+            <MenuItem onClick={() => onShare("report")}>
+              <HugeIcons icon={Link01Icon} />
+              Report
+            </MenuItem>
+          ) : null}
+        </MenuGroup>
+      </MenuPopup>
+    </Menu>
   );
 }

@@ -187,8 +187,24 @@ export const protocols = GroupSpec.make("protocols")
     })
   )
   .addFunction(
-    FunctionSpec.publicMutation({
+    FunctionSpec.publicAction({
       name: "publish",
+      args: Schema.Struct({ protocolId: GenericId.GenericId("protocols") }),
+      returns: Schema.Null,
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.internalMutation({
+      name: "writePublishRecords",
+      args: Schema.Struct({ protocolId: GenericId.GenericId("protocols") }),
+      returns: Schema.Null,
+      error: AppError,
+    })
+  )
+  .addFunction(
+    FunctionSpec.internalMutation({
+      name: "writePublishMemory",
       args: Schema.Struct({ protocolId: GenericId.GenericId("protocols") }),
       returns: Schema.Null,
       error: AppError,

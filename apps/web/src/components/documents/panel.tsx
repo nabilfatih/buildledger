@@ -1,9 +1,5 @@
 import { QueryResult, useMutation } from "@confect/react";
-import {
-  File01Icon,
-  Link02Icon,
-  Upload04Icon,
-} from "@hugeicons/core-free-icons";
+import { Link02Icon, Upload04Icon } from "@hugeicons/core-free-icons";
 import refs from "@repo/backend/confect/_generated/refs";
 import { Button } from "@repo/design-system/components/ui/button";
 import {
@@ -30,28 +26,34 @@ import {
 } from "@repo/design-system/components/ui/frame";
 import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
 import { Input } from "@repo/design-system/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@repo/design-system/components/ui/table";
 import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { toastManager } from "@repo/design-system/components/ui/toast";
 import {
   Toolbar,
   ToolbarGroup,
 } from "@repo/design-system/components/ui/toolbar";
+import {
+  getCoreRowModel,
+  getPaginationRowModel,
+  getSortedRowModel,
+  type PaginationState,
+  type SortingState,
+  useReactTable,
+} from "@tanstack/react-table";
 import type { GenericId } from "convex/values";
 import { Effect, Either } from "effect";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
+import { documentColumns } from "@/components/documents/columns";
+import { DocumentsDataTable } from "@/components/documents/data";
+import { DocumentFilters } from "@/components/documents/filters";
+import { matchesDocumentFilters } from "@/components/documents/format";
+import {
+  type DocumentRow,
+  documentPageSize,
+} from "@/components/documents/types";
 import { WorkflowPanelSkeleton } from "@/components/protocol/skeleton";
-import { titleCase } from "@/components/protocol/utils";
 import type { DocumentsResult } from "@/lib/confect-results";
-import { formatDisplayDateTime } from "@/lib/dates";
 import { getErrorMessage } from "@/lib/errors";
 
 import { readTextPreview, uploadFile } from "./upload";
@@ -74,19 +76,53 @@ export function DocumentsPanel({
   );
   const extractText = useMutation(refs.public.documents.extractText);
   const attachDocument = useMutation(refs.public.protocols.attachDocument);
-  const [selectedDocumentId, setSelectedDocumentId] =
+  const [currentDocumentId, setCurrentDocumentId] =
     useState<GenericId<"sourceDocuments"> | null>(null);
   const [extractedText, setExtractedText] = useState("");
   const [isUploading, setIsUploading] = useState(false);
   const [isSavingText, setIsSavingText] = useState(false);
   const [isAttaching, setIsAttaching] = useState(false);
-  const selectedDocument =
-    documents._tag === "Success"
-      ? documents.value.page.find(
-          (document) => document._id === selectedDocumentId
-        )
-      : undefined;
+  const [attachingDocumentId, setAttachingDocumentId] =
+    useState<GenericId<"sourceDocuments"> | null>(null);
+  const [search, setSearch] = useState("");
+  const [status, setStatus] = useState("all");
+  const [pagination, setPagination] = useState<PaginationState>({
+    pageIndex: 0,
+    pageSize: documentPageSize,
+  });
+  const [sorting, setSorting] = useState<SortingState>([
+    { id: "updatedAt", desc: true },
+  ]);
   const canAttachDocument = activeProtocolStatus === "draft";
+  const rows = documents._tag === "Success" ? documents.value.page : [];
+  const currentDocument = rows.find(
+    (document) => document._id === currentDocumentId
+  );
+  const filters = useMemo(() => ({ search, status }), [search, status]);
+  const filteredRows = useMemo(
+    () => rows.filter((row) => matchesDocumentFilters(row, filters)),
+    [filters, rows]
+  );
+  const columns = documentColumns({
+    attachingDocumentId,
+    canAttachDocument,
+    onAttachDocument: handleAttachExistingDocument,
+  });
+  const table = useReactTable({
+    columns,
+    data: filteredRows,
+    enableSortingRemoval: false,
+    getCoreRowModel: getCoreRowModel(),
+    getPaginationRowModel: getPaginationRowModel(),
+    getRowId: (row) => row._id,
+    getSortedRowModel: getSortedRowModel(),
+    onPaginationChange: setPagination,
+    onSortingChange: setSorting,
+    state: {
+      pagination,
+      sorting,
+    },
+  });
 
   /** Uploads one source file to Convex storage and registers it as a document. */
   function handleFile(file: File | undefined) {
@@ -124,7 +160,7 @@ export function DocumentsPanel({
         });
 
         yield* Effect.sync(() => {
-          setSelectedDocumentId(documentId);
+          setCurrentDocumentId(documentId);
           setExtractedText(preview);
           toastManager.add({
             title: "Document uploaded",
@@ -161,11 +197,11 @@ export function DocumentsPanel({
     setIsSavingText(true);
     return Effect.runPromise(
       Effect.gen(function* () {
-        if (selectedDocumentId) {
+        if (currentDocument) {
           const extractResult = yield* Effect.tryPromise({
             try: () =>
               extractText({
-                documentId: selectedDocumentId,
+                documentId: currentDocument._id,
                 extractedText,
               }),
             catch: getErrorMessage,
@@ -176,7 +212,7 @@ export function DocumentsPanel({
             onRight: () => Effect.void,
           });
 
-          return selectedDocumentId;
+          return currentDocument._id;
         }
 
         if (!selectedProjectId) {
@@ -204,7 +240,7 @@ export function DocumentsPanel({
       }).pipe(
         Effect.tap((documentId) =>
           Effect.sync(() => {
-            setSelectedDocumentId(documentId);
+            setCurrentDocumentId(documentId);
             toastManager.add({
               title: "Extracted text saved",
               type: "success",
@@ -225,11 +261,12 @@ export function DocumentsPanel({
     );
   }
 
-  /** Saves extracted text and attaches the document to the active protocol. */
-  function handleAttach() {
-    if (!(canAttachDocument && selectedProtocolId && selectedDocumentId)) {
+  /** Saves extracted text and attaches the current source to the active protocol. */
+  function handleAttachCurrentSource() {
+    if (!(canAttachDocument && selectedProtocolId && currentDocument)) {
       toastManager.add({
-        title: "Select a draft protocol and document first",
+        title: "Save source text first",
+        description: "Attach source text after it has been saved.",
         type: "warning",
       });
       return;
@@ -250,7 +287,7 @@ export function DocumentsPanel({
         const extractResult = yield* Effect.tryPromise({
           try: () =>
             extractText({
-              documentId: selectedDocumentId,
+              documentId: currentDocument._id,
               extractedText,
             }),
           catch: getErrorMessage,
@@ -263,7 +300,7 @@ export function DocumentsPanel({
         const attachResult = yield* Effect.tryPromise({
           try: () =>
             attachDocument({
-              documentId: selectedDocumentId,
+              documentId: currentDocument._id,
               protocolId: selectedProtocolId,
             }),
           catch: getErrorMessage,
@@ -291,6 +328,66 @@ export function DocumentsPanel({
           )
         ),
         Effect.ensuring(Effect.sync(() => setIsAttaching(false)))
+      )
+    );
+  }
+
+  /** Attaches an existing extracted document without an intermediate selection step. */
+  function handleAttachExistingDocument(document: DocumentRow) {
+    if (!(canAttachDocument && selectedProtocolId)) {
+      toastManager.add({
+        title: "Draft protocol required",
+        description:
+          "Create or open a draft protocol before attaching sources.",
+        type: "warning",
+      });
+      return;
+    }
+
+    if (!document.extractedText?.trim()) {
+      toastManager.add({
+        title: "Extracted text required",
+        description: "Save extracted text before attaching this source.",
+        type: "warning",
+      });
+      return;
+    }
+
+    setAttachingDocumentId(document._id);
+    return Effect.runPromise(
+      Effect.tryPromise({
+        try: () =>
+          attachDocument({
+            documentId: document._id,
+            protocolId: selectedProtocolId,
+          }),
+        catch: getErrorMessage,
+      }).pipe(
+        Effect.flatMap((result) =>
+          Either.match(result, {
+            onLeft: (error) => Effect.fail(error.message),
+            onRight: () => Effect.void,
+          })
+        ),
+        Effect.tap(() =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Document attached",
+              description: "The extracted text is now a protocol source.",
+              type: "success",
+            })
+          )
+        ),
+        Effect.catchAll((description) =>
+          Effect.sync(() =>
+            toastManager.add({
+              title: "Document was not attached",
+              description,
+              type: "error",
+            })
+          )
+        ),
+        Effect.ensuring(Effect.sync(() => setAttachingDocumentId(null)))
       )
     );
   }
@@ -348,18 +445,24 @@ export function DocumentsPanel({
             </Button>
             <Button
               disabled={
-                !(canAttachDocument && selectedDocumentId && selectedProtocolId)
+                !(canAttachDocument && currentDocument && selectedProtocolId)
               }
               loading={isAttaching}
-              onClick={handleAttach}
+              onClick={handleAttachCurrentSource}
               size="sm"
               type="button"
             >
-              <HugeIcons icon={Link02Icon} /> Attach to Protocol
+              <HugeIcons icon={Link02Icon} /> Attach Current Source
             </Button>
           </ToolbarGroup>
         </Toolbar>
 
+        <DocumentFilters
+          search={search}
+          setSearch={setSearch}
+          setStatus={setStatus}
+          status={status}
+        />
         {QueryResult.match(documents, {
           onLoading: () => <WorkflowPanelSkeleton />,
           onFailure: (error) => (
@@ -382,54 +485,7 @@ export function DocumentsPanel({
                 </EmptyHeader>
               </Empty>
             ) : (
-              <Table className="min-w-[48rem] table-fixed" variant="card">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Document</TableHead>
-                    <TableHead className="w-28">Status</TableHead>
-                    <TableHead className="w-44">Updated</TableHead>
-                    <TableHead className="w-28">Action</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {documentPage.page.map((document) => (
-                    <TableRow
-                      data-state={
-                        selectedDocument?._id === document._id
-                          ? "selected"
-                          : undefined
-                      }
-                      key={document._id}
-                    >
-                      <TableCell className="min-w-0">
-                        <span className="block truncate font-medium">
-                          {document.fileName}
-                        </span>
-                        <span className="block truncate text-muted-foreground text-xs">
-                          {document.mimeType ?? "Unknown Type"}
-                        </span>
-                      </TableCell>
-                      <TableCell>{titleCase(document.status)}</TableCell>
-                      <TableCell>
-                        {formatDisplayDateTime(document.updatedAt)}
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          onClick={() => {
-                            setSelectedDocumentId(document._id);
-                            setExtractedText(document.extractedText ?? "");
-                          }}
-                          size="sm"
-                          type="button"
-                          variant="outline"
-                        >
-                          <HugeIcons icon={File01Icon} /> Select
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              <DocumentsDataTable table={table} />
             ),
         })}
       </FramePanel>

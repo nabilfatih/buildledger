@@ -8,34 +8,22 @@ import {
 } from "@repo/design-system/components/ui/table";
 import { flexRender } from "@tanstack/react-table";
 
-import { ColumnMenu } from "@/components/ledger/menu";
-import { SelectionActions } from "@/components/ledger/selection";
-import { type LedgerTable, ledgerPageSize } from "@/components/ledger/types";
+import { type LogbookTable, logbookPageSize } from "@/components/logbook/types";
 import { SortableHeader } from "@/components/table/header";
 import { DataTablePagination } from "@/components/table/pagination";
 
-/** Renders the ledger table across all devices with contained table scrolling. */
-export function LedgerDataTable({
-  onCopySelectedRows,
-  onResolveSelectedRows,
-  resolvingSelectedRows,
-  table,
-}: {
-  readonly onCopySelectedRows: () => void;
-  readonly onResolveSelectedRows: () => void;
-  readonly resolvingSelectedRows: boolean;
-  readonly table: LedgerTable;
-}) {
+/** Renders the Smart Logbook with the same COSS table density as Ledger. */
+export function LogbookDataTable({ table }: { readonly table: LogbookTable }) {
   const rows = table.getRowModel().rows;
   const visibleColumns = table.getVisibleLeafColumns();
   const fillerRows = Array.from(
-    { length: Math.max(ledgerPageSize - Math.max(rows.length, 1), 0) },
-    (_, index) => `ledger-filler-${index + 1}`
+    { length: Math.max(logbookPageSize - Math.max(rows.length, 1), 0) },
+    (_, index) => `logbook-filler-${index + 1}`
   );
 
   return (
     <>
-      <Table className="min-w-[76rem] table-fixed" variant="card">
+      <Table className="min-w-[72rem] table-fixed" variant="card">
         <TableHeader>
           {table.getHeaderGroups().map((headerGroup) => (
             <TableRow className="hover:bg-transparent" key={headerGroup.id}>
@@ -59,16 +47,12 @@ export function LedgerDataTable({
                 className="text-muted-foreground"
                 colSpan={visibleColumns.length}
               >
-                No ledger rows match the current filters.
+                No logbook events match the current filters.
               </TableCell>
             </TableRow>
           ) : null}
           {rows.map((row) => (
-            <TableRow
-              className="h-16"
-              data-state={row.getIsSelected() ? "selected" : undefined}
-              key={row.id}
-            >
+            <TableRow className="h-16" key={row.id}>
               {row.getVisibleCells().map((cell) => (
                 <TableCell
                   className="min-w-0 whitespace-normal align-top"
@@ -94,19 +78,7 @@ export function LedgerDataTable({
           ))}
         </TableBody>
       </Table>
-      <div className="flex min-w-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
-        <div className="flex min-w-0 flex-wrap items-center gap-2">
-          <ColumnMenu table={table} />
-          <SelectionActions
-            isResolving={resolvingSelectedRows}
-            onClearSelection={() => table.resetRowSelection()}
-            onCopySelectedRows={onCopySelectedRows}
-            onResolveSelectedRows={onResolveSelectedRows}
-            selectedCount={table.getSelectedRowModel().rows.length}
-          />
-        </div>
-        <DataTablePagination label="ledger" table={table} />
-      </div>
+      <DataTablePagination label="logbook" table={table} />
     </>
   );
 }

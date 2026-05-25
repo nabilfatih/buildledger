@@ -6,7 +6,11 @@ import {
   generate,
   startGeneration,
 } from "@repo/backend/confect/protocols/generation";
-import { publish } from "@repo/backend/confect/protocols/publish";
+import {
+  publish,
+  writePublishMemory,
+  writePublishRecords,
+} from "@repo/backend/confect/protocols/publish";
 import {
   attachDocument,
   createDraft,
@@ -30,5 +34,7 @@ export const protocols = GroupImpl.make(api, "protocols").pipe(
   Layer.provide(getReviewState),
   Layer.provide(updateReview),
   Layer.provide(publish),
+  Layer.provide(writePublishRecords),
+  Layer.provide(writePublishMemory),
   Layer.provide(getPrintView)
 );

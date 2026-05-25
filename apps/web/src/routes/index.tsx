@@ -12,6 +12,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { usePaginatedQuery } from "convex/react";
 import type { GenericId } from "convex/values";
 import { useState } from "react";
+import type { WorkspaceSection } from "@/components/app/section";
 import { AuthGate } from "@/components/auth/gate";
 import { DocumentsPanel } from "@/components/documents/panel";
 import { ProjectIntelligencePanel } from "@/components/intelligence/panel";
@@ -21,6 +22,15 @@ import { ProtocolWorkspace } from "@/components/protocol/workspace";
 import { ProjectRail } from "@/components/rail/rail";
 
 const projectPageSize = 8;
+const protocolPageSize = 20;
+const recordPageSize = 50;
+const documentPageSize = 20;
+const logbookPageSize = 50;
+const protocolBackedSections = new Set([
+  "protocols",
+  "documents",
+  "intelligence",
+]);
 
 export const Route = createFileRoute("/")({
   component: BuildLedgerHome,
@@ -41,6 +51,8 @@ function BuildLedgerWorkspace() {
     useState<GenericId<"projects"> | null>(null);
   const [selectedProtocolId, setSelectedProtocolId] =
     useState<GenericId<"protocols"> | null>(null);
+  const [activeSection, setActiveSection] =
+    useState<WorkspaceSection>("protocols");
 
   const projects = usePaginatedQuery(
     api.projects.listForCurrentUser,
@@ -52,38 +64,46 @@ function BuildLedgerWorkspace() {
   const activeProject = projectItems.find(
     (project) => project._id === activeProjectId
   );
+  const shouldLoadProtocols =
+    Boolean(activeProjectId) && protocolBackedSections.has(activeSection);
+  const shouldLoadRecords =
+    Boolean(activeProjectId) && activeSection === "ledger";
+  const shouldLoadLogbook =
+    Boolean(activeProjectId) && activeSection === "logbook";
+  const shouldLoadDocuments =
+    Boolean(activeProjectId) && activeSection === "documents";
   const protocols = useQuery(
     refs.public.protocols.listByProject,
-    activeProjectId
+    shouldLoadProtocols && activeProjectId
       ? {
-          paginationOpts: { cursor: null, numItems: 50 },
+          paginationOpts: { cursor: null, numItems: protocolPageSize },
           projectId: activeProjectId,
         }
       : "skip"
   );
   const records = useQuery(
     refs.public.records.listByProject,
-    activeProjectId
+    shouldLoadRecords && activeProjectId
       ? {
-          paginationOpts: { cursor: null, numItems: 100 },
+          paginationOpts: { cursor: null, numItems: recordPageSize },
           projectId: activeProjectId,
         }
       : "skip"
   );
   const logbook = useQuery(
     refs.public.logbook.listByProject,
-    activeProjectId
+    shouldLoadLogbook && activeProjectId
       ? {
-          paginationOpts: { cursor: null, numItems: 50 },
+          paginationOpts: { cursor: null, numItems: logbookPageSize },
           projectId: activeProjectId,
         }
       : "skip"
   );
   const documents = useQuery(
     refs.public.documents.listByProject,
-    activeProjectId
+    shouldLoadDocuments && activeProjectId
       ? {
-          paginationOpts: { cursor: null, numItems: 50 },
+          paginationOpts: { cursor: null, numItems: documentPageSize },
           projectId: activeProjectId,
         }
       : "skip"
@@ -99,7 +119,9 @@ function BuildLedgerWorkspace() {
   );
   const review = useQuery(
     refs.public.protocols.getReviewState,
-    activeProtocolId ? { protocolId: activeProtocolId } : "skip"
+    activeSection === "protocols" && activeProtocolId
+      ? { protocolId: activeProtocolId }
+      : "skip"
   );
 
   /** Selects a project and clears the protocol selected from the previous one. */
@@ -108,11 +130,42 @@ function BuildLedgerWorkspace() {
     setSelectedProtocolId(null);
   }
 
+  const workspaceSection = {
+    documents: (
+      <DocumentsPanel
+        activeProtocolStatus={activeProtocol?.status}
+        documents={documents}
+        selectedProjectId={activeProjectId}
+        selectedProtocolId={activeProtocolId}
+      />
+    ),
+    intelligence: (
+      <ProjectIntelligencePanel
+        canUseProjectMemory={hasPublishedProtocol}
+        selectedProjectId={activeProjectId}
+        selectedProtocolId={activeProtocolId}
+      />
+    ),
+    ledger: <ProjectLedgerTable records={records} />,
+    logbook: <LogbookPanel logbook={logbook} />,
+    protocols: (
+      <ProtocolWorkspace
+        protocols={protocols}
+        review={review}
+        selectedProjectId={activeProjectId}
+        selectedProtocolId={activeProtocolId}
+        setSelectedProtocolId={setSelectedProtocolId}
+      />
+    ),
+  }[activeSection];
+
   return (
     <SidebarProvider>
       <ProjectRail
+        activeSection={activeSection}
         projects={projects}
         selectedProjectId={activeProjectId}
+        setActiveSection={setActiveSection}
         setSelectedProjectId={handleSelectProject}
       />
       <SidebarInset className="min-w-0 overflow-hidden">
@@ -139,31 +192,8 @@ function BuildLedgerWorkspace() {
         </header>
 
         <div className="min-h-0 flex-1 overflow-auto">
-          <div className="grid min-w-0 gap-4 p-4 md:p-5 2xl:grid-cols-[minmax(0,1fr)_360px]">
-            <section className="grid min-w-0 content-start gap-4">
-              <ProjectLedgerTable records={records} />
-              <ProtocolWorkspace
-                protocols={protocols}
-                review={review}
-                selectedProjectId={activeProjectId}
-                selectedProtocolId={activeProtocolId}
-                setSelectedProtocolId={setSelectedProtocolId}
-              />
-              <LogbookPanel logbook={logbook} />
-              <DocumentsPanel
-                activeProtocolStatus={activeProtocol?.status}
-                documents={documents}
-                selectedProjectId={activeProjectId}
-                selectedProtocolId={activeProtocolId}
-              />
-            </section>
-            <aside className="min-w-0 self-start 2xl:sticky 2xl:top-4">
-              <ProjectIntelligencePanel
-                canUseProjectMemory={hasPublishedProtocol}
-                selectedProjectId={activeProjectId}
-                selectedProtocolId={activeProtocolId}
-              />
-            </aside>
+          <div className="mx-auto grid w-full min-w-0 max-w-[112rem] gap-4 p-4 md:p-5">
+            {workspaceSection}
           </div>
         </div>
       </SidebarInset>

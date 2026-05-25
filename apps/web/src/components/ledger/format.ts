@@ -1,8 +1,4 @@
-import type {
-  LedgerFilterState,
-  LedgerRow,
-  LedgerTable,
-} from "@/components/ledger/types";
+import type { LedgerFilterState, LedgerRow } from "@/components/ledger/types";
 import { formatDisplayDate } from "@/lib/dates";
 
 /** Normalizes free-text filter input for repeatable comparisons. */
@@ -124,18 +120,6 @@ export function kindVariant(value: string) {
   }
 
   return "outline";
-}
-
-/** Creates the displayed page range for the pagination select. */
-export function getPageOption(table: LedgerTable, index: number) {
-  const pageSize = table.getState().pagination.pageSize;
-  const start = index * pageSize + 1;
-  const end = Math.min((index + 1) * pageSize, table.getRowCount());
-
-  return {
-    label: `${start}-${end}`,
-    value: index,
-  };
 }
 
 /** Formats selected ledger rows for sharing outside the table. */
