@@ -1,4 +1,6 @@
-import { QueryResult } from "@confect/react";
+import { QueryResult, useQuery } from "@confect/react";
+import { useDebouncedValue } from "@mantine/hooks";
+import refs from "@repo/backend/confect/_generated/refs";
 import {
   Empty,
   EmptyDescription,
@@ -20,22 +22,28 @@ import {
   type SortingState,
   useReactTable,
 } from "@tanstack/react-table";
+import type { GenericId } from "convex/values";
 import { useMemo, useState } from "react";
 
 import { logbookColumns } from "@/components/logbook/columns";
 import { LogbookDataTable } from "@/components/logbook/data";
 import { LogbookFilters } from "@/components/logbook/filters";
-import { matchesLogbookFilters } from "@/components/logbook/format";
 import { logbookPageSize } from "@/components/logbook/types";
 import { WorkflowPanelSkeleton } from "@/components/protocol/skeleton";
-import type { LogbookResult } from "@/lib/confect-results";
 
 /** Shows traceable project changes created by published protocols and record edits. */
-export function LogbookPanel({ logbook }: { readonly logbook: LogbookResult }) {
+export function LogbookPanel({
+  selectedProjectId,
+}: {
+  readonly selectedProjectId: GenericId<"projects"> | null;
+}) {
   const [search, setSearch] = useState("");
   const [eventType, setEventType] = useState("all");
   const [trade, setTrade] = useState("");
   const [responsible, setResponsible] = useState("");
+  const [debouncedSearch] = useDebouncedValue(search, 200);
+  const [debouncedTrade] = useDebouncedValue(trade, 200);
+  const [debouncedResponsible] = useDebouncedValue(responsible, 200);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: logbookPageSize,
@@ -43,18 +51,31 @@ export function LogbookPanel({ logbook }: { readonly logbook: LogbookResult }) {
   const [sorting, setSorting] = useState<SortingState>([
     { id: "chronologyDate", desc: true },
   ]);
+  const logbookFilters = useMemo(
+    () => ({
+      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+      ...(eventType === "all" ? {} : { eventType }),
+      ...(debouncedTrade.trim() ? { trade: debouncedTrade.trim() } : {}),
+      ...(debouncedResponsible.trim()
+        ? { responsibleParty: debouncedResponsible.trim() }
+        : {}),
+    }),
+    [debouncedResponsible, debouncedSearch, debouncedTrade, eventType]
+  );
+  const logbook = useQuery(
+    refs.public.logbook.listByProject,
+    selectedProjectId
+      ? {
+          filters: logbookFilters,
+          paginationOpts: { cursor: null, numItems: logbookPageSize * 8 },
+          projectId: selectedProjectId,
+        }
+      : "skip"
+  );
   const rows = logbook._tag === "Success" ? logbook.value.page : [];
-  const filters = useMemo(
-    () => ({ eventType, responsible, search, trade }),
-    [eventType, responsible, search, trade]
-  );
-  const filteredRows = useMemo(
-    () => rows.filter((row) => matchesLogbookFilters(row, filters)),
-    [filters, rows]
-  );
   const table = useReactTable({
     columns: logbookColumns,
-    data: filteredRows,
+    data: rows,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),

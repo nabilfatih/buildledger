@@ -20,6 +20,34 @@ export function documentColumns({
   readonly onAttachDocument: (row: DocumentRow) => void;
 }) {
   return [
+    columnHelper.display({
+      cell: ({ row }) => {
+        if (row.original.protocolId) {
+          return <span className="text-muted-foreground">Attached</span>;
+        }
+
+        if (row.original.status !== "extracted") {
+          return <span className="text-muted-foreground">Extract Text</span>;
+        }
+
+        return (
+          <Button
+            disabled={!canAttachDocument}
+            loading={attachingDocumentId === row.original._id}
+            onClick={() => onAttachDocument(row.original)}
+            size="sm"
+            type="button"
+            variant="outline"
+          >
+            <HugeIcons icon={Link02Icon} /> Attach
+          </Button>
+        );
+      },
+      enableSorting: false,
+      header: "Attach",
+      id: "action",
+      size: 148,
+    }),
     columnHelper.accessor("fileName", {
       cell: ({ row }) => (
         <div className="grid min-w-0 gap-1">
@@ -49,33 +77,6 @@ export function documentColumns({
       header: "Updated",
       id: "updatedAt",
       size: 200,
-    }),
-    columnHelper.display({
-      cell: ({ row }) => {
-        if (row.original.protocolId) {
-          return <span className="text-muted-foreground">Attached</span>;
-        }
-
-        if (row.original.status !== "extracted") {
-          return <span className="text-muted-foreground">Extract Text</span>;
-        }
-
-        return (
-          <Button
-            disabled={!canAttachDocument}
-            loading={attachingDocumentId === row.original._id}
-            onClick={() => onAttachDocument(row.original)}
-            size="sm"
-            type="button"
-            variant="outline"
-          >
-            <HugeIcons icon={Link02Icon} /> Attach
-          </Button>
-        );
-      },
-      header: "Attach",
-      id: "action",
-      size: 180,
     }),
   ];
 }

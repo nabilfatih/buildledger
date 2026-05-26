@@ -31,7 +31,9 @@
     "nanoid": "5.1.6"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "^5.0.0",
     "@repo/typescript-config": "workspace:*",
+    "convex-test": "^0.0.53",
     "typescript": "6.0.3",
     "vitest": "4.1.7"
   }

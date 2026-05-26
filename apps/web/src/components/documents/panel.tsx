@@ -1,22 +1,6 @@
-import { QueryResult, useMutation } from "@confect/react";
-import { Link02Icon, Upload04Icon } from "@hugeicons/core-free-icons";
+import { useMutation, useQuery } from "@confect/react";
+import { useDebouncedValue } from "@mantine/hooks";
 import refs from "@repo/backend/confect/_generated/refs";
-import { Button } from "@repo/design-system/components/ui/button";
-import {
-  Empty,
-  EmptyDescription,
-  EmptyHeader,
-  EmptyTitle,
-} from "@repo/design-system/components/ui/empty";
-import {
-  Field,
-  FieldDescription,
-  FieldLabel,
-} from "@repo/design-system/components/ui/field";
-import {
-  Fieldset,
-  FieldsetLegend,
-} from "@repo/design-system/components/ui/fieldset";
 import {
   Frame,
   FrameDescription,
@@ -24,14 +8,7 @@ import {
   FramePanel,
   FrameTitle,
 } from "@repo/design-system/components/ui/frame";
-import { HugeIcons } from "@repo/design-system/components/ui/huge-icons";
-import { Input } from "@repo/design-system/components/ui/input";
-import { Textarea } from "@repo/design-system/components/ui/textarea";
 import { toastManager } from "@repo/design-system/components/ui/toast";
-import {
-  Toolbar,
-  ToolbarGroup,
-} from "@repo/design-system/components/ui/toolbar";
 import {
   getCoreRowModel,
   getPaginationRowModel,
@@ -45,15 +22,13 @@ import { Effect, Either } from "effect";
 import { useMemo, useState } from "react";
 
 import { documentColumns } from "@/components/documents/columns";
-import { DocumentsDataTable } from "@/components/documents/data";
 import { DocumentFilters } from "@/components/documents/filters";
-import { matchesDocumentFilters } from "@/components/documents/format";
+import { DocumentList } from "@/components/documents/list";
+import { DocumentSourceControls } from "@/components/documents/source";
 import {
   type DocumentRow,
   documentPageSize,
 } from "@/components/documents/types";
-import { WorkflowPanelSkeleton } from "@/components/protocol/skeleton";
-import type { DocumentsResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
 
 import { readTextPreview, uploadFile } from "./upload";
@@ -61,12 +36,10 @@ import { readTextPreview, uploadFile } from "./upload";
 /** Manages uploaded protocol source documents and extracted source text. */
 export function DocumentsPanel({
   activeProtocolStatus,
-  documents,
   selectedProjectId,
   selectedProtocolId,
 }: {
   readonly activeProtocolStatus: string | undefined;
-  readonly documents: DocumentsResult;
   readonly selectedProjectId: GenericId<"projects"> | null;
   readonly selectedProtocolId: GenericId<"protocols"> | null;
 }) {
@@ -86,6 +59,7 @@ export function DocumentsPanel({
     useState<GenericId<"sourceDocuments"> | null>(null);
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
+  const [debouncedSearch] = useDebouncedValue(search, 200);
   const [pagination, setPagination] = useState<PaginationState>({
     pageIndex: 0,
     pageSize: documentPageSize,
@@ -94,14 +68,30 @@ export function DocumentsPanel({
     { id: "updatedAt", desc: true },
   ]);
   const canAttachDocument = activeProtocolStatus === "draft";
+  const documentFilters = useMemo(
+    () => ({
+      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+      ...(status === "all" ? {} : { status }),
+    }),
+    [debouncedSearch, status]
+  );
+  const documents = useQuery(
+    refs.public.documents.listByProject,
+    selectedProjectId
+      ? {
+          filters: documentFilters,
+          paginationOpts: { cursor: null, numItems: documentPageSize * 6 },
+          projectId: selectedProjectId,
+        }
+      : "skip"
+  );
   const rows = documents._tag === "Success" ? documents.value.page : [];
   const currentDocument = rows.find(
     (document) => document._id === currentDocumentId
   );
-  const filters = useMemo(() => ({ search, status }), [search, status]);
-  const filteredRows = useMemo(
-    () => rows.filter((row) => matchesDocumentFilters(row, filters)),
-    [filters, rows]
+  const canSaveText = Boolean(selectedProjectId && extractedText.trim());
+  const canAttachCurrentSource = Boolean(
+    canAttachDocument && currentDocument && selectedProtocolId
   );
   const columns = documentColumns({
     attachingDocumentId,
@@ -110,7 +100,7 @@ export function DocumentsPanel({
   });
   const table = useReactTable({
     columns,
-    data: filteredRows,
+    data: rows,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),
     getPaginationRowModel: getPaginationRowModel(),
@@ -402,60 +392,18 @@ export function DocumentsPanel({
         </FrameDescription>
       </FrameHeader>
       <FramePanel className="grid min-w-0 gap-4 p-4">
-        <Fieldset className="grid min-w-0 gap-4 md:grid-cols-[minmax(0,20rem)_minmax(0,1fr)]">
-          <FieldsetLegend className="sr-only">
-            Source Document Controls
-          </FieldsetLegend>
-          <Field>
-            <FieldLabel>Source File</FieldLabel>
-            <Input
-              disabled={isUploading}
-              onChange={(event) => {
-                handleFile(event.currentTarget.files?.[0]);
-                event.currentTarget.value = "";
-              }}
-              type="file"
-            />
-            <FieldDescription>
-              Text files prefill extraction; other files can be pasted below.
-            </FieldDescription>
-          </Field>
-          <Field>
-            <FieldLabel>Extracted Text</FieldLabel>
-            <Textarea
-              className="min-h-28"
-              onChange={(event) => setExtractedText(event.target.value)}
-              placeholder="Paste extracted document text before attaching it to a protocol."
-              value={extractedText}
-            />
-          </Field>
-        </Fieldset>
-
-        <Toolbar className="flex-wrap">
-          <ToolbarGroup className="flex-wrap">
-            <Button
-              disabled={!(selectedProjectId && extractedText.trim())}
-              loading={isSavingText}
-              onClick={handleSaveText}
-              size="sm"
-              type="button"
-              variant="secondary"
-            >
-              <HugeIcons icon={Upload04Icon} /> Save Text
-            </Button>
-            <Button
-              disabled={
-                !(canAttachDocument && currentDocument && selectedProtocolId)
-              }
-              loading={isAttaching}
-              onClick={handleAttachCurrentSource}
-              size="sm"
-              type="button"
-            >
-              <HugeIcons icon={Link02Icon} /> Attach Current Source
-            </Button>
-          </ToolbarGroup>
-        </Toolbar>
+        <DocumentSourceControls
+          canAttachCurrentSource={canAttachCurrentSource}
+          canSaveText={canSaveText}
+          extractedText={extractedText}
+          isAttaching={isAttaching}
+          isSavingText={isSavingText}
+          isUploading={isUploading}
+          onAttachCurrentSource={handleAttachCurrentSource}
+          onExtractedTextChange={setExtractedText}
+          onFileChange={handleFile}
+          onSaveText={handleSaveText}
+        />
 
         <DocumentFilters
           search={search}
@@ -463,31 +411,7 @@ export function DocumentsPanel({
           setStatus={setStatus}
           status={status}
         />
-        {QueryResult.match(documents, {
-          onLoading: () => <WorkflowPanelSkeleton />,
-          onFailure: (error) => (
-            <Empty className="min-h-48">
-              <EmptyHeader>
-                <EmptyTitle>Documents unavailable</EmptyTitle>
-                <EmptyDescription>{error.message}</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ),
-          onSuccess: (documentPage) =>
-            documentPage.page.length === 0 ? (
-              <Empty className="min-h-48">
-                <EmptyHeader>
-                  <EmptyTitle>No source documents yet</EmptyTitle>
-                  <EmptyDescription>
-                    Upload a document or paste extracted text for the active
-                    protocol.
-                  </EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              <DocumentsDataTable table={table} />
-            ),
-        })}
+        <DocumentList documents={documents} table={table} />
       </FramePanel>
     </Frame>
   );

@@ -40,7 +40,7 @@ function normalizeAiProvider(value: string) {
   return "demo";
 }
 
-/** Reads Convex-compatible environment values without blocking mutations. */
+/** Reads environment values without blocking Convex mutations. */
 function readEnvValue(key: string, fallback: string) {
   if (typeof process === "undefined") {
     return fallback;

@@ -1,4 +1,5 @@
-import { QueryResult, useMutation } from "@confect/react";
+import { QueryResult, useMutation, useQuery } from "@confect/react";
+import { useDebouncedValue } from "@mantine/hooks";
 import refs from "@repo/backend/confect/_generated/refs";
 import {
   Frame,
@@ -18,26 +19,23 @@ import {
   useReactTable,
   type VisibilityState,
 } from "@tanstack/react-table";
+import type { GenericId } from "convex/values";
 import { Effect, Either } from "effect";
 import { useMemo, useState } from "react";
 
 import { ledgerColumns } from "@/components/ledger/columns";
 import { LedgerDataTable } from "@/components/ledger/data";
 import { LedgerFilters } from "@/components/ledger/filters";
-import {
-  formatSelectedRows,
-  matchesLedgerFilters,
-} from "@/components/ledger/format";
+import { formatSelectedRows } from "@/components/ledger/format";
 import { LedgerTableSkeleton } from "@/components/ledger/skeleton";
 import { ledgerPageSize } from "@/components/ledger/types";
-import type { RecordsResult } from "@/lib/confect-results";
 import { getErrorMessage } from "@/lib/errors";
 
 /** Shows derived project memory as a sortable and filterable ledger. */
 export function ProjectLedgerTable({
-  records,
+  selectedProjectId,
 }: {
-  readonly records: RecordsResult;
+  readonly selectedProjectId: GenericId<"projects"> | null;
 }) {
   const updateStatus = useMutation(refs.public.records.updateStatus);
   const [search, setSearch] = useState("");
@@ -46,6 +44,9 @@ export function ProjectLedgerTable({
   const [severity, setSeverity] = useState("all");
   const [owner, setOwner] = useState("");
   const [source, setSource] = useState("");
+  const [debouncedSearch] = useDebouncedValue(search, 200);
+  const [debouncedOwner] = useDebouncedValue(owner, 200);
+  const [debouncedSource] = useDebouncedValue(source, 200);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
   const [pagination, setPagination] = useState<PaginationState>({
@@ -63,27 +64,46 @@ export function ProjectLedgerTable({
     responsibleParty: false,
     severity: false,
   });
-  const rows = records._tag === "Success" ? records.value.page : [];
-  const filters = useMemo(
+  const recordFilters = useMemo(
     () => ({
+      ...(debouncedSearch.trim() ? { search: debouncedSearch.trim() } : {}),
+      ...(kind === "all" ? {} : { kind }),
+      ...(status === "all" ? {} : { status }),
+      ...(severity === "all" ? {} : { severity }),
+      ...(debouncedOwner.trim()
+        ? { responsibleParty: debouncedOwner.trim() }
+        : {}),
+      ...(debouncedSource.trim()
+        ? { sourceProtocol: debouncedSource.trim() }
+        : {}),
+      ...(startDate ? { startDate } : {}),
+      ...(endDate ? { endDate } : {}),
+    }),
+    [
+      debouncedOwner,
+      debouncedSearch,
+      debouncedSource,
       endDate,
       kind,
-      owner,
-      search,
       severity,
-      source,
       startDate,
       status,
-    }),
-    [endDate, kind, owner, search, severity, source, startDate, status]
+    ]
   );
-  const filteredRows = useMemo(
-    () => rows.filter((row) => matchesLedgerFilters(row, filters)),
-    [filters, rows]
+  const records = useQuery(
+    refs.public.records.listByProject,
+    selectedProjectId
+      ? {
+          filters: recordFilters,
+          paginationOpts: { cursor: null, numItems: ledgerPageSize * 8 },
+          projectId: selectedProjectId,
+        }
+      : "skip"
   );
+  const rows = records._tag === "Success" ? records.value.page : [];
   const table = useReactTable({
     columns: ledgerColumns,
-    data: filteredRows,
+    data: rows,
     enableRowSelection: true,
     enableSortingRemoval: false,
     getCoreRowModel: getCoreRowModel(),

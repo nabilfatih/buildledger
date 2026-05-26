@@ -90,7 +90,6 @@ export function LedgerFilters({
         <InputGroup>
           <InputGroupInput
             onChange={(event) => setSearch(event.target.value)}
-            onInput={(event) => setSearch(event.currentTarget.value)}
             placeholder="Description or source"
             type="text"
             value={search}

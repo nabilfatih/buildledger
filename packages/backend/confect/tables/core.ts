@@ -5,6 +5,7 @@ import { Schema } from "effect";
 
 const Timestamp = Schema.Number;
 const OptionalString = Schema.optional(Schema.String);
+const ProjectStatus = Schema.Literal("active", "archived");
 
 export const Organizations = Table.make(
   "organizations",
@@ -35,7 +36,7 @@ export const Projects = Table.make(
     name: Schema.String,
     code: Schema.String,
     description: OptionalString,
-    status: Schema.Literal("active", "archived"),
+    status: ProjectStatus,
     createdAt: Timestamp,
     updatedAt: Timestamp,
   })
@@ -53,11 +54,22 @@ export const ProjectMembers = Table.make(
     projectId: GenericId.GenericId("projects"),
     userToken: Schema.String,
     role: Schema.Literal("owner", "manager", "editor", "commenter", "viewer"),
+    projectStatus: ProjectStatus,
     createdAt: Timestamp,
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
   .index("by_userToken", ["userToken", "createdAt"])
+  .index("by_projectId_and_projectStatus", [
+    "projectId",
+    "projectStatus",
+    "createdAt",
+  ])
+  .index("by_userToken_and_projectStatus", [
+    "userToken",
+    "projectStatus",
+    "createdAt",
+  ])
   .index("by_projectId_and_userToken", ["projectId", "userToken"]);
 
 export const AiProviderSettings = Table.make(
@@ -291,13 +303,21 @@ export const ProjectTaxonomy = Table.make(
     projectId: GenericId.GenericId("projects"),
     kind: Schema.Literal("component", "object", "trade"),
     label: Schema.String,
+    normalizedLabel: Schema.String,
+    status: ProjectStatus,
     archivedAt: Schema.optional(Timestamp),
     createdAt: Timestamp,
     updatedAt: Timestamp,
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
-  .index("by_projectId_and_kind", ["projectId", "kind", "createdAt"]);
+  .index("by_projectId_and_kind", ["projectId", "kind", "createdAt"])
+  .index("by_projectId_and_status", ["projectId", "status", "createdAt"])
+  .index("by_projectId_and_kind_and_normalizedLabel", [
+    "projectId",
+    "kind",
+    "normalizedLabel",
+  ]);
 
 export const LogbookEvents = Table.make(
   "logbookEvents",
@@ -331,6 +351,27 @@ export const LogbookEvents = Table.make(
     "createdAt",
   ])
   .index("by_projectId_and_trade", ["projectId", "trade", "createdAt"])
+  .index("by_projectId_and_trade_and_chronologyDate", [
+    "projectId",
+    "trade",
+    "chronologyDate",
+  ])
+  .index("by_projectId_and_eventType", ["projectId", "eventType", "createdAt"])
+  .index("by_projectId_and_eventType_and_chronologyDate", [
+    "projectId",
+    "eventType",
+    "chronologyDate",
+  ])
+  .index("by_projectId_and_protocolId", [
+    "projectId",
+    "protocolId",
+    "createdAt",
+  ])
+  .index("by_projectId_and_responsibleParty", [
+    "projectId",
+    "responsibleParty",
+    "createdAt",
+  ])
   .index("by_recordId", ["recordId", "createdAt"])
   .index("by_protocolId", ["protocolId", "createdAt"]);
 
@@ -349,6 +390,7 @@ export const SourceDocuments = Table.make(
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_status", ["projectId", "status", "createdAt"])
   .index("by_protocolId", ["protocolId", "createdAt"]);
 
 export const Investigations = Table.make(
@@ -433,7 +475,9 @@ export const Reports = Table.make(
     createdAt: Timestamp,
     updatedAt: Timestamp,
   })
-).index("by_projectId", ["projectId", "createdAt"]);
+)
+  .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_status", ["projectId", "status", "createdAt"]);
 
 export const ShareLinks = Table.make(
   "shareLinks",

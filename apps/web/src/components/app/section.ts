@@ -1,5 +1,6 @@
 import {
   AiBrain01Icon,
+  Analytics01Icon,
   FileAttachmentIcon,
   TableIcon,
   TimelineListIcon,
@@ -31,6 +32,11 @@ export const workspaceSections = [
     icon: AiBrain01Icon,
     label: "Intelligence",
     value: "intelligence",
+  },
+  {
+    icon: Analytics01Icon,
+    label: "Reports",
+    value: "reports",
   },
 ] as const;
 

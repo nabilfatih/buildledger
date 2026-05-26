@@ -24,6 +24,20 @@ const RecordsPage = Schema.mutable(
   })
 );
 
+const RecordFilters = Schema.Struct({
+  component: Schema.optional(Schema.String),
+  endDate: Schema.optional(Schema.String),
+  kind: Schema.optional(Schema.String),
+  objectName: Schema.optional(Schema.String),
+  responsibleParty: Schema.optional(Schema.String),
+  search: Schema.optional(Schema.String),
+  severity: Schema.optional(Schema.String),
+  sourceProtocol: Schema.optional(Schema.String),
+  startDate: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.String),
+  trade: Schema.optional(Schema.String),
+});
+
 export const records = GroupSpec.make("records")
   .addFunction(
     FunctionSpec.publicQuery({
@@ -31,6 +45,7 @@ export const records = GroupSpec.make("records")
       args: Schema.Struct({
         projectId: GenericId.GenericId("projects"),
         paginationOpts: PaginationOpts,
+        filters: Schema.optional(RecordFilters),
       }),
       returns: RecordsPage,
       error: AppError,

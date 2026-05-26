@@ -14,8 +14,6 @@ export function IntelligenceResults({
   investigation,
   investigationId,
   onCopy,
-  report,
-  reportId,
   shareLabel,
   shareLink,
 }: {
@@ -29,8 +27,6 @@ export function IntelligenceResults({
     | undefined;
   readonly investigationId: string | null;
   readonly onCopy: (value: string) => void;
-  readonly report: { readonly body: string } | undefined;
-  readonly reportId: string | null;
   readonly shareLabel: string;
   readonly shareLink: string | null;
 }) {
@@ -45,14 +41,6 @@ export function IntelligenceResults({
             <span className="break-words">{answer}</span>
           </AlertDescription>
         </Alert>
-      ) : null}
-      {reportId ? (
-        <ResultAlert
-          copyLabel="Copy Report"
-          label="Report Draft"
-          onCopy={() => onCopy(report?.body ?? reportId)}
-          value={report?.body ?? reportId}
-        />
       ) : null}
       {investigationId ? (
         <ResultAlert

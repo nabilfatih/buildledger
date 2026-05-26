@@ -1,6 +1,5 @@
 import {
   AiSearchIcon,
-  Analytics01Icon,
   BubbleChatQuestionIcon,
   Link01Icon,
   Share02Icon,
@@ -23,28 +22,18 @@ import type { ShareTarget } from "@/components/intelligence/share";
 
 /** Renders project intelligence actions with explicit labels. */
 export function IntelligenceToolbar({
-  hasReport,
   isAsking,
   isInvestigating,
-  isPublishingReport,
-  isReporting,
   isSharing,
   onAsk,
   onInvestigate,
-  onPublishReport,
-  onReport,
   onShare,
 }: {
-  readonly hasReport: boolean;
   readonly isAsking: boolean;
   readonly isInvestigating: boolean;
-  readonly isPublishingReport: boolean;
-  readonly isReporting: boolean;
   readonly isSharing: boolean;
   readonly onAsk: () => void;
   readonly onInvestigate: () => void;
-  readonly onPublishReport: () => void;
-  readonly onReport: () => void;
   readonly onShare: (target: ShareTarget) => void;
 }) {
   return (
@@ -62,31 +51,7 @@ export function IntelligenceToolbar({
         >
           <HugeIcons icon={AiSearchIcon} /> Investigate
         </Button>
-        <Button
-          loading={isReporting}
-          onClick={onReport}
-          size="sm"
-          type="button"
-          variant="secondary"
-        >
-          <HugeIcons icon={Analytics01Icon} /> Generate Report
-        </Button>
-        {hasReport ? (
-          <Button
-            loading={isPublishingReport}
-            onClick={onPublishReport}
-            size="sm"
-            type="button"
-            variant="secondary"
-          >
-            <HugeIcons icon={Analytics01Icon} /> Publish Report
-          </Button>
-        ) : null}
-        <ShareMenu
-          hasReport={hasReport}
-          isSharing={isSharing}
-          onShare={onShare}
-        />
+        <ShareMenu isSharing={isSharing} onShare={onShare} />
       </ToolbarGroup>
     </Toolbar>
   );
@@ -94,11 +59,9 @@ export function IntelligenceToolbar({
 
 /** Keeps all share targets behind one compact COSS menu action. */
 function ShareMenu({
-  hasReport,
   isSharing,
   onShare,
 }: {
-  readonly hasReport: boolean;
   readonly isSharing: boolean;
   readonly onShare: (target: ShareTarget) => void;
 }) {
@@ -130,12 +93,6 @@ function ShareMenu({
             <HugeIcons icon={Link01Icon} />
             Logbook
           </MenuItem>
-          {hasReport ? (
-            <MenuItem onClick={() => onShare("report")}>
-              <HugeIcons icon={Link01Icon} />
-              Report
-            </MenuItem>
-          ) : null}
         </MenuGroup>
       </MenuPopup>
     </Menu>

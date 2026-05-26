@@ -6,7 +6,7 @@ import { formatDateInput } from "@/lib/dates";
 
 const protocolTypeValues = [
   "Construction Protocol",
-  "Coordination Meeting",
+  "Coordination Protocol",
   "Site Review",
   "Change Notice",
 ] as const;
@@ -53,7 +53,7 @@ export const protocolTypeItems: readonly {
   readonly value: ProtocolType;
 }[] = [
   { label: "Construction Protocol", value: "Construction Protocol" },
-  { label: "Coordination Meeting", value: "Coordination Meeting" },
+  { label: "Coordination Protocol", value: "Coordination Protocol" },
   { label: "Site Review", value: "Site Review" },
   { label: "Change Notice", value: "Change Notice" },
 ] as const;

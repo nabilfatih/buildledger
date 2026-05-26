@@ -51,7 +51,6 @@ export function LogbookFilters({
         <InputGroup>
           <InputGroupInput
             onChange={(event) => setSearch(event.target.value)}
-            onInput={(event) => setSearch(event.currentTarget.value)}
             placeholder="Event, object, trade, or responsible"
             type="text"
             value={search}

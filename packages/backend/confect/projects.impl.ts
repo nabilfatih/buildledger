@@ -12,6 +12,8 @@ import {
 } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
 
+const archiveMembershipStatusLimit = 200;
+
 /** Lists one active project membership page for the signed-in user. */
 const listForCurrentUser = FunctionImpl.make(
   api,
@@ -33,7 +35,11 @@ const listForCurrentUser = FunctionImpl.make(
 
         const memberships = yield* reader
           .table("projectMembers")
-          .index("by_userToken", (q) => q.eq("userToken", userToken), "desc")
+          .index(
+            "by_userToken_and_projectStatus",
+            (q) => q.eq("userToken", userToken).eq("projectStatus", "active"),
+            "desc"
+          )
           .paginate(paginationOpts);
 
         const projects = yield* Effect.all(
@@ -44,7 +50,7 @@ const listForCurrentUser = FunctionImpl.make(
 
         return {
           ...memberships,
-          page: projects.filter((project) => project.status === "active"),
+          page: projects,
         };
       })
     )
@@ -90,6 +96,7 @@ const create = FunctionImpl.make(
           projectId,
           userToken,
           role: "owner",
+          projectStatus: "active",
           createdAt: timestamp,
         });
 
@@ -108,12 +115,28 @@ const archive = FunctionImpl.make(api, "projects", "archive", ({ projectId }) =>
   asAppError(
     Effect.gen(function* () {
       yield* ensureProjectAccess(projectId);
+      const reader = yield* DatabaseReader;
       const writer = yield* DatabaseWriter;
 
       yield* writer.table("projects").patch(projectId, {
         status: "archived",
         updatedAt: Date.now(),
       });
+
+      const activeMemberships = yield* reader
+        .table("projectMembers")
+        .index("by_projectId_and_projectStatus", (q) =>
+          q.eq("projectId", projectId).eq("projectStatus", "active")
+        )
+        .take(archiveMembershipStatusLimit);
+
+      yield* Effect.all(
+        activeMemberships.map((membership) =>
+          writer.table("projectMembers").patch(membership._id, {
+            projectStatus: "archived",
+          })
+        )
+      );
 
       return null;
     })

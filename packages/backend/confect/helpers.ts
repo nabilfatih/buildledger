@@ -25,12 +25,15 @@ function readEnvValue(key: string, fallback: string) {
   return process.env[key] ?? fallback;
 }
 
+/** Checks whether this deployment requires an external auth identity. */
+function requiresExternalAuth() {
+  return readEnvValue("BUILDLEDGER_AUTH_REQUIRED", "disabled") === "enabled";
+}
+
 /** Returns the single-tenant self-hosted identity when external auth is absent. */
 const getSelfHostedUserToken = Effect.fn("auth.getSelfHostedUserToken")(
   function* () {
-    const authRequired = readEnvValue("BUILDLEDGER_AUTH_REQUIRED", "disabled");
-
-    if (authRequired === "enabled") {
+    if (requiresExternalAuth()) {
       return yield* Effect.fail(
         new Forbidden({
           message: "Sign in before accessing BuildLedger.",
@@ -49,6 +52,10 @@ export function asAppError<A, R>(effect: EffectType.Effect<A, unknown, R>) {
 
 /** Returns the authenticated Convex identity token for access checks. */
 export const getUserToken = Effect.fn("auth.getUserToken")(function* () {
+  if (!requiresExternalAuth()) {
+    return selfHostedUserToken;
+  }
+
   const identity = yield* Auth.getUserIdentity.pipe(
     Effect.catchTag("NoUserIdentityFoundError", () => Effect.succeed(null))
   );
@@ -63,6 +70,10 @@ export const getUserToken = Effect.fn("auth.getUserToken")(function* () {
 /** Returns the current identity token when a viewer is signed in. */
 export const getOptionalUserToken = Effect.fn("auth.getOptionalUserToken")(
   function* () {
+    if (!requiresExternalAuth()) {
+      return selfHostedUserToken;
+    }
+
     const identity = yield* Auth.getUserIdentity.pipe(
       Effect.catchTag("NoUserIdentityFoundError", () => Effect.succeed(null))
     );
@@ -94,6 +105,15 @@ export const ensureProjectAccess = Effect.fn("auth.ensureProjectAccess")(
         )
       );
 
+    if (project.status !== "active") {
+      return yield* Effect.fail(
+        new ProjectNotFound({
+          projectId,
+          message: "Project is not active.",
+        })
+      );
+    }
+
     const membership = yield* reader
       .table("projectMembers")
       .index("by_projectId_and_userToken", (q) =>
@@ -119,6 +139,14 @@ export const ensureProjectAccess = Effect.fn("auth.ensureProjectAccess")(
       return yield* Effect.fail(
         new Forbidden({
           message: "You do not have access to this project.",
+        })
+      );
+    }
+
+    if (membership.projectStatus === "archived") {
+      return yield* Effect.fail(
+        new Forbidden({
+          message: "Project membership is not active.",
         })
       );
     }

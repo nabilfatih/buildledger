@@ -18,6 +18,7 @@ import { format, parseISO } from "date-fns";
 import { Effect, Layer } from "effect";
 
 type ProjectId = GenericId<"projects">;
+type ReportStatus = "draft" | "published";
 
 /** Formats report periods for user-facing report prose. */
 function formatReportPeriod(start: string, end: string) {
@@ -125,16 +126,37 @@ const listByProject = FunctionImpl.make(
   api,
   "reports",
   "listByProject",
-  ({ projectId }) =>
+  ({ filters, paginationOpts, projectId }) =>
     asAppError(
       Effect.gen(function* () {
         yield* ensureProjectAccess(projectId);
         const reader = yield* DatabaseReader;
+        const reportFilters = normalizeReportFilters(filters);
+        const page = yield* (() => {
+          if (reportFilters.status) {
+            const status = reportFilters.status;
+            return reader
+              .table("reports")
+              .index(
+                "by_projectId_and_status",
+                (q) => q.eq("projectId", projectId).eq("status", status),
+                "desc"
+              )
+              .paginate(paginationOpts);
+          }
 
-        return yield* reader
-          .table("reports")
-          .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
-          .take(50);
+          return reader
+            .table("reports")
+            .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
+            .paginate(paginationOpts);
+        })();
+
+        return {
+          ...page,
+          page: page.page.flatMap((report) =>
+            matchesReportFilters(report, reportFilters) ? [report] : []
+          ),
+        };
       })
     )
 );
@@ -237,3 +259,67 @@ export const reports = GroupImpl.make(api, "reports").pipe(
   Layer.provide(saveWeeklyDraft),
   Layer.provide(publish)
 );
+
+/** Normalizes report list filters before selecting an index. */
+function normalizeReportFilters(
+  filters:
+    | {
+        readonly search?: string | undefined;
+        readonly status?: string | undefined;
+      }
+    | undefined
+) {
+  return {
+    search: optionalText(filters?.search)?.toLowerCase(),
+    status: reportStatus(filters?.status),
+  };
+}
+
+/** Keeps report status filters inside the report lifecycle states. */
+function reportStatus(value: string | undefined): ReportStatus | undefined {
+  switch (optionalText(value)) {
+    case "draft":
+      return "draft";
+    case "published":
+      return "published";
+    default:
+      return;
+  }
+}
+
+/** Applies search filters after the indexed report page is loaded. */
+function matchesReportFilters(
+  report: {
+    readonly body: string;
+    readonly periodEnd: string;
+    readonly periodStart: string;
+    readonly status: string;
+    readonly title: string;
+  },
+  filters: ReturnType<typeof normalizeReportFilters>
+) {
+  if (filters.status && report.status !== filters.status) {
+    return false;
+  }
+
+  if (!filters.search) {
+    return true;
+  }
+
+  return [
+    report.title,
+    report.body,
+    report.status,
+    report.periodStart,
+    report.periodEnd,
+  ]
+    .join(" ")
+    .toLowerCase()
+    .includes(filters.search);
+}
+
+/** Normalizes optional text filters. */
+function optionalText(value: string | undefined) {
+  const text = value?.trim();
+  return text && text.length > 0 ? text : undefined;
+}

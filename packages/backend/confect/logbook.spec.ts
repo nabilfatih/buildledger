@@ -24,6 +24,19 @@ const LogbookPage = Schema.mutable(
   })
 );
 
+const LogbookFilters = Schema.Struct({
+  component: Schema.optional(Schema.String),
+  endDate: Schema.optional(Schema.String),
+  eventType: Schema.optional(Schema.String),
+  objectName: Schema.optional(Schema.String),
+  protocolId: Schema.optional(GenericId.GenericId("protocols")),
+  recordType: Schema.optional(Schema.String),
+  responsibleParty: Schema.optional(Schema.String),
+  search: Schema.optional(Schema.String),
+  startDate: Schema.optional(Schema.String),
+  trade: Schema.optional(Schema.String),
+});
+
 export const logbook = GroupSpec.make("logbook")
   .addFunction(
     FunctionSpec.publicQuery({
@@ -31,6 +44,7 @@ export const logbook = GroupSpec.make("logbook")
       args: Schema.Struct({
         projectId: GenericId.GenericId("projects"),
         paginationOpts: PaginationOpts,
+        filters: Schema.optional(LogbookFilters),
       }),
       returns: LogbookPage,
       error: AppError,

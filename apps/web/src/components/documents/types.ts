@@ -13,9 +13,4 @@ type QueryValue<Result> = Result extends {
 
 export type DocumentRow = QueryValue<DocumentsResult>["page"][number];
 
-export interface DocumentFilterState {
-  readonly search: string;
-  readonly status: string;
-}
-
 export type DocumentTable = Table<DocumentRow>;

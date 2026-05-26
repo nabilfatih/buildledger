@@ -28,6 +28,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarMenuSkeleton,
+  useSidebar,
 } from "@repo/design-system/components/ui/sidebar";
 import type { GenericId } from "convex/values";
 import { useMemo, useState } from "react";
@@ -69,6 +70,7 @@ export function ProjectRail({
   ) => void;
 }) {
   const [search, setSearch] = useState("");
+  const { isMobile, setOpenMobile } = useSidebar();
   const { entry, ref: loadMoreRef } = useIntersection<HTMLLIElement>({
     threshold: 0.25,
   });
@@ -93,6 +95,13 @@ export function ProjectRail({
     filteredProjects.length === 0 &&
     !isLoadingInitialProjects &&
     status === "Exhausted";
+  const closeMobileSidebar = () => {
+    if (!isMobile) {
+      return;
+    }
+
+    setOpenMobile(false);
+  };
 
   useIsomorphicEffect(() => {
     if (!(isLoadMoreVisible && canLoadMoreProjects)) {
@@ -146,7 +155,10 @@ export function ProjectRail({
                 <SidebarMenuItem key={section.value}>
                   <SidebarMenuButton
                     isActive={section.value === activeSection}
-                    onClick={() => setActiveSection(section.value)}
+                    onClick={() => {
+                      setActiveSection(section.value);
+                      closeMobileSidebar();
+                    }}
                   >
                     <HugeIcons icon={section.icon} />
                     <span>{section.label}</span>
@@ -162,7 +174,6 @@ export function ProjectRail({
             <InputGroup>
               <InputGroupInput
                 onChange={(event) => setSearch(event.target.value)}
-                onInput={(event) => setSearch(event.currentTarget.value)}
                 placeholder="Search projects"
                 type="text"
                 value={search}
@@ -199,7 +210,10 @@ export function ProjectRail({
                         aria-label={`${project.name} (${project.code})`}
                         className="h-auto min-h-11 items-start py-2"
                         isActive={project._id === selectedProjectId}
-                        onClick={() => setSelectedProjectId(project._id)}
+                        onClick={() => {
+                          setSelectedProjectId(project._id);
+                          closeMobileSidebar();
+                        }}
                       >
                         <span className="grid min-w-0 gap-0.5">
                           <span className="truncate">{project.name}</span>

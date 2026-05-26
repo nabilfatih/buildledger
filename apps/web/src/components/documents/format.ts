@@ -1,10 +1,7 @@
 import type { badgeVariants } from "@repo/design-system/components/ui/badge";
 import type { VariantProps } from "class-variance-authority";
 
-import type {
-  DocumentFilterState,
-  DocumentRow,
-} from "@/components/documents/types";
+import type { DocumentRow } from "@/components/documents/types";
 import { titleCase } from "@/components/protocol/utils";
 
 export function documentStatus(row: DocumentRow) {
@@ -33,24 +30,4 @@ export function documentStatusVariant(
   }
 
   return "outline";
-}
-
-export function matchesDocumentFilters(
-  row: DocumentRow,
-  filters: DocumentFilterState
-) {
-  const query = filters.search.trim().toLowerCase();
-  const status = documentStatus(row);
-
-  if (filters.status !== "all" && status !== filters.status) {
-    return false;
-  }
-
-  if (!query) {
-    return true;
-  }
-
-  return `${row.fileName} ${row.mimeType ?? ""} ${status}`
-    .toLowerCase()
-    .includes(query);
 }

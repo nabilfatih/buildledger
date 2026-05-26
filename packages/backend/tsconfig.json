@@ -1,6 +1,6 @@
 {
   "extends": "@repo/typescript-config/base.json",
-  "include": ["auth", "confect", "convex"],
+  "include": ["auth", "confect", "convex", "__tests__"],
   "exclude": ["confect/_generated", "convex/_generated"],
   "compilerOptions": {
     "noEmit": true

@@ -18,12 +18,15 @@ const listByProject = FunctionImpl.make(
       Effect.gen(function* () {
         yield* ensureProjectAccess(projectId);
         const reader = yield* DatabaseReader;
-        const taxonomy = yield* reader
-          .table("projectTaxonomy")
-          .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
-          .take(200);
 
-        return taxonomy.filter((item) => item.archivedAt === undefined);
+        return yield* reader
+          .table("projectTaxonomy")
+          .index(
+            "by_projectId_and_status",
+            (q) => q.eq("projectId", projectId).eq("status", "active"),
+            "desc"
+          )
+          .take(200);
       })
     )
 );
@@ -38,22 +41,27 @@ const upsert = FunctionImpl.make(
       Effect.gen(function* () {
         yield* ensureProjectAccess(projectId);
         const reader = yield* DatabaseReader;
+        const normalizedLabel = label.trim();
+        const lowercaseLabel = normalizedLabel.toLowerCase();
         const currentItems = yield* reader
           .table("projectTaxonomy")
-          .index("by_projectId_and_kind", (q) =>
-            q.eq("projectId", projectId).eq("kind", kind)
+          .index("by_projectId_and_kind_and_normalizedLabel", (q) =>
+            q
+              .eq("projectId", projectId)
+              .eq("kind", kind)
+              .eq("normalizedLabel", lowercaseLabel)
           )
-          .take(200);
-        const normalizedLabel = label.trim();
-        const current = currentItems.find(
-          (item) => item.label.toLowerCase() === normalizedLabel.toLowerCase()
-        );
+          .take(1);
+        const current = currentItems.at(0);
         const writer = yield* DatabaseWriter;
         const timestamp = Date.now();
 
         if (current) {
           yield* writer.table("projectTaxonomy").patch(current._id, {
             archivedAt: undefined,
+            label: normalizedLabel,
+            normalizedLabel: lowercaseLabel,
+            status: "active",
             updatedAt: timestamp,
           });
           return current._id;
@@ -63,6 +71,8 @@ const upsert = FunctionImpl.make(
           projectId,
           kind,
           label: normalizedLabel,
+          normalizedLabel: lowercaseLabel,
+          status: "active",
           createdAt: timestamp,
           updatedAt: timestamp,
         });
@@ -96,6 +106,7 @@ const archive = FunctionImpl.make(
         const writer = yield* DatabaseWriter;
         yield* writer.table("projectTaxonomy").patch(taxonomyId, {
           archivedAt: Date.now(),
+          status: "archived",
           updatedAt: Date.now(),
         });
 

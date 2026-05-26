@@ -20,16 +20,15 @@ import { ProjectLedgerTable } from "@/components/ledger/table";
 import { LogbookPanel } from "@/components/logbook/panel";
 import { ProtocolWorkspace } from "@/components/protocol/workspace";
 import { ProjectRail } from "@/components/rail/rail";
+import { ReportsPanel } from "@/components/reports/panel";
 
 const projectPageSize = 8;
 const protocolPageSize = 20;
-const recordPageSize = 50;
-const documentPageSize = 20;
-const logbookPageSize = 50;
 const protocolBackedSections = new Set([
   "protocols",
   "documents",
   "intelligence",
+  "reports",
 ]);
 
 export const Route = createFileRoute("/")({
@@ -66,44 +65,11 @@ function BuildLedgerWorkspace() {
   );
   const shouldLoadProtocols =
     Boolean(activeProjectId) && protocolBackedSections.has(activeSection);
-  const shouldLoadRecords =
-    Boolean(activeProjectId) && activeSection === "ledger";
-  const shouldLoadLogbook =
-    Boolean(activeProjectId) && activeSection === "logbook";
-  const shouldLoadDocuments =
-    Boolean(activeProjectId) && activeSection === "documents";
   const protocols = useQuery(
     refs.public.protocols.listByProject,
     shouldLoadProtocols && activeProjectId
       ? {
           paginationOpts: { cursor: null, numItems: protocolPageSize },
-          projectId: activeProjectId,
-        }
-      : "skip"
-  );
-  const records = useQuery(
-    refs.public.records.listByProject,
-    shouldLoadRecords && activeProjectId
-      ? {
-          paginationOpts: { cursor: null, numItems: recordPageSize },
-          projectId: activeProjectId,
-        }
-      : "skip"
-  );
-  const logbook = useQuery(
-    refs.public.logbook.listByProject,
-    shouldLoadLogbook && activeProjectId
-      ? {
-          paginationOpts: { cursor: null, numItems: logbookPageSize },
-          projectId: activeProjectId,
-        }
-      : "skip"
-  );
-  const documents = useQuery(
-    refs.public.documents.listByProject,
-    shouldLoadDocuments && activeProjectId
-      ? {
-          paginationOpts: { cursor: null, numItems: documentPageSize },
           projectId: activeProjectId,
         }
       : "skip"
@@ -134,7 +100,6 @@ function BuildLedgerWorkspace() {
     documents: (
       <DocumentsPanel
         activeProtocolStatus={activeProtocol?.status}
-        documents={documents}
         selectedProjectId={activeProjectId}
         selectedProtocolId={activeProtocolId}
       />
@@ -146,8 +111,8 @@ function BuildLedgerWorkspace() {
         selectedProtocolId={activeProtocolId}
       />
     ),
-    ledger: <ProjectLedgerTable records={records} />,
-    logbook: <LogbookPanel logbook={logbook} />,
+    ledger: <ProjectLedgerTable selectedProjectId={activeProjectId} />,
+    logbook: <LogbookPanel selectedProjectId={activeProjectId} />,
     protocols: (
       <ProtocolWorkspace
         protocols={protocols}
@@ -155,6 +120,12 @@ function BuildLedgerWorkspace() {
         selectedProjectId={activeProjectId}
         selectedProtocolId={activeProtocolId}
         setSelectedProtocolId={setSelectedProtocolId}
+      />
+    ),
+    reports: (
+      <ReportsPanel
+        canUseProjectMemory={hasPublishedProtocol}
+        selectedProjectId={activeProjectId}
       />
     ),
   }[activeSection];

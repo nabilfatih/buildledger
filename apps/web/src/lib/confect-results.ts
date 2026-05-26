@@ -23,6 +23,10 @@ export type LogbookResult = ReturnType<
   typeof useQuery<typeof refs.public.logbook.listByProject>
 >;
 
+export type ReportsResult = ReturnType<
+  typeof useQuery<typeof refs.public.reports.listByProject>
+>;
+
 export type ProtocolReviewResult = ReturnType<
   typeof useQuery<typeof refs.public.protocols.getReviewState>
 >;

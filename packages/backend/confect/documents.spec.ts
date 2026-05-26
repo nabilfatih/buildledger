@@ -24,6 +24,12 @@ const DocumentsPage = Schema.mutable(
   })
 );
 
+const DocumentFilters = Schema.Struct({
+  protocolId: Schema.optional(GenericId.GenericId("protocols")),
+  search: Schema.optional(Schema.String),
+  status: Schema.optional(Schema.String),
+});
+
 export const documents = GroupSpec.make("documents")
   .addFunction(
     FunctionSpec.publicMutation({
@@ -76,6 +82,7 @@ export const documents = GroupSpec.make("documents")
       args: Schema.Struct({
         projectId: GenericId.GenericId("projects"),
         paginationOpts: PaginationOpts,
+        filters: Schema.optional(DocumentFilters),
       }),
       returns: DocumentsPage,
       error: AppError,

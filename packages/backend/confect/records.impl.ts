@@ -11,24 +11,8 @@ import {
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
 import { Effect, Layer } from "effect";
 
-/** Lists project records with Convex pagination on the primary project index. */
-const listByProject = FunctionImpl.make(
-  api,
-  "records",
-  "listByProject",
-  ({ projectId, paginationOpts }) =>
-    asAppError(
-      Effect.gen(function* () {
-        yield* ensureProjectAccess(projectId);
-        const reader = yield* DatabaseReader;
-
-        return yield* reader
-          .table("projectRecords")
-          .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
-          .paginate(paginationOpts);
-      })
-    )
-);
+import { listByProject } from "./records/list";
+import { optionalText } from "./records/text";
 
 /** Updates a record status and appends a traceable logbook event. */
 const updateStatus = FunctionImpl.make(
@@ -173,9 +157,3 @@ export const records = GroupImpl.make(api, "records").pipe(
   Layer.provide(assign),
   Layer.provide(getByProtocol)
 );
-
-/** Normalizes optional assignment fields before storage. */
-function optionalText(value: string | undefined) {
-  const text = value?.trim();
-  return text && text.length > 0 ? text : undefined;
-}

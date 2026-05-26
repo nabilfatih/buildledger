@@ -162,46 +162,43 @@ const createReadOnlyLink = FunctionImpl.make(
 
           const token = nanoid(32);
           const tokenHash = yield* hashShareToken(token);
-          const shareLinkId = yield* writer.table("shareLinks").insert({
+          yield* writer.table("shareLinks").insert({
             projectId: input.projectId,
             resourceId: input.protocolId,
             resourceType: "protocol",
             tokenHash,
             createdAt: Date.now(),
           });
-          const shareLink = yield* reader.table("shareLinks").get(shareLinkId);
 
-          return { shareLink, token };
+          return { resourceType: "protocol", token };
         }
 
         if (input.ledgerView) {
           const token = nanoid(32);
           const tokenHash = yield* hashShareToken(token);
-          const shareLinkId = yield* writer.table("shareLinks").insert({
+          yield* writer.table("shareLinks").insert({
             projectId: input.projectId,
             resourceId: input.projectId,
             resourceType: "ledger",
             tokenHash,
             createdAt: Date.now(),
           });
-          const shareLink = yield* reader.table("shareLinks").get(shareLinkId);
 
-          return { shareLink, token };
+          return { resourceType: "ledger", token };
         }
 
         if (input.logbookView) {
           const token = nanoid(32);
           const tokenHash = yield* hashShareToken(token);
-          const shareLinkId = yield* writer.table("shareLinks").insert({
+          yield* writer.table("shareLinks").insert({
             projectId: input.projectId,
             resourceId: input.projectId,
             resourceType: "logbook",
             tokenHash,
             createdAt: Date.now(),
           });
-          const shareLink = yield* reader.table("shareLinks").get(shareLinkId);
 
-          return { shareLink, token };
+          return { resourceType: "logbook", token };
         }
 
         if (input.reportId === undefined) {
@@ -226,16 +223,15 @@ const createReadOnlyLink = FunctionImpl.make(
 
         const token = nanoid(32);
         const tokenHash = yield* hashShareToken(token);
-        const shareLinkId = yield* writer.table("shareLinks").insert({
+        yield* writer.table("shareLinks").insert({
           projectId: input.projectId,
           resourceId: input.reportId,
           resourceType: "report",
           tokenHash,
           createdAt: Date.now(),
         });
-        const shareLink = yield* reader.table("shareLinks").get(shareLinkId);
 
-        return { shareLink, token };
+        return { resourceType: "report", token };
       })
     )
 );
@@ -293,10 +289,27 @@ const resolve = FunctionImpl.make(api, "shares", "resolve", ({ token }) =>
           resourceType: "protocol",
           projectName: project.name,
           projectCode: project.code,
-          protocol,
-          participants,
-          sections,
-          items,
+          protocol: {
+            title: protocol.title,
+            protocolNumber: protocol.protocolNumber,
+            protocolType: protocol.protocolType,
+            protocolDate: protocol.protocolDate,
+          },
+          participants: participants.map((person) => ({
+            kind: person.kind,
+            name: person.name,
+            company: person.company,
+            role: person.role,
+          })),
+          sections: sections.map((section) => ({
+            title: section.title,
+            body: section.body,
+          })),
+          items: items.map((item) => ({
+            kind: item.kind,
+            title: item.title,
+            body: item.body,
+          })),
         };
       }
 
@@ -314,7 +327,14 @@ const resolve = FunctionImpl.make(api, "shares", "resolve", ({ token }) =>
           resourceType: "ledger",
           projectName: project.name,
           projectCode: project.code,
-          records,
+          records: records.map((record) => ({
+            kind: record.kind,
+            title: record.title,
+            body: record.body,
+            sourceProtocolTitle: record.sourceProtocolTitle,
+            sourceProtocolDate: record.sourceProtocolDate,
+            status: record.status,
+          })),
         };
       }
 
@@ -332,7 +352,12 @@ const resolve = FunctionImpl.make(api, "shares", "resolve", ({ token }) =>
           resourceType: "logbook",
           projectName: project.name,
           projectCode: project.code,
-          events,
+          events: events.map((event) => ({
+            eventType: event.eventType,
+            title: event.title,
+            body: event.body,
+            chronologyDate: event.chronologyDate,
+          })),
         };
       }
 
@@ -365,7 +390,13 @@ const resolve = FunctionImpl.make(api, "shares", "resolve", ({ token }) =>
         resourceType: "report",
         projectName: project.name,
         projectCode: project.code,
-        report,
+        report: {
+          title: report.title,
+          body: report.body,
+          periodStart: report.periodStart,
+          periodEnd: report.periodEnd,
+          status: report.status,
+        },
       };
     })
   )

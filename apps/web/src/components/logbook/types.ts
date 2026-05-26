@@ -13,11 +13,4 @@ type QueryValue<Result> = Result extends {
 
 export type LogbookRow = QueryValue<LogbookResult>["page"][number];
 
-export interface LogbookFilterState {
-  readonly eventType: string;
-  readonly responsible: string;
-  readonly search: string;
-  readonly trade: string;
-}
-
 export type LogbookTable = Table<LogbookRow>;
