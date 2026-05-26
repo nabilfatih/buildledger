@@ -12,6 +12,7 @@ import {
   SourceDocumentNotFound,
 } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
+import { searchText } from "@repo/backend/confect/search";
 import type { GenericId as ConvexId } from "convex/values";
 import { Effect, Layer, Schema } from "effect";
 
@@ -82,6 +83,7 @@ const saveSourceDocument = FunctionImpl.make(
         const trimmedText = extractedText?.trim();
         const writer = yield* DatabaseWriter;
         const timestamp = Date.now();
+        const status = documentStatusForSource(protocolId, trimmedText);
 
         return yield* writer.table("sourceDocuments").insert({
           projectId,
@@ -90,7 +92,8 @@ const saveSourceDocument = FunctionImpl.make(
           mimeType,
           storageId: parsedStorageId,
           extractedText: trimmedText || undefined,
-          status: trimmedText ? "extracted" : "uploaded",
+          status,
+          searchText: searchText([fileName, mimeType, trimmedText, status]),
           createdAt: timestamp,
           updatedAt: timestamp,
         });
@@ -123,9 +126,16 @@ const extractText = FunctionImpl.make(
         yield* ensureProjectAccess(document.projectId);
 
         const writer = yield* DatabaseWriter;
+        const status = document.protocolId ? "attached" : "extracted";
         yield* writer.table("sourceDocuments").patch(documentId, {
           extractedText: extractedText.trim(),
-          status: "extracted",
+          status,
+          searchText: searchText([
+            document.fileName,
+            document.mimeType,
+            extractedText,
+            status,
+          ]),
           updatedAt: Date.now(),
         });
 
@@ -182,6 +192,13 @@ const attachToProtocol = FunctionImpl.make(
         const writer = yield* DatabaseWriter;
         yield* writer.table("sourceDocuments").patch(documentId, {
           protocolId,
+          status: "attached",
+          searchText: searchText([
+            document.fileName,
+            document.mimeType,
+            document.extractedText,
+            "attached",
+          ]),
           updatedAt: Date.now(),
         });
 
@@ -202,23 +219,36 @@ const listByProject = FunctionImpl.make(
         const reader = yield* DatabaseReader;
         const documentFilters = normalizeDocumentFilters(filters);
         const page = yield* (() => {
+          if (documentFilters.search) {
+            const search = documentFilters.search;
+            return reader
+              .table("sourceDocuments")
+              .search("by_projectId_and_searchText", (q) =>
+                q.search("searchText", search).eq("projectId", projectId)
+              )
+              .paginate(paginationOpts);
+          }
+
           if (documentFilters.protocolId) {
             return reader
               .table("sourceDocuments")
               .index(
-                "by_protocolId",
-                (q) => q.eq("protocolId", documentFilters.protocolId),
+                "by_projectId_and_protocolId_and_updatedAt",
+                (q) =>
+                  q
+                    .eq("projectId", projectId)
+                    .eq("protocolId", documentFilters.protocolId),
                 "desc"
               )
               .paginate(paginationOpts);
           }
 
-          if (documentFilters.status && documentFilters.status !== "attached") {
+          if (documentFilters.status) {
             const status = documentFilters.status;
             return reader
               .table("sourceDocuments")
               .index(
-                "by_projectId_and_status",
+                "by_projectId_and_status_and_updatedAt",
                 (q) => q.eq("projectId", projectId).eq("status", status),
                 "desc"
               )
@@ -227,7 +257,11 @@ const listByProject = FunctionImpl.make(
 
           return reader
             .table("sourceDocuments")
-            .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
+            .index(
+              "by_projectId_and_updatedAt",
+              (q) => q.eq("projectId", projectId),
+              "desc"
+            )
             .paginate(paginationOpts);
         })();
 
@@ -284,6 +318,22 @@ function documentStatus(value: string | undefined): DocumentStatus | undefined {
   }
 }
 
+/** Chooses the canonical document lifecycle state for a saved source. */
+function documentStatusForSource(
+  protocolId: ConvexId<"protocols"> | undefined,
+  extractedText: string | undefined
+): Exclude<DocumentStatus, "failed"> {
+  if (protocolId) {
+    return "attached";
+  }
+
+  if (extractedText) {
+    return "extracted";
+  }
+
+  return "uploaded";
+}
+
 /** Keeps document result pages server-filtered and safe for the client. */
 function matchesDocumentFilters(
   document: {
@@ -291,6 +341,7 @@ function matchesDocumentFilters(
     readonly mimeType?: string | undefined;
     readonly projectId: ConvexId<"projects">;
     readonly protocolId?: ConvexId<"protocols"> | undefined;
+    readonly searchText: string;
     readonly status: string;
   },
   filters: ReturnType<typeof normalizeDocumentFilters>,
@@ -304,15 +355,7 @@ function matchesDocumentFilters(
     return false;
   }
 
-  if (filters.status === "attached" && !document.protocolId) {
-    return false;
-  }
-
-  if (
-    filters.status &&
-    filters.status !== "attached" &&
-    document.status !== filters.status
-  ) {
+  if (filters.status && document.status !== filters.status) {
     return false;
   }
 
@@ -320,9 +363,7 @@ function matchesDocumentFilters(
     return true;
   }
 
-  return `${document.fileName} ${document.mimeType ?? ""} ${document.status}`
-    .toLowerCase()
-    .includes(filters.search);
+  return document.searchText.toLowerCase().includes(filters.search);
 }
 
 /** Normalizes optional text filters. */

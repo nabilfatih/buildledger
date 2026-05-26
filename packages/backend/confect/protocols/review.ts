@@ -11,6 +11,7 @@ import {
   SourceDocumentNotFound,
 } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
+import { searchText } from "@repo/backend/confect/search";
 import { Effect } from "effect";
 
 import {
@@ -206,6 +207,13 @@ export const attachDocument = FunctionImpl.make(
         const writer = yield* DatabaseWriter;
         yield* writer.table("sourceDocuments").patch(documentId, {
           protocolId,
+          status: "attached",
+          searchText: searchText([
+            document.fileName,
+            document.mimeType,
+            document.extractedText,
+            "attached",
+          ]),
           updatedAt: Date.now(),
         });
 

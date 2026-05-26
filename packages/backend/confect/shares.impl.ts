@@ -130,12 +130,11 @@ const createReadOnlyLink = FunctionImpl.make(
         yield* ensureProjectAccess(input.projectId);
         const reader = yield* DatabaseReader;
         const writer = yield* DatabaseWriter;
-        const selectedTargetCount = [
-          input.protocolId !== undefined,
-          input.reportId !== undefined,
-          input.ledgerView === true,
-          input.logbookView === true,
-        ].filter(Boolean).length;
+        const selectedTargetCount =
+          Number(input.protocolId !== undefined) +
+          Number(input.reportId !== undefined) +
+          Number(input.ledgerView === true) +
+          Number(input.logbookView === true);
 
         if (selectedTargetCount !== 1) {
           return yield* Effect.fail(

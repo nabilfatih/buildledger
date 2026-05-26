@@ -13,6 +13,7 @@ import {
 import { ReportNotFound } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
 import { zeroEmbedding } from "@repo/backend/confect/protocols/helpers";
+import { searchText } from "@repo/backend/confect/search";
 import type { GenericId } from "convex/values";
 import { format, parseISO } from "date-fns";
 import { Effect, Layer } from "effect";
@@ -63,19 +64,27 @@ const insertReport = Effect.fn("reports.insertReport")(function* (input: {
 }) {
   const writer = yield* DatabaseWriter;
   const timestamp = Date.now();
+  const body = [
+    input.report.summary,
+    input.report.actionSummary,
+    input.report.riskSummary,
+    input.report.decisionSummary,
+  ].join("\n\n");
 
   return yield* writer.table("reports").insert({
     projectId: input.projectId,
     title: input.report.title,
     periodStart: input.periodStart,
     periodEnd: input.periodEnd,
-    body: [
-      input.report.summary,
-      input.report.actionSummary,
-      input.report.riskSummary,
-      input.report.decisionSummary,
-    ].join("\n\n"),
+    body,
     status: "draft",
+    searchText: searchText([
+      input.report.title,
+      body,
+      "draft",
+      input.periodStart,
+      input.periodEnd,
+    ]),
     createdAt: timestamp,
     updatedAt: timestamp,
   });
@@ -133,12 +142,22 @@ const listByProject = FunctionImpl.make(
         const reader = yield* DatabaseReader;
         const reportFilters = normalizeReportFilters(filters);
         const page = yield* (() => {
+          if (reportFilters.search) {
+            const search = reportFilters.search;
+            return reader
+              .table("reports")
+              .search("by_projectId_and_searchText", (q) =>
+                q.search("searchText", search).eq("projectId", projectId)
+              )
+              .paginate(paginationOpts);
+          }
+
           if (reportFilters.status) {
             const status = reportFilters.status;
             return reader
               .table("reports")
               .index(
-                "by_projectId_and_status",
+                "by_projectId_and_status_and_updatedAt",
                 (q) => q.eq("projectId", projectId).eq("status", status),
                 "desc"
               )
@@ -147,7 +166,11 @@ const listByProject = FunctionImpl.make(
 
           return reader
             .table("reports")
-            .index("by_projectId", (q) => q.eq("projectId", projectId), "desc")
+            .index(
+              "by_projectId_and_updatedAt",
+              (q) => q.eq("projectId", projectId),
+              "desc"
+            )
             .paginate(paginationOpts);
         })();
 
@@ -234,6 +257,13 @@ const publish = FunctionImpl.make(api, "reports", "publish", ({ reportId }) =>
 
       yield* writer.table("reports").patch(reportId, {
         status: "published",
+        searchText: searchText([
+          report.title,
+          report.body,
+          "published",
+          report.periodStart,
+          report.periodEnd,
+        ]),
         updatedAt: timestamp,
       });
       yield* writer.table("memoryChunks").insert({

@@ -1,8 +1,10 @@
 import { FunctionImpl, GroupImpl } from "@confect/server";
 import api from "@repo/backend/confect/_generated/api";
+import refs from "@repo/backend/confect/_generated/refs";
 import {
   DatabaseReader,
   DatabaseWriter,
+  Scheduler,
 } from "@repo/backend/confect/_generated/services";
 import {
   asAppError,
@@ -10,9 +12,54 @@ import {
   getOptionalUserToken,
   getUserToken,
 } from "@repo/backend/confect/helpers";
-import { Effect, Layer } from "effect";
+import type { GenericId } from "convex/values";
+import { Duration, Effect, Layer } from "effect";
 
 const archiveMembershipStatusLimit = 200;
+type ProjectId = GenericId<"projects">;
+
+/** Archives one bounded project-membership batch and schedules the next batch. */
+const archiveActiveMemberships = Effect.fn("projects.archiveActiveMemberships")(
+  function* (projectId: ProjectId) {
+    const reader = yield* DatabaseReader;
+    const writer = yield* DatabaseWriter;
+    const activeMemberships = yield* reader
+      .table("projectMembers")
+      .index("by_projectId_and_projectStatus", (q) =>
+        q.eq("projectId", projectId).eq("projectStatus", "active")
+      )
+      .take(archiveMembershipStatusLimit);
+
+    yield* Effect.all(
+      activeMemberships.map((membership) =>
+        writer.table("projectMembers").patch(membership._id, {
+          projectStatus: "archived",
+        })
+      )
+    );
+
+    if (activeMemberships.length < archiveMembershipStatusLimit) {
+      return null;
+    }
+
+    const scheduler = yield* Scheduler;
+    yield* scheduler.runAfter(
+      Duration.zero,
+      refs.internal.projects.archiveActiveMembershipBatch,
+      { projectId }
+    );
+
+    return null;
+  }
+);
+
+/** Continues project-member archive propagation until no active members remain. */
+const archiveActiveMembershipBatch = FunctionImpl.make(
+  api,
+  "projects",
+  "archiveActiveMembershipBatch",
+  ({ projectId }) => asAppError(archiveActiveMemberships(projectId))
+);
 
 /** Lists one active project membership page for the signed-in user. */
 const listForCurrentUser = FunctionImpl.make(
@@ -115,28 +162,13 @@ const archive = FunctionImpl.make(api, "projects", "archive", ({ projectId }) =>
   asAppError(
     Effect.gen(function* () {
       yield* ensureProjectAccess(projectId);
-      const reader = yield* DatabaseReader;
       const writer = yield* DatabaseWriter;
 
       yield* writer.table("projects").patch(projectId, {
         status: "archived",
         updatedAt: Date.now(),
       });
-
-      const activeMemberships = yield* reader
-        .table("projectMembers")
-        .index("by_projectId_and_projectStatus", (q) =>
-          q.eq("projectId", projectId).eq("projectStatus", "active")
-        )
-        .take(archiveMembershipStatusLimit);
-
-      yield* Effect.all(
-        activeMemberships.map((membership) =>
-          writer.table("projectMembers").patch(membership._id, {
-            projectStatus: "archived",
-          })
-        )
-      );
+      yield* archiveActiveMemberships(projectId);
 
       return null;
     })
@@ -147,5 +179,6 @@ export const projects = GroupImpl.make(api, "projects").pipe(
   Layer.provide(listForCurrentUser),
   Layer.provide(create),
   Layer.provide(get),
-  Layer.provide(archive)
+  Layer.provide(archive),
+  Layer.provide(archiveActiveMembershipBatch)
 );

@@ -245,6 +245,7 @@ export const ProjectRecords = Table.make(
     citationCount: Schema.Number,
     sourceProtocolTitle: Schema.String,
     sourceProtocolDate: Schema.String,
+    searchText: Schema.String,
     createdAt: Timestamp,
     updatedAt: Timestamp,
   })
@@ -289,13 +290,25 @@ export const ProjectRecords = Table.make(
     "status",
     "createdAt",
   ])
-  .index("by_projectId_and_responsible_status_date", [
+  .index("by_projectId_and_responsibleParty_and_sourceProtocolDate", [
     "projectId",
     "responsibleParty",
-    "status",
     "sourceProtocolDate",
   ])
-  .index("by_protocolId", ["protocolId", "createdAt"]);
+  .index(
+    "by_projectId_and_responsibleParty_and_status_and_sourceProtocolDate",
+    ["projectId", "responsibleParty", "status", "sourceProtocolDate"]
+  )
+  .index("by_projectId_and_severity_and_sourceProtocolDate", [
+    "projectId",
+    "severity",
+    "sourceProtocolDate",
+  ])
+  .index("by_protocolId", ["protocolId", "createdAt"])
+  .searchIndex("by_projectId_and_searchText", {
+    searchField: "searchText",
+    filterFields: ["projectId"],
+  });
 
 export const ProjectTaxonomy = Table.make(
   "projectTaxonomy",
@@ -339,16 +352,27 @@ export const LogbookEvents = Table.make(
     trade: OptionalString,
     responsibleParty: OptionalString,
     chronologyDate: Schema.String,
+    searchText: Schema.String,
     createdAt: Timestamp,
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
   .index("by_projectId_and_chronologyDate", ["projectId", "chronologyDate"])
   .index("by_projectId_and_component", ["projectId", "component", "createdAt"])
+  .index("by_projectId_and_component_and_chronologyDate", [
+    "projectId",
+    "component",
+    "chronologyDate",
+  ])
   .index("by_projectId_and_objectName", [
     "projectId",
     "objectName",
     "createdAt",
+  ])
+  .index("by_projectId_and_objectName_and_chronologyDate", [
+    "projectId",
+    "objectName",
+    "chronologyDate",
   ])
   .index("by_projectId_and_trade", ["projectId", "trade", "createdAt"])
   .index("by_projectId_and_trade_and_chronologyDate", [
@@ -367,13 +391,27 @@ export const LogbookEvents = Table.make(
     "protocolId",
     "createdAt",
   ])
+  .index("by_projectId_and_protocolId_and_chronologyDate", [
+    "projectId",
+    "protocolId",
+    "chronologyDate",
+  ])
   .index("by_projectId_and_responsibleParty", [
     "projectId",
     "responsibleParty",
     "createdAt",
   ])
+  .index("by_projectId_and_responsibleParty_and_chronologyDate", [
+    "projectId",
+    "responsibleParty",
+    "chronologyDate",
+  ])
   .index("by_recordId", ["recordId", "createdAt"])
-  .index("by_protocolId", ["protocolId", "createdAt"]);
+  .index("by_protocolId", ["protocolId", "createdAt"])
+  .searchIndex("by_projectId_and_searchText", {
+    searchField: "searchText",
+    filterFields: ["projectId"],
+  });
 
 export const SourceDocuments = Table.make(
   "sourceDocuments",
@@ -384,14 +422,30 @@ export const SourceDocuments = Table.make(
     mimeType: OptionalString,
     storageId: Schema.optional(GenericId.GenericId("_storage")),
     extractedText: OptionalString,
-    status: Schema.Literal("uploaded", "extracted", "failed"),
+    status: Schema.Literal("uploaded", "extracted", "attached", "failed"),
+    searchText: Schema.String,
     createdAt: Timestamp,
     updatedAt: Timestamp,
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
+  .index("by_projectId_and_updatedAt", ["projectId", "updatedAt"])
   .index("by_projectId_and_status", ["projectId", "status", "createdAt"])
-  .index("by_protocolId", ["protocolId", "createdAt"]);
+  .index("by_projectId_and_status_and_updatedAt", [
+    "projectId",
+    "status",
+    "updatedAt",
+  ])
+  .index("by_projectId_and_protocolId_and_updatedAt", [
+    "projectId",
+    "protocolId",
+    "updatedAt",
+  ])
+  .index("by_protocolId", ["protocolId", "createdAt"])
+  .searchIndex("by_projectId_and_searchText", {
+    searchField: "searchText",
+    filterFields: ["projectId"],
+  });
 
 export const Investigations = Table.make(
   "investigations",
@@ -472,12 +526,23 @@ export const Reports = Table.make(
     periodEnd: Schema.String,
     body: Schema.String,
     status: Schema.Literal("draft", "published"),
+    searchText: Schema.String,
     createdAt: Timestamp,
     updatedAt: Timestamp,
   })
 )
   .index("by_projectId", ["projectId", "createdAt"])
-  .index("by_projectId_and_status", ["projectId", "status", "createdAt"]);
+  .index("by_projectId_and_updatedAt", ["projectId", "updatedAt"])
+  .index("by_projectId_and_status", ["projectId", "status", "createdAt"])
+  .index("by_projectId_and_status_and_updatedAt", [
+    "projectId",
+    "status",
+    "updatedAt",
+  ])
+  .searchIndex("by_projectId_and_searchText", {
+    searchField: "searchText",
+    filterFields: ["projectId"],
+  });
 
 export const ShareLinks = Table.make(
   "shareLinks",

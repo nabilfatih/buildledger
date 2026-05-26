@@ -63,4 +63,12 @@ export const projects = GroupSpec.make("projects")
       returns: Schema.Null,
       error: AppError,
     })
+  )
+  .addFunction(
+    FunctionSpec.internalMutation({
+      name: "archiveActiveMembershipBatch",
+      args: Schema.Struct({ projectId: GenericId.GenericId("projects") }),
+      returns: Schema.Null,
+      error: AppError,
+    })
   );

@@ -12,6 +12,7 @@ import {
   ProtocolNotFound,
 } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
+import { searchText } from "@repo/backend/confect/search";
 import { Effect, Schema } from "effect";
 
 import { maxProtocolItems, zeroEmbedding } from "./helpers";
@@ -121,6 +122,21 @@ export const writePublishRecords = FunctionImpl.make(
                   citationCount: countCitations(item.citationsJson),
                   sourceProtocolTitle: protocol.title,
                   sourceProtocolDate: protocol.protocolDate,
+                  searchText: searchText([
+                    `${protocol.protocolNumber}-${index + 1}`,
+                    item.kind,
+                    item.title,
+                    item.body,
+                    item.component,
+                    item.objectName,
+                    item.trade,
+                    item.responsibleParty,
+                    item.dueDate,
+                    item.severity,
+                    item.status,
+                    protocol.title,
+                    protocol.protocolDate,
+                  ]),
                   createdAt: timestamp,
                   updatedAt: timestamp,
                 });
@@ -138,6 +154,17 @@ export const writePublishRecords = FunctionImpl.make(
                   trade: item.trade,
                   responsibleParty: item.responsibleParty,
                   chronologyDate: protocol.protocolDate,
+                  searchText: searchText([
+                    item.kind === "risk" ? "risk detected" : "record created",
+                    item.title,
+                    item.body,
+                    item.component,
+                    item.objectName,
+                    item.trade,
+                    item.responsibleParty,
+                    protocol.title,
+                    protocol.protocolDate,
+                  ]),
                   createdAt: timestamp,
                 });
               })

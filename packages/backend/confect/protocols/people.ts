@@ -23,7 +23,7 @@ export const insertParticipants = Effect.fn("protocols.insertParticipants")(
     const writer = yield* DatabaseWriter;
     const timestamp = Date.now();
     const validPeople = input.people
-      .filter((person) => person.name.trim())
+      .flatMap((person) => (person.name.trim() ? [person] : []))
       .slice(0, maxProtocolParticipants);
 
     yield* Effect.all(

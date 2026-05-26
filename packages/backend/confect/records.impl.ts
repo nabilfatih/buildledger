@@ -9,6 +9,7 @@ import {
   ProtocolNotFound,
 } from "@repo/backend/confect/errors";
 import { asAppError, ensureProjectAccess } from "@repo/backend/confect/helpers";
+import { searchText } from "@repo/backend/confect/search";
 import { Effect, Layer } from "effect";
 
 import { listByProject } from "./records/list";
@@ -43,6 +44,21 @@ const updateStatus = FunctionImpl.make(
 
         yield* writer.table("projectRecords").patch(recordId, {
           status,
+          searchText: searchText([
+            record.recordNumber,
+            record.kind,
+            record.title,
+            record.body,
+            record.component,
+            record.objectName,
+            record.trade,
+            record.responsibleParty,
+            record.dueDate,
+            record.severity,
+            status,
+            record.sourceProtocolTitle,
+            record.sourceProtocolDate,
+          ]),
           updatedAt: timestamp,
         });
         yield* writer.table("logbookEvents").insert({
@@ -57,6 +73,17 @@ const updateStatus = FunctionImpl.make(
           trade: record.trade,
           responsibleParty: record.responsibleParty,
           chronologyDate: record.sourceProtocolDate,
+          searchText: searchText([
+            "status changed",
+            record.title,
+            `Status changed to ${status}.`,
+            record.component,
+            record.objectName,
+            record.trade,
+            record.responsibleParty,
+            record.sourceProtocolTitle,
+            record.sourceProtocolDate,
+          ]),
           createdAt: timestamp,
         });
 
@@ -97,6 +124,21 @@ const assign = FunctionImpl.make(
         yield* writer.table("projectRecords").patch(recordId, {
           responsibleParty: nextResponsible,
           dueDate: nextDueDate,
+          searchText: searchText([
+            record.recordNumber,
+            record.kind,
+            record.title,
+            record.body,
+            record.component,
+            record.objectName,
+            record.trade,
+            nextResponsible,
+            nextDueDate,
+            record.severity,
+            record.status,
+            record.sourceProtocolTitle,
+            record.sourceProtocolDate,
+          ]),
           updatedAt: timestamp,
         });
         yield* writer.table("logbookEvents").insert({
@@ -111,6 +153,17 @@ const assign = FunctionImpl.make(
           trade: record.trade,
           responsibleParty: nextResponsible,
           chronologyDate: record.sourceProtocolDate,
+          searchText: searchText([
+            "assignment changed",
+            record.title,
+            "Responsible party or due date changed.",
+            record.component,
+            record.objectName,
+            record.trade,
+            nextResponsible,
+            record.sourceProtocolTitle,
+            record.sourceProtocolDate,
+          ]),
           createdAt: timestamp,
         });
 

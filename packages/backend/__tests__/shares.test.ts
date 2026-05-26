@@ -1,6 +1,7 @@
 import { convexTest } from "convex-test";
 import { Effect } from "effect";
 import { describe, expect, it } from "vitest";
+import { searchText } from "../confect/search";
 import { api } from "../convex/_generated/api";
 import schema from "../convex/schema";
 
@@ -107,6 +108,21 @@ const seedPublishedProtocol = Effect.fn("test.seedPublishedProtocol")(
                 sourceProtocolDate: "2026-05-25",
                 sourceProtocolTitle: "Procurement readiness",
                 status: "open",
+                searchText: searchText([
+                  "P-001-1",
+                  "task",
+                  "Resolve inspection blocker",
+                  "Coordinate inspection timing so drywall crews can proceed.",
+                  "Interior",
+                  "Drywall",
+                  "Drywall",
+                  "Site team",
+                  "2026-05-30",
+                  "medium",
+                  "open",
+                  "Procurement readiness",
+                  "2026-05-25",
+                ]),
                 title: "Resolve inspection blocker",
                 trade: "Drywall",
                 updatedAt: timestamp,
@@ -120,6 +136,13 @@ const seedPublishedProtocol = Effect.fn("test.seedPublishedProtocol")(
                 periodStart: "2026-05-25",
                 projectId,
                 status: "published",
+                searchText: searchText([
+                  "Weekly readiness report",
+                  "Inspection blocker remains the main coordination risk.",
+                  "published",
+                  "2026-05-25",
+                  "2026-05-31",
+                ]),
                 title: "Weekly readiness report",
                 updatedAt: timestamp,
               })
@@ -137,6 +160,17 @@ const seedPublishedProtocol = Effect.fn("test.seedPublishedProtocol")(
                 protocolId,
                 recordId,
                 responsibleParty: "Site team",
+                searchText: searchText([
+                  "record created",
+                  "Resolve inspection blocker",
+                  "Task record created from the published protocol.",
+                  "Interior",
+                  "Drywall",
+                  "Drywall",
+                  "Site team",
+                  "Procurement readiness",
+                  "2026-05-25",
+                ]),
                 title: "Resolve inspection blocker",
                 trade: "Drywall",
               })
@@ -160,6 +194,44 @@ const seedPublishedProtocol = Effect.fn("test.seedPublishedProtocol")(
 );
 
 describe("shares", () => {
+  it(
+    "searches records, logbook events, and reports through Convex search indexes",
+    () =>
+      Effect.runPromise(
+        Effect.gen(function* () {
+          const t = convexTest({ modules, schema });
+          const seeded = yield* seedPublishedProtocol(t);
+
+          const records = yield* Effect.promise(() =>
+            t.query(api.records.listByProject, {
+              filters: { search: "inspection blocker" },
+              paginationOpts: { cursor: null, numItems: 10 },
+              projectId: seeded.projectId,
+            })
+          );
+          const logbook = yield* Effect.promise(() =>
+            t.query(api.logbook.listByProject, {
+              filters: { search: "record created" },
+              paginationOpts: { cursor: null, numItems: 10 },
+              projectId: seeded.projectId,
+            })
+          );
+          const reports = yield* Effect.promise(() =>
+            t.query(api.reports.listByProject, {
+              filters: { search: "coordination risk" },
+              paginationOpts: { cursor: null, numItems: 10 },
+              projectId: seeded.projectId,
+            })
+          );
+
+          expect(records.page).toHaveLength(1);
+          expect(logbook.page).toHaveLength(1);
+          expect(reports.page).toHaveLength(1);
+        })
+      ),
+    10_000
+  );
+
   it("creates and resolves safe read-only resources", () =>
     Effect.runPromise(
       Effect.gen(function* () {
