@@ -5,14 +5,14 @@ BuildLedger is Convex-first and Effect-first.
 ## Local Checks
 
 ```bash
-pnpm lint
-pnpm --filter @repo/backend codegen
-pnpm --filter @repo/backend typecheck
-pnpm --filter @repo/ai typecheck
-pnpm --filter @repo/ai test
-pnpm --filter @repo/design-system typecheck
-pnpm --filter web typecheck
-pnpm --filter web build
+bun run lint
+bun run --filter @repo/backend codegen
+bun run --filter @repo/backend typecheck
+bun run --filter @repo/ai typecheck
+bun run --filter @repo/ai test
+bun run --filter @repo/design-system typecheck
+bun run --filter web typecheck
+bun run --filter web build
 ```
 
 ## Code Rules

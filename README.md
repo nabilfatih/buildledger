@@ -42,9 +42,9 @@ The current implementation is a Convex-first V1 foundation:
 ## Local Development
 
 ```bash
-pnpm install
-pnpm --filter @repo/backend codegen
-pnpm dev
+bun install
+bun run --filter @repo/backend codegen
+bun run dev
 ```
 
 Copy `.env.example` to `.env.local` before running the app. The web app runs on `http://127.0.0.1:3000`.

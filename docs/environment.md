@@ -12,7 +12,7 @@ BUILDLEDGER_SECRET_KEY=
 BUILDLEDGER_AUTH_REQUIRED=
 ```
 
-`VITE_CONVEX_URL` is still accepted for Convex CLI deploy workflows. `BUILDLEDGER_PUBLIC_CONVEX_URL` is the runtime public URL used by the TanStack Start web container. For local development, Convex usually prints this URL after `pnpm --filter @repo/backend dev`.
+`VITE_CONVEX_URL` is still accepted for Convex CLI deploy workflows. `BUILDLEDGER_PUBLIC_CONVEX_URL` is the runtime public URL used by the TanStack Start web container. For local development, Convex usually prints this URL after `bun run --filter @repo/backend dev`.
 
 The default local URL is `http://127.0.0.1:3210`.
 

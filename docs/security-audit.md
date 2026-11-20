@@ -78,6 +78,6 @@ flowchart LR
 
 ## Verification
 
-- `pnpm audit --audit-level moderate`
+- `bun audit --audit-level=moderate`
 - unsafe-source search for DOM sinks, `any`, TypeScript suppression comments, debug logging, and client storage
 - dependency tree review for `geist` and `ws`
